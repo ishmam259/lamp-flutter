@@ -174,74 +174,78 @@ class SeedData {
     ),
   ];
 
+  /// Meghna prices more aggressively at every tier, so it wins the
+  /// deterministic match. Padma exists to lose it — and to prove it never saw
+  /// Meghna's curve. Values mirror MEGHNA_BANDS / PADMA_BANDS in the
+  /// TypeScript seed, which is authoritative.
   static final RateCurve meghnaCurve = RateCurve(
-    curveId: 'curve-meghna-01',
+    curveId: 'CURVE-MEGHNA-2026Q3',
     bankMsp: Msp.meghnaMSP,
-    registeredAt: DemoClock.demoEpoch - 30 * day,
+    registeredAt: DemoClock.demoEpoch - 200 * day,
     bands: [
       const RateCurveBand(
         tier: RecourseTier.newTier,
         advanceRatePct: 70.0,
-        feePct: 10.5,
-        manufacturerRecoursePct: 60.0,
+        feePct: 9.5,
+        manufacturerRecoursePct: 100.0,
         maxInvoiceValue: 500000.0,
       ),
       const RateCurveBand(
         tier: RecourseTier.building,
         advanceRatePct: 80.0,
         feePct: 8.8,
-        manufacturerRecoursePct: 30.0,
-        maxInvoiceValue: 1500000.0,
+        manufacturerRecoursePct: 60.0,
+        maxInvoiceValue: 800000.0,
       ),
       const RateCurveBand(
         tier: RecourseTier.established,
         advanceRatePct: 85.0,
-        feePct: 7.5,
-        manufacturerRecoursePct: 15.0,
-        maxInvoiceValue: 5000000.0,
+        feePct: 8.0,
+        manufacturerRecoursePct: 25.0,
+        maxInvoiceValue: 1500000.0,
       ),
       const RateCurveBand(
         tier: RecourseTier.prime,
         advanceRatePct: 90.0,
-        feePct: 6.2,
+        feePct: 7.2,
         manufacturerRecoursePct: 0.0,
-        maxInvoiceValue: 20000000.0,
+        maxInvoiceValue: 3000000.0,
       ),
     ],
   );
 
   static final RateCurve padmaCurve = RateCurve(
-    curveId: 'curve-padma-01',
+    curveId: 'CURVE-PADMA-2026Q3',
     bankMsp: Msp.padmaMSP,
-    registeredAt: DemoClock.demoEpoch - 25 * day,
+    registeredAt: DemoClock.demoEpoch - 186 * day,
     bands: [
       const RateCurveBand(
         tier: RecourseTier.newTier,
         advanceRatePct: 65.0,
-        feePct: 11.2,
-        manufacturerRecoursePct: 70.0,
+        feePct: 9.0,
+        manufacturerRecoursePct: 100.0,
         maxInvoiceValue: 400000.0,
       ),
       const RateCurveBand(
         tier: RecourseTier.building,
         advanceRatePct: 75.0,
-        feePct: 9.4,
-        manufacturerRecoursePct: 40.0,
-        maxInvoiceValue: 1200000.0,
+        feePct: 8.5,
+        manufacturerRecoursePct: 70.0,
+        maxInvoiceValue: 600000.0,
       ),
       const RateCurveBand(
         tier: RecourseTier.established,
-        advanceRatePct: 80.0,
-        feePct: 8.2,
-        manufacturerRecoursePct: 20.0,
-        maxInvoiceValue: 4000000.0,
+        advanceRatePct: 82.0,
+        feePct: 7.6,
+        manufacturerRecoursePct: 30.0,
+        maxInvoiceValue: 1200000.0,
       ),
       const RateCurveBand(
         tier: RecourseTier.prime,
-        advanceRatePct: 85.0,
+        advanceRatePct: 88.0,
         feePct: 7.0,
-        manufacturerRecoursePct: 10.0,
-        maxInvoiceValue: 15000000.0,
+        manufacturerRecoursePct: 0.0,
+        maxInvoiceValue: 2500000.0,
       ),
     ],
   );
@@ -280,7 +284,7 @@ class SeedData {
       final isLate = (i == 2); // 3rd cycle had a 5-day delay
       final invNum = 100 + i;
       final invId = 'INV-00$invNum';
-      final tokId = 'tok-00$invNum';
+      final tokId = 'RCV-00$invNum';
       final issued = now - cycleDaysAgo[i] * day;
       final due = issued + 45 * day;
       final settled = isLate ? due + 5 * day : due - 2 * day;
@@ -311,7 +315,7 @@ class SeedData {
     await ledger.submit(
       fn: 'mintReceivable',
       args: {
-        'tokenId': 'tok-seed-history',
+        'tokenId': 'RCV-SEED-HIST',
         'invoiceId': 'INV-SEED-HIST',
         'manufacturerId': manufacturer.id,
         'buyerDid': rahmanDid,
@@ -341,7 +345,7 @@ class SeedData {
     await ledger.submit(
       fn: 'recordPoD',
       args: {
-        'tokenId': 'tok-seed-history',
+        'tokenId': 'RCV-SEED-HIST',
         'cartonHash': 'seed-hash-01',
         'mpoSignature': 'sig:kamrul',
       },
@@ -352,7 +356,7 @@ class SeedData {
     // 3. Create the Main Demo Consignment: INV-00235
     // 25 cartons for Rahman Medical Hall
     final demoInvoiceId = 'INV-00235';
-    final demoTokenId = 'tok-00235';
+    final demoTokenId = 'RCV-00235';
     final demoCartonCount = 25;
 
     final demoLineItems = [

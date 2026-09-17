@@ -5,6 +5,7 @@ import '../chain/crypto.dart';
 import '../chain/ledger.dart';
 import '../models/domain_models.dart';
 import '../models/ledger_models.dart';
+import '../store/lamp_store.dart';
 import '../world/clock.dart';
 import '../world/gs1.dart';
 import '../world/seed.dart';
@@ -38,7 +39,7 @@ class LaMPState extends ChangeNotifier {
   List<Invoice> invoices = [];
   List<Delivery> deliveries = [];
   CreditHistory? creditHistory;
-  String demoTokenId = 'tok-00235';
+  String demoTokenId = 'RCV-00235';
   String demoInvoiceId = 'INV-00235';
 
   int get blockHeight => ledger.height;
@@ -46,11 +47,28 @@ class LaMPState extends ChangeNotifier {
   List<ChainTx> get txs => ledger.txs;
   int get now => clock.now;
 
+  Timer? _saveTimer;
+
   LaMPState() {
     initWorld();
   }
 
+  /// Restore the stored world, or seed a fresh one.
+  ///
+  /// A stored world that will not load is not an error worth stopping for —
+  /// on a demo device a refusal to start is indistinguishable from the app
+  /// being broken — so anything unreadable falls through to a reseed.
   Future<void> initWorld() async {
+    final stored = await LaMPStore.load();
+    if (stored != null && _restoreFrom(stored)) {
+      _initialized = true;
+      notifyListeners();
+      return;
+    }
+    await _seedWorld();
+  }
+
+  Future<void> _seedWorld() async {
     final seedResult = await SeedData.buildWorld(ledger, clock);
     invoices = List<Invoice>.from(seedResult['invoices'] as List);
     deliveries = List<Delivery>.from(seedResult['deliveries'] as List);
@@ -59,6 +77,76 @@ class LaMPState extends ChangeNotifier {
     demoInvoiceId = seedResult['demoInvoiceId'] as String;
     _initialized = true;
     notifyListeners();
+    await saveNow();
+  }
+
+  bool _restoreFrom(Map<String, dynamic> json) {
+    try {
+      ledger.restore(Map<String, dynamic>.from(json['ledger'] as Map));
+      clock.restore(Map<String, dynamic>.from(json['clock'] as Map));
+
+      invoices = ((json['invoices'] as List<dynamic>?) ?? [])
+          .map((i) => Invoice.fromJson(Map<String, dynamic>.from(i as Map)))
+          .toList();
+      deliveries = ((json['deliveries'] as List<dynamic>?) ?? [])
+          .map((d) => Delivery.fromJson(Map<String, dynamic>.from(d as Map)))
+          .toList();
+
+      final credit = json['creditHistory'];
+      creditHistory = credit == null
+          ? null
+          : CreditHistory.fromJson(Map<String, dynamic>.from(credit as Map));
+
+      demoTokenId = json['demoTokenId'] as String? ?? demoTokenId;
+      demoInvoiceId = json['demoInvoiceId'] as String? ?? demoInvoiceId;
+
+      // An empty ledger is a store that was written mid-seed. Reseed instead.
+      return ledger.height > 0;
+    } catch (e) {
+      debugPrint('LaMPState: stored world did not load ($e), reseeding');
+      return false;
+    }
+  }
+
+  Map<String, dynamic> _snapshot() => {
+    'ledger': ledger.snapshot(),
+    'clock': clock.toJson(),
+    'invoices': invoices.map((i) => i.toJson()).toList(),
+    'deliveries': deliveries.map((d) => d.toJson()).toList(),
+    if (creditHistory != null) 'creditHistory': creditHistory!.toJson(),
+    'demoTokenId': demoTokenId,
+    'demoInvoiceId': demoInvoiceId,
+  };
+
+  /// Write the world immediately, cancelling any pending debounced save.
+  Future<void> saveNow() async {
+    _saveTimer?.cancel();
+    if (!_initialized) return;
+    await LaMPStore.save(_snapshot());
+  }
+
+  /// Every mutation funnels through notifyListeners, so persistence hangs off
+  /// it rather than off ten individual call sites — a new action cannot then
+  /// be added that silently fails to persist.
+  ///
+  /// Debounced because the scan cascade fires a notification per carton, and
+  /// serialising the whole ledger twenty-five times in as many seconds would
+  /// be felt on a mid-range phone.
+  @override
+  void notifyListeners() {
+    super.notifyListeners();
+    if (!_initialized) return;
+    _saveTimer?.cancel();
+    _saveTimer = Timer(
+      const Duration(milliseconds: 400),
+      () => LaMPStore.save(_snapshot()),
+    );
+  }
+
+  @override
+  void dispose() {
+    _saveTimer?.cancel();
+    super.dispose();
   }
 
   void setPersona(PersonaId persona) {
@@ -66,8 +154,12 @@ class LaMPState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Discard the stored world and rebuild the seeded one.
   Future<void> resetWorld() async {
-    await initWorld();
+    _saveTimer?.cancel();
+    _initialized = false;
+    await LaMPStore.clear();
+    await _seedWorld();
   }
 
   void advanceClock(int ms) {
@@ -288,7 +380,7 @@ class LaMPState extends ChangeNotifier {
   }) async {
     final invoiceNum = Random().nextInt(800) + 300;
     final invoiceId = 'INV-00$invoiceNum';
-    final tokenId = 'tok-00$invoiceNum';
+    final tokenId = 'RCV-00$invoiceNum';
 
     final totalCartons = lineItems.fold<int>(0, (s, l) => s + l.cartons);
     final declaredValue = lineItems.fold<double>(0.0, (s, l) => s + l.lineValue);

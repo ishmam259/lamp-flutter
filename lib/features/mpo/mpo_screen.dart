@@ -1,10 +1,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../core/chain/crypto.dart';
 import '../../core/constants/colors.dart';
 import '../../core/constants/formatters.dart';
 import '../../core/models/domain_models.dart';
 import '../../core/state/lamp_state.dart';
+import '../../widgets/carton_code_view.dart';
+import '../../widgets/carton_scanner_sheet.dart';
 import '../../widgets/data_matrix_view.dart';
 import '../../widgets/demo_director_sheet.dart';
 import '../../widgets/ledger_inspector_sheet.dart';
@@ -21,6 +24,15 @@ class MpoScreen extends StatefulWidget {
 }
 
 class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMixin {
+  /// A carton belonging to no consignment in this world.
+  ///
+  /// The scan cascade substitutes this at position 14, and the same payload is
+  /// offered as a scannable code so the camera path can be refused too. It has
+  /// to be one string: two literals that drifted apart would leave the camera
+  /// demo quietly accepting what the tap demo refuses.
+  static const String _misroutedGs1 =
+      '(01)08901234001019(17)280824(10)BCH-FOREIGN(21)SN-9999';
+
   late TabController _tabController;
   bool _offlineMode = false;
   final List<String> _offlineQueue = [];
@@ -407,20 +419,71 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                 ),
 
               // Scanner Action Buttons
+              if (cameraScanningSupported) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _openCameraScanner(state, delivery),
+                    icon: const Icon(Icons.qr_code_scanner, size: 18),
+                    label: const Text('Scan with camera'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: LaMPColors.brand,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+              // Present a carton from no consignment to a second device, so
+              // the camera can be refused by the chaincode on camera.
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: _showMisroutedCode,
+                  icon: const Icon(Icons.report_gmailerrorred_outlined, size: 16),
+                  label: const Text(
+                    'Show a misrouted carton code',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                  style: TextButton.styleFrom(
+                    foregroundColor: LaMPColors.dispute,
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
               Row(
                 children: [
                   Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () => _scanNextCarton(state, delivery),
-                      icon: const Icon(Icons.camera_alt_outlined, size: 18),
-                      label: const Text('Scan Next Carton'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: LaMPColors.brand,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                    ),
+                    child: cameraScanningSupported
+                        ? OutlinedButton.icon(
+                            onPressed: () => _scanNextCarton(state, delivery),
+                            icon: const Icon(Icons.touch_app_outlined, size: 18),
+                            label: const Text('Scan Next Carton'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: LaMPColors.brand,
+                              side: const BorderSide(color: LaMPColors.brand),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                          )
+                        : ElevatedButton.icon(
+                            onPressed: () => _scanNextCarton(state, delivery),
+                            icon: const Icon(Icons.touch_app_outlined, size: 18),
+                            label: const Text('Scan Next Carton'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: LaMPColors.brand,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
                   ),
                   const SizedBox(width: 8),
                   OutlinedButton(
@@ -439,6 +502,18 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                   ),
                 ],
               ),
+              if (!cameraScanningSupported) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Camera scanning runs on Android and iOS. This build is using '
+                  'the on-screen cascade.',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: LaMPColors.fieldInk3,
+                    height: 1.3,
+                  ),
+                ),
+              ],
               const SizedBox(height: 16),
 
               // List of 25 Cartons
@@ -472,7 +547,13 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                     ),
                     child: Row(
                       children: [
-                        DataMatrixView(text: c.gs1, size: 40),
+                        // Tapping enlarges the carton's code into something a
+                        // second device can actually read.
+                        InkWell(
+                          onTap: () => _showCartonCode(c),
+                          borderRadius: BorderRadius.circular(4),
+                          child: DataMatrixView(text: c.gs1, size: 40),
+                        ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Column(
@@ -543,6 +624,117 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
     );
   }
 
+  /// Open the live camera and submit whatever it decodes.
+  ///
+  /// The payload goes to the chaincode untouched — the sheet never checks it
+  /// against the manifest first — so a carton from another invoice is refused
+  /// by `recordPoD`'s own membership test, on camera, for real.
+  Future<void> _openCameraScanner(LaMPState state, Delivery delivery) async {
+    _autoTimer?.cancel();
+    if (_autoScanning) setState(() => _autoScanning = false);
+
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        fullscreenDialog: true,
+        builder: (_) => CartonScannerSheet(
+          invoiceId: delivery.invoiceId,
+          scannedCount: delivery.cartons.where((c) => c.scannedAt != null).length,
+          totalCartons: delivery.cartons.length,
+          onPayload: (payload) async {
+            final res = await state.scanCarton(
+              delivery.tokenId,
+              payload,
+              'LMP-DEV-4471',
+            );
+
+            if (!res.ok) {
+              return CartonScanResult(
+                accepted: false,
+                message: res.error ??
+                    'Chaincode refused this carton for ${delivery.invoiceId}.',
+              );
+            }
+
+            final hash = LaMPCrypto.sha256Hex(payload);
+            final match = delivery.cartons.where((c) => c.hash == hash);
+            final label = match.isEmpty ? 'Carton' : match.first.cartonId;
+            final done =
+                delivery.cartons.where((c) => c.scannedAt != null).length;
+
+            return CartonScanResult(
+              accepted: true,
+              message: '$label recorded — $done of ${delivery.cartons.length}',
+            );
+          },
+        ),
+      ),
+    );
+
+    if (mounted) setState(() {});
+  }
+
+  /// Display the misrouted carton, for scanning from another device.
+  void _showMisroutedCode() {
+    showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: LaMPColors.fieldSurface,
+        title: const Text(
+          'Misrouted carton',
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'This carton belongs to no consignment in this world. Scan it '
+                'with the camera and the chaincode will refuse it — the '
+                'refusal is genuine, not staged.',
+                style: TextStyle(fontSize: 12, height: 1.4, color: LaMPColors.fieldInk2),
+              ),
+              const SizedBox(height: 14),
+              const CartonCodeView(gs1: _misroutedGs1, size: 200),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Show a carton's code large enough to be scanned off the screen.
+  ///
+  /// Without printed labels this is the only way to exercise the camera path,
+  /// and it is also how the planted foreign carton gets presented to a second
+  /// device during the demo.
+  void _showCartonCode(Carton carton) {
+    showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: LaMPColors.fieldSurface,
+        title: Text(
+          carton.cartonId,
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+        ),
+        content: SingleChildScrollView(
+          child: CartonCodeView(gs1: carton.gs1, size: 200),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _scanNextCarton(LaMPState state, Delivery delivery) async {
     // Find next unscanned carton
     final unscannedIndex = delivery.cartons.indexWhere((c) => c.scannedAt == null);
@@ -558,8 +750,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
     // On the real demo, Carton 14 is presented with a foreign payload
     if (unscannedIndex == 13 && targetCarton.rejected != true) {
       // Send foreign barcode to trigger genuine chaincode refusal!
-      const foreignGs1 = '(01)08901234001019(17)280824(10)BCH-FOREIGN(21)SN-9999';
-      await state.scanCarton(delivery.tokenId, foreignGs1, 'LMP-DEV-4471');
+      await state.scanCarton(delivery.tokenId, _misroutedGs1, 'LMP-DEV-4471');
       setState(() {
         _scanBannerError = 'CHAINCODE REFUSED: Carton does not belong to invoice ${delivery.invoiceId}. Product rejected!';
         targetCarton.rejected = true;

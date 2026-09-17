@@ -53,26 +53,55 @@ authoritative where they disagree.
 
 ### Known divergences
 
-| | Dart | TypeScript |
-| --- | --- | --- |
-| Hero token id | `tok-00235` | `RCV-00235` |
-| Meghna NEW band | 70% / 10.5% / 60% recourse | 70% / 9.5% / 100% recourse |
+Token ids (`RCV-00235`) and both rate curves now match the TypeScript seed, so
+Meghna wins the deterministic match at **80% advance / 8.8% fee** on a BUILDING
+counterparty with the same band values on both sides.
 
-The number the demo turns on is intact: Meghna wins the deterministic match at
-**80% advance / 8.8% fee** on a BUILDING counterparty, beating Padma's 75% / 9.4%.
+One difference remains, deliberately: the GS1 payload here is written in the
+human-readable form `(01)…(17)…(10)…(21)…`, where the TypeScript emits the true
+element string with FNC1 separators. Both hash consistently within their own
+application, but a physically printed GS1 DataMatrix would decode to the
+TypeScript form and be refused by this app. Worth closing before anything is
+printed on a real carton.
+
+## Carton scanning
+
+Two paths, and the field app offers whichever the platform supports.
+
+**Camera** (Android and iOS) reads the code through `mobile_scanner` and submits
+the decoded payload to `recordPoD` untouched — never a hash, and never checked
+against the manifest first — so a carton from another invoice is refused by the
+chaincode's own membership test rather than by the UI deciding in advance.
+
+**On-screen cascade** is the fallback, and what web and desktop builds use. It
+walks the consignment at demo pace and still routes every carton through the
+same chaincode call, including the planted misrouted carton at position 14.
+
+Tapping a carton's code in the scanner list enlarges it into something a second
+device can read. Those codes are QR, not DataMatrix, carrying the identical GS1
+payload: encoding ECC200 is several hundred lines of Reed-Solomon that would
+prove nothing extra, and the caption on screen says which symbology it is.
+
+## Persistence
+
+The world is stored as one JSON document under a single SharedPreferences key —
+localStorage on web, a plist or XML file on the phones. Ledger, clock and the
+off-chain records are only meaningful together, so one key makes a half-written
+world unrepresentable.
+
+Saves are debounced 400 ms and hang off `notifyListeners`, so a new action
+cannot be added that silently fails to persist. A stored world that will not
+load is discarded and reseeded rather than blocking startup. **Reset world** in
+the demo director clears the store and rebuilds the seeded world.
 
 ## Status
 
-`flutter analyze` is clean and `flutter test` passes 8/8 — policy parsing
-(AND/OR/OutOf/nested), world seeding, carton-hash rejection, and the
-Building→Established tier upgrade on the eighth settled cycle.
-
-Not yet built:
-
-- **Camera scanning.** The carton scanner is the simulated cascade. Wiring
-  `mobile_scanner` to decode real GS1 DataMatrix codes is the outstanding piece.
-- **Persistence.** `LaMPState` builds a fresh in-memory ledger on every launch,
-  so closing the app resets the world to its seeded state.
+`flutter analyze` is clean and `flutter test` passes 11/11 — policy parsing
+(AND/OR/OutOf/nested), world seeding, carton-hash rejection, the
+Building→Established tier upgrade on the eighth settled cycle, and three
+persistence tests covering the snapshot round trip through `jsonEncode`,
+private-data membership surviving a restore, and a restored ledger continuing
+its hash chain from the stored tip rather than from genesis.
 
 ## Notes
 

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lamp_flutter/core/chain/ledger.dart';
 import 'package:lamp_flutter/core/chain/policy.dart';
@@ -52,7 +54,7 @@ void main() {
       expect(res['deliveries'], isNotEmpty);
       expect(ledger.height, greaterThan(0));
 
-      final tokenJson = await ledger.readWorld('token:tok-00235');
+      final tokenJson = await ledger.readWorld('token:RCV-00235');
       expect(tokenJson, isNotNull);
       final token = ReceivableToken.fromJson(Map<String, dynamic>.from(tokenJson as Map));
       expect(token.invoiceId, equals('INV-00235'));
@@ -65,7 +67,7 @@ void main() {
       final scanRes = await ledger.submit(
         fn: 'recordPoD',
         args: {
-          'tokenId': 'tok-00235',
+          'tokenId': 'RCV-00235',
           'cartonHash': 'foreign-bogus-hash-from-other-invoice',
           'mpoSignature': 'sig:kamrul',
         },
@@ -82,7 +84,7 @@ void main() {
       await SeedData.buildWorld(ledger, clock);
 
       // Fast-forward delivery
-      final rawToken = await ledger.readWorld('token:tok-00235');
+      final rawToken = await ledger.readWorld('token:RCV-00235');
       final token = ReceivableToken.fromJson(Map<String, dynamic>.from(rawToken as Map));
 
       // Batch scan all 25 cartons
@@ -139,6 +141,99 @@ void main() {
       final credit = CreditHistory.fromJson(Map<String, dynamic>.from(rawCredit as Map));
       expect(credit.cycles.length, equals(8));
       expect(credit.tier, equals(RecourseTier.established));
+    });
+  });
+
+  group('LaMP Persistence Tests', () {
+    test('ledger survives a snapshot/restore round trip', () async {
+      final ledger = LocalLedger();
+      final clock = DemoClock();
+      await SeedData.buildWorld(ledger, clock);
+
+      final heightBefore = ledger.height;
+      final txCountBefore = ledger.txs.length;
+      final tipHashBefore = ledger.blocks.last.hash;
+
+      final snapshot = ledger.snapshot();
+
+      // Round-trip through JSON, exactly as the store does — an object that
+      // survives restore() in memory but not jsonEncode would pass a naive
+      // test and still fail on a real device.
+      final wire = jsonDecode(jsonEncode(snapshot)) as Map<String, dynamic>;
+
+      final restored = LocalLedger();
+      restored.restore(wire);
+
+      expect(restored.height, equals(heightBefore));
+      expect(restored.txs.length, equals(txCountBefore));
+      expect(restored.blocks.last.hash, equals(tipHashBefore));
+
+      // World state and the hero token come back intact.
+      final tokenJson = await restored.readWorld('token:RCV-00235');
+      expect(tokenJson, isNotNull);
+      final token = ReceivableToken.fromJson(Map<String, dynamic>.from(tokenJson as Map));
+      expect(token.invoiceId, equals('INV-00235'));
+      expect(token.cartonHashes.length, equals(25));
+
+      // Private data keeps its membership, so a non-member still reads a seal.
+      final asOutsider = await restored.readPrivate(
+        'rateCurves',
+        'CURVE-MEGHNA-2026Q3',
+        Msp.padmaMSP.id,
+      );
+      expect(asOutsider, isA<Map>());
+      expect((asOutsider as Map)['sealed'], isTrue);
+
+      final asOwner = await restored.readPrivate(
+        'rateCurves',
+        'CURVE-MEGHNA-2026Q3',
+        Msp.meghnaMSP.id,
+      );
+      expect(asOwner, isNotNull);
+      expect((asOwner as Map)['sealed'], isNot(isTrue));
+    });
+
+    test('a restored ledger still accepts new transactions', () async {
+      final ledger = LocalLedger();
+      final clock = DemoClock();
+      await SeedData.buildWorld(ledger, clock);
+
+      final restored = LocalLedger();
+      restored.restore(
+        jsonDecode(jsonEncode(ledger.snapshot())) as Map<String, dynamic>,
+      );
+      final heightBefore = restored.height;
+
+      final raw = await restored.readWorld('token:RCV-00235');
+      final token = ReceivableToken.fromJson(Map<String, dynamic>.from(raw as Map));
+
+      final res = await restored.submit(
+        fn: 'recordPoD',
+        args: {
+          'tokenId': token.tokenId,
+          'cartonHash': token.cartonHashes.first,
+          'mpoSignature': 'sig:LMP-DEV-4471',
+        },
+        asMsp: Msp.manufacturerMSP,
+        nowTimestamp: clock.now,
+      );
+
+      expect(res.ok, isTrue);
+      expect(restored.height, equals(heightBefore + 1));
+      // The chain continues from the restored tip rather than from genesis.
+      expect(restored.blocks.last.prevHash, equals(ledger.blocks.last.hash));
+    });
+
+    test('clock offset survives restore', () {
+      final clock = DemoClock();
+      clock.advanceDays(30);
+      final offsetBefore = clock.offset;
+
+      final restored = DemoClock();
+      restored.restore(jsonDecode(jsonEncode(clock.toJson())) as Map<String, dynamic>);
+
+      expect(restored.offset, equals(offsetBefore));
+      expect(restored.now, closeTo(clock.now, 1000));
     });
   });
 }

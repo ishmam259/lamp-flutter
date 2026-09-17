@@ -16,6 +16,18 @@ class PrivateEntry {
     required this.value,
     required this.hash,
   });
+
+  Map<String, dynamic> toJson() => {
+    'members': members,
+    'value': value,
+    'hash': hash,
+  };
+
+  factory PrivateEntry.fromJson(Map<String, dynamic> json) => PrivateEntry(
+    members: ((json['members'] as List<dynamic>?) ?? []).cast<String>(),
+    value: json['value'],
+    hash: json['hash'] as String,
+  );
 }
 
 class SubmitResult {
@@ -68,6 +80,50 @@ class LocalLedger {
     _collections['rateCurves']?.clear();
     _blocks.clear();
     _txs.clear();
+  }
+
+  /// The whole ledger as plain JSON, for persistence.
+  ///
+  /// World-state values are already plain maps — every chaincode write goes
+  /// through `toJson()` — so nothing here needs a custom encoder.
+  Map<String, dynamic> snapshot() => {
+    'world': _world,
+    'collections': {
+      for (final entry in _collections.entries)
+        entry.key: {
+          for (final e in entry.value.entries) e.key: e.value.toJson(),
+        },
+    },
+    'blocks': _blocks.map((b) => b.toJson()).toList(),
+    'txs': _txs.map((t) => t.toJson()).toList(),
+  };
+
+  /// Rebuild from a snapshot. Replaces whatever is currently held.
+  ///
+  /// The hash chain is not re-derived: the stored hashes are the ones the
+  /// transactions were committed with, and recomputing them would quietly
+  /// paper over a corrupted store rather than surfacing it.
+  void restore(Map<String, dynamic> json) {
+    clear();
+
+    final world = (json['world'] as Map?) ?? {};
+    world.forEach((k, v) => _world[k as String] = v);
+
+    final collections = (json['collections'] as Map?) ?? {};
+    collections.forEach((name, entries) {
+      final target = _collections[name as String] ??= {};
+      (entries as Map).forEach((key, value) {
+        target[key as String] =
+            PrivateEntry.fromJson(Map<String, dynamic>.from(value as Map));
+      });
+    });
+
+    for (final b in (json['blocks'] as List<dynamic>?) ?? []) {
+      _blocks.add(Block.fromJson(Map<String, dynamic>.from(b as Map)));
+    }
+    for (final t in (json['txs'] as List<dynamic>?) ?? []) {
+      _txs.add(ChainTx.fromJson(Map<String, dynamic>.from(t as Map)));
+    }
   }
 
   void setWorldDirect(String key, dynamic value) {

@@ -282,6 +282,12 @@ enum DeliveryStatus {
 
   final String id;
   const DeliveryStatus(this.id);
+
+  static DeliveryStatus fromId(String id) =>
+      DeliveryStatus.values.firstWhere(
+        (s) => s.id == id,
+        orElse: () => DeliveryStatus.pending,
+      );
 }
 
 class Delivery {
@@ -327,6 +333,23 @@ class Delivery {
     if (startedAt != null) 'startedAt': startedAt,
     if (completedAt != null) 'completedAt': completedAt,
   };
+
+  factory Delivery.fromJson(Map<String, dynamic> json) => Delivery(
+    id: json['id'] as String,
+    invoiceId: json['invoiceId'] as String,
+    tokenId: json['tokenId'] as String,
+    mpoId: json['mpoId'] as String,
+    pharmacyDid: json['pharmacyDid'] as String,
+    status: DeliveryStatus.fromId(json['status'] as String),
+    sequence: (json['sequence'] as num).toInt(),
+    cartons: ((json['cartons'] as List<dynamic>?) ?? [])
+        .map((c) => Carton.fromJson(Map<String, dynamic>.from(c as Map)))
+        .toList(),
+    signatureRef: json['signatureRef'] as String?,
+    photoRefs: (json['photoRefs'] as List<dynamic>?)?.cast<String>(),
+    startedAt: (json['startedAt'] as num?)?.toInt(),
+    completedAt: (json['completedAt'] as num?)?.toInt(),
+  );
 }
 
 class Financing {
@@ -722,4 +745,19 @@ class Invoice {
     'dueDate': dueDate,
     'cartonCount': cartonCount,
   };
+
+  factory Invoice.fromJson(Map<String, dynamic> json) => Invoice(
+    invoiceId: json['invoiceId'] as String,
+    tokenId: json['tokenId'] as String,
+    manufacturerId: json['manufacturerId'] as String,
+    pharmacyDid: json['pharmacyDid'] as String,
+    lineItems: ((json['lineItems'] as List<dynamic>?) ?? [])
+        .map((l) => LineItem.fromJson(Map<String, dynamic>.from(l as Map)))
+        .toList(),
+    value: (json['value'] as num).toDouble(),
+    termsDays: (json['termsDays'] as num).toInt(),
+    issuedAt: (json['issuedAt'] as num).toInt(),
+    dueDate: (json['dueDate'] as num).toInt(),
+    cartonCount: (json['cartonCount'] as num).toInt(),
+  );
 }

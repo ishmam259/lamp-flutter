@@ -27,4 +27,18 @@ class DemoClock {
     _offset = 0;
     _anchor = DateTime.now().millisecondsSinceEpoch;
   }
+
+  Map<String, dynamic> toJson() => {'offset': _offset, 'anchor': _anchor};
+
+  /// Restore a persisted clock.
+  ///
+  /// The anchor is restored rather than re-taken, so real time that passed
+  /// while the app was closed still counts. Re-anchoring to now would freeze
+  /// ledger time whenever the app is not running, and two transactions either
+  /// side of a restart would carry a smaller gap than actually elapsed.
+  void restore(Map<String, dynamic> json) {
+    _offset = (json['offset'] as num?)?.toInt() ?? 0;
+    _anchor = (json['anchor'] as num?)?.toInt() ??
+        DateTime.now().millisecondsSinceEpoch;
+  }
 }

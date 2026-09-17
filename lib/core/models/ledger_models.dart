@@ -178,6 +178,16 @@ class Block {
     'timestamp': timestamp,
     'txs': txs.map((t) => t.toJson()).toList(),
   };
+
+  factory Block.fromJson(Map<String, dynamic> json) => Block(
+    number: (json['number'] as num).toInt(),
+    prevHash: json['prevHash'] as String,
+    hash: json['hash'] as String,
+    timestamp: (json['timestamp'] as num).toInt(),
+    txs: ((json['txs'] as List<dynamic>?) ?? [])
+        .map((t) => ChainTx.fromJson(Map<String, dynamic>.from(t as Map)))
+        .toList(),
+  );
 }
 
 class ChainDescriptor {

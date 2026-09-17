@@ -1,6 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Carton scanning reads the GS1 code off the box. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <!-- A device with no camera can still run the app on the scan cascade. -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+
     <application
-        android:label="lamp_flutter"
+        android:label="LaMP"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

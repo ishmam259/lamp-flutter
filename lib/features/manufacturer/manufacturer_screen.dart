@@ -293,7 +293,7 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text('Token ID: tok-00235',
+                              const Text('Token ID: RCV-00235',
                                   style: TextStyle(fontSize: 11, fontFamily: 'monospace', color: LaMPColors.hashInk)),
                               Text('Terms: 45 days · 25 Cartons',
                                   style: const TextStyle(fontSize: 11, color: LaMPColors.portalInk3)),

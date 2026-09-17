@@ -5,7 +5,9 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Lamp Flutter</string>
+	<string>LaMP</string>
+	<key>NSCameraUsageDescription</key>
+	<string>LaMP uses the camera to scan the GS1 code on each carton, so a delivery can be proved against the receivable on the ledger.</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
