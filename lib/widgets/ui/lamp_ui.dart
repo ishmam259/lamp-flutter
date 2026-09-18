@@ -162,7 +162,7 @@ class LampChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final fg = tone.fg(context);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: Gap.sm, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: Gap.sm, vertical: 4),
       decoration: BoxDecoration(
         color: tone.bg(context),
         borderRadius: BorderRadius.circular(LaMPRadius.control),

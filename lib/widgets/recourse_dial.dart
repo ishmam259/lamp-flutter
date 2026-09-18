@@ -77,7 +77,7 @@ class RecourseDial extends StatelessWidget {
     final subColor = isDark ? LaMPColors.portalInk3 : LaMPColors.fieldInk3;
 
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(8),
@@ -102,7 +102,7 @@ class RecourseDial extends StatelessWidget {
                           : (isDark ? LaMPColors.portalSurface3 : Colors.black26)),
                 ),
               ),
-              const SizedBox(width: 5),
+              const SizedBox(width: 4),
               Flexible(
                 child: Text(
                   tier.label.toUpperCase(),
@@ -117,7 +117,7 @@ class RecourseDial extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Text(
             '${band.advanceRatePct.round()}%',
             style: TextStyle(
@@ -135,7 +135,7 @@ class RecourseDial extends StatelessWidget {
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
             child: SizedBox(
-              height: 5,
+              height: 4,
               child: Row(
                 children: [
                   Expanded(

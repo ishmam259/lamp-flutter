@@ -67,7 +67,7 @@ class _SignaturePadState extends State<SignaturePad> {
             ),
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [

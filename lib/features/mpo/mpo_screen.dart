@@ -8,6 +8,7 @@ import '../../core/constants/formatters.dart';
 import '../../core/models/domain_models.dart';
 import '../../core/state/lamp_state.dart';
 import '../../widgets/carton_code_view.dart';
+import '../../widgets/ui/lamp_skeleton.dart';
 import '../../widgets/ui/lamp_ui.dart';
 import '../../widgets/carton_scanner_sheet.dart';
 import '../../widgets/data_matrix_view.dart';
@@ -94,7 +95,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 8),
                   Icon(Icons.wifi, size: 14, color: c.brand),
                 ],
               ),
@@ -117,7 +118,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
               icon: Icon(Icons.movie_filter_outlined, color: c.brand),
               onPressed: () => DemoDirectorSheet.show(context),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 8),
           ],
           bottom: TabBar(
             controller: _tabController,
@@ -139,7 +140,18 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
           // Top is already handled by the AppBar.
           top: false,
           child: delivery == null
-              ? const Center(child: CircularProgressIndicator())
+              ? const LampShimmer(
+                  child: Padding(
+                    padding: EdgeInsets.all(Gap.lg),
+                    child: Column(
+                      children: [
+                        LampSkeletonCard(lines: 2),
+                        SizedBox(height: Gap.lg),
+                        LampSkeletonCard(lines: 1),
+                      ],
+                    ),
+                  ),
+                )
               : TabBarView(
                   controller: _tabController,
                   children: [
@@ -222,9 +234,9 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                       'রহমান মেডিকেল হল · Sherpur Road, Bogura Sadar',
                       style: TextStyle(fontSize: 12, color: c.inkMuted),
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 12),
                     Divider(color: c.line, height: 1),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 12),
                     // Three figures sharing the width. Unflexed beside a
                     // spaceBetween they claimed their natural widths and
                     // overflowed a 360dp phone by 62 pixels; LampStat scales
@@ -262,7 +274,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                         valueColor: AlwaysStoppedAnimation<Color>(c.brand),
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     Text(
                       '${(ratio * 100).toInt()}% consignment verified on blockchain',
                       style: TextStyle(fontSize: 11, color: c.inkFaint),
@@ -302,7 +314,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                       'Consignment Manifest (Shomota Pharma)',
                       style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: c.ink),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8),
                     _manifestRow(context, 'Paracetamol 500mg (SHM-PARA-500)', '10 cartons', '50,000 tabs'),
                     _manifestRow(context, 'Esomeprazole 20mg (SHM-ESOM-20)', '8 cartons', '9,600 caps'),
                     _manifestRow(context, 'Metformin HCl 500mg (SHM-METF-500)', '7 cartons', '21,000 tabs'),
@@ -319,7 +331,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
   Widget _manifestRow(BuildContext context, String name, String cartons, String units) {
     final c = context.lamp;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -349,7 +361,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
             children: [
               // Scanner Status Bar
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
                   color: c.surface,
                   borderRadius: BorderRadius.circular(8),
@@ -438,7 +450,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                     style: ElevatedButton.styleFrom(
                       backgroundColor: c.brand,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -499,7 +511,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                     onPressed: () => _toggleAutoScan(state, delivery),
                     style: OutlinedButton.styleFrom(
                       side: BorderSide(color: _autoScanning ? c.dispute : c.brand),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                     ),
                     child: Text(
                       _autoScanning ? 'Stop Auto' : 'Auto Cascade',
@@ -535,7 +547,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: delivery.cartons.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 6),
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
                 itemBuilder: (ctx, i) {
                   final carton = delivery.cartons[i];
                   final isScanned = carton.scannedAt != null;
@@ -543,7 +555,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                   final isPlant = (i == 13); // Carton 14 (0-indexed 13)
 
                   return Container(
-                    padding: const EdgeInsets.all(10),
+                    padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       color: c.surface,
                       borderRadius: BorderRadius.circular(8),
@@ -563,7 +575,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                           borderRadius: BorderRadius.circular(4),
                           child: DataMatrixView(text: carton.gs1, size: 40),
                         ),
-                        const SizedBox(width: 10),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -622,7 +634,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                     style: ElevatedButton.styleFrom(
                       backgroundColor: c.brand,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                   ),
                 ),
@@ -703,7 +715,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                 'refusal is genuine, not staged.',
                 style: TextStyle(fontSize: 12, height: 1.4, color: c.inkMuted),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
               const CartonCodeView(gs1: _misroutedGs1, size: 200),
             ],
           ),
@@ -857,7 +869,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                             style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
                       ],
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -866,7 +878,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                             style: const TextStyle(fontSize: 13, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, fontWeight: FontWeight.bold)),
                       ],
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -908,7 +920,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                         style: ElevatedButton.styleFrom(
                           backgroundColor: c.brand,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
                           disabledBackgroundColor: Colors.black12,
                         ),
                       ),

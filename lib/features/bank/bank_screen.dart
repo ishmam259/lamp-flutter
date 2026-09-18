@@ -125,7 +125,7 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
               icon: Icon(Icons.movie_filter_outlined, color: c.brand),
               onPressed: () => DemoDirectorSheet.show(context),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 8),
           ],
           bottom: TabBar(
             controller: _tabController,
@@ -179,7 +179,7 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
               if (_executionBanner != null)
                 Container(
                   margin: const EdgeInsets.only(bottom: 16),
-                  padding: const EdgeInsets.all(14),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: _isSuccessBanner ? c.verifiedSoft : c.disputeSoft,
                     borderRadius: BorderRadius.circular(8),
@@ -242,16 +242,16 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
                             ),
                           ),
                         ),
-                        const SizedBox(width: 10),
+                        const SizedBox(width: 8),
                         Text(
                           LaMPFormatters.formatBDT(182400),
                           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: c.brand),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     const LampChip(label: 'SCF eligible', tone: LampTone.verified),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     // "Buyer: X · Seller: Y · Z" was sixty-six characters
                     // restating a relationship the portal never varies.
                     Text(
@@ -260,14 +260,14 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
                     ),
                     const SizedBox(height: 16),
                     Divider(color: c.line),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 12),
 
                     // Smart Contract Verification Checklist
                     Text(
                       'SMART CONTRACT FINANCING PREREQUISITES',
                       style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: c.inkFaint),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8),
 
                     _checkItem(context,
                       label: 'Delivery Confirmed (≥90% Scanned)',
@@ -323,7 +323,7 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _activeBank == Msp.meghnaMSP ? c.brand : c.pending,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         ),
                       ),
@@ -350,7 +350,7 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
       {required String label, required String detail, required bool isPassed}) {
     final c = context.lamp;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -430,7 +430,7 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding: const EdgeInsets.all(18),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: c.surface,
                   borderRadius: BorderRadius.circular(10),
@@ -470,7 +470,7 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 800),
           child: Container(
-            padding: const EdgeInsets.all(18),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: c.surface,
               borderRadius: BorderRadius.circular(10),
@@ -481,7 +481,7 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
               children: [
                 Text('Bank Portfolio Management',
                     style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: c.ink)),
-                SizedBox(height: 6),
+                SizedBox(height: 8),
                 Text('Real-time exposure across all verified pharmacy supply chain receivables.',
                     style: TextStyle(fontSize: 12, color: c.inkMuted)),
                 SizedBox(height: 20),

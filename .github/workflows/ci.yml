@@ -1,0 +1,90 @@
+name: CI
+
+# The iOS job is the point of this file.
+#
+# iOS cannot be built from Windows or Linux: the toolchain is Xcode, which runs
+# only on macOS, and there is no iOS simulator for any other host. GitHub's
+# macos runners are the way to get a real `flutter build ios` without owning a
+# Mac — so the build that cannot happen on the development machine happens
+# here, on every push.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  # Analyzer, tests and the Android build. Everything here runs on Linux
+  # because it is faster and cheaper than a macOS runner, and none of it needs
+  # Xcode.
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        # Covers the layout sweep, which lays every screen and sheet out
+        # against iPhone geometry under TargetPlatform.iOS. It is not a
+        # substitute for building on a Mac, but it catches the class of defect
+        # that actually differs — where text wraps and what fits.
+        run: flutter test
+
+      - name: Build Android
+        run: flutter build apk --debug
+
+  # The real iOS compile. --no-codesign because signing needs a paid Apple
+  # developer account and provisioning profiles; without it the build still
+  # proves the Dart, the plugins and the native pods all compile for arm64
+  # iOS, which is what breaks in practice.
+  ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      - name: Build iOS
+        run: flutter build ios --no-codesign --debug
+
+      - name: Check the camera permission string is present
+        # An iOS build that reaches the App Store without NSCameraUsageDescription
+        # is rejected, and one that reaches a tester crashes the moment the
+        # scanner opens. Cheap to assert, expensive to discover late.
+        run: |
+          if ! grep -q NSCameraUsageDescription ios/Runner/Info.plist; then
+            echo "NSCameraUsageDescription missing from ios/Runner/Info.plist"
+            exit 1
+          fi
+
+  # Static hosting target. Proves the app still builds without the native
+  # plugins it cannot use there.
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      - name: Build web
+        run: flutter build web --release

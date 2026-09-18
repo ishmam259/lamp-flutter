@@ -27,7 +27,7 @@ class LedgerInspectorSheet extends StatelessWidget {
     return Container(
       height: MediaQuery.of(context).size.height * 0.88,
       decoration: BoxDecoration(
-        color: Color(0xFF0A0F0D),
+        color: c.bg,
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
         border: Border(top: BorderSide(color: c.lineStrong, width: 1.5)),
       ),
@@ -39,7 +39,7 @@ class LedgerInspectorSheet extends StatelessWidget {
             width: 36,
             height: 4,
             decoration: BoxDecoration(
-              color: Colors.white24,
+              color: c.lineStrong,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -63,7 +63,7 @@ class LedgerInspectorSheet extends StatelessWidget {
                   ],
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: c.surfaceAlt,
                     borderRadius: BorderRadius.circular(20),
@@ -142,7 +142,7 @@ class LedgerInspectorSheet extends StatelessWidget {
                   child: Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
                           color: c.surfaceAlt,
                           borderRadius: BorderRadius.circular(4),
@@ -169,7 +169,7 @@ class LedgerInspectorSheet extends StatelessWidget {
                 ),
                 const SizedBox(width: Gap.sm),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
                     color: statusColor.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(4),
@@ -185,7 +185,7 @@ class LedgerInspectorSheet extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             // The hash is the half that can afford to shorten; the timestamp
             // keeps its width. Unflexed, the pair overflowed by 69.
             Row(
@@ -252,13 +252,13 @@ class LedgerInspectorSheet extends StatelessWidget {
                 _detailRow(context, 'Status', tx.status.label),
                 _detailRow(context, 'Submitter', tx.submitter, mono: true),
                 _detailRow(context, 'Time', LaMPFormatters.formatDateTime(tx.timestamp)),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 Text(
                   'ENDORSEMENT POLICY',
                   style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: c.inkFaint),
                 ),
                 Container(
-                  margin: const EdgeInsets.only(top: 4, bottom: 10),
+                  margin: const EdgeInsets.only(top: 4, bottom: 8),
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: c.surfaceSunken,
@@ -277,7 +277,7 @@ class LedgerInspectorSheet extends StatelessWidget {
                 for (final e in tx.endorsements)
                   Container(
                     margin: const EdgeInsets.only(bottom: 4),
-                    padding: const EdgeInsets.all(6),
+                    padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       color: c.surfaceSunken,
                       borderRadius: BorderRadius.circular(4),
@@ -291,7 +291,7 @@ class LedgerInspectorSheet extends StatelessWidget {
                       ],
                     ),
                   ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 Text(
                   'WRITES TO LEDGER',
                   style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: c.inkFaint),
@@ -321,7 +321,7 @@ class LedgerInspectorSheet extends StatelessWidget {
   Widget _detailRow(BuildContext context, String label, String value, {bool mono = false}) {
     final c = context.lamp;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [

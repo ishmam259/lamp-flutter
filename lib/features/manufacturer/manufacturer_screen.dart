@@ -83,9 +83,9 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
                       color: c.brand.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(4),
@@ -116,7 +116,7 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
               icon: Icon(Icons.movie_filter_outlined, color: c.brand),
               onPressed: () => DemoDirectorSheet.show(context),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 8),
           ],
           bottom: TabBar(
             controller: _tabController,
@@ -190,11 +190,11 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                         // the middle of the screen, which read as a mistake
                         // next to two cards that fill the row.
                         SizedBox(width: double.infinity, child: card1),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 8),
                         Row(
                           children: [
                             Expanded(child: card2),
-                            const SizedBox(width: 10),
+                            const SizedBox(width: 8),
                             Expanded(child: card3),
                           ],
                         ),
@@ -240,11 +240,11 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                         ),
                       ],
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 12),
 
                     // Demo Token Card
                     Container(
-                      padding: const EdgeInsets.all(14),
+                      padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: c.surfaceAlt,
                         borderRadius: BorderRadius.circular(8),
@@ -278,12 +278,12 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                               ),
                             ],
                           ),
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 8),
                           LampChip(
                             label: delivery?.status.id ?? 'CREATED',
                             tone: LampTone.verified,
                           ),
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 8),
                           Text(
                             'Rahman Medical Hall · Bogura Sadar',
                             style: TextStyle(fontSize: 12, color: c.inkMuted),
@@ -350,7 +350,7 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
   Widget _buildMetricCard(BuildContext context, String label, String value, String sub, Color color) {
     final c = context.lamp;
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: c.surface,
         borderRadius: BorderRadius.circular(10),
@@ -414,7 +414,7 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                         valueColor: AlwaysStoppedAnimation<Color>(c.brand),
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -426,7 +426,7 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                     ),
                     const SizedBox(height: 16),
                     Divider(color: c.line),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8),
 
                     // Private Data Collection Demo
                     Text('Private Data Collection (invoiceLineItems)',
@@ -469,7 +469,7 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
           Row(
             children: [
               Icon(isChain ? Icons.link : Icons.cloud_outlined, size: 14, color: isChain ? c.verified : c.inkFaint),
-              const SizedBox(width: 6),
+              const SizedBox(width: 8),
               Text(label, style: TextStyle(fontSize: 11, color: c.inkMuted)),
             ],
           ),
@@ -502,11 +502,11 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                     style: TextStyle(fontSize: 12, color: c.inkMuted)),
                 const SizedBox(height: 16),
                 Divider(color: c.line),
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
 
                 // Buyer Selection
                 Text('BUYER PHARMACY', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: c.inkFaint)),
-                const SizedBox(height: 6),
+                const SizedBox(height: 8),
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
@@ -534,7 +534,7 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
 
                 for (final prod in SeedData.products.take(3)) ...[
                   Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -631,7 +631,7 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                     style: ElevatedButton.styleFrom(
                       backgroundColor: c.brand,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                   ),
                 ),

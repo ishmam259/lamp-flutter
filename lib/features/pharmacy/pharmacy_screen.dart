@@ -14,6 +14,7 @@ import '../../widgets/demo_director_sheet.dart';
 import '../../widgets/ledger_inspector_sheet.dart';
 import '../../widgets/lamp_mark.dart';
 import '../../widgets/theme_toggle.dart';
+import '../../widgets/ui/lamp_skeleton.dart';
 import '../../widgets/ui/lamp_ui.dart';
 
 /// The pharmacist's seat: what is owed, what it is building, and how to pay.
@@ -58,7 +59,9 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
     final credit = state.creditHistory;
 
     if (credit == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      // The world is still seeding. A skeleton in the shape of this screen
+      // rather than a spinner in the middle of nothing.
+      return const LampLoadingScreen();
     }
 
     return Scaffold(
@@ -484,11 +487,7 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
       builder: (_) => const AlertDialog(
         content: Row(
           children: [
-            SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
+            LampBusy(),
             SizedBox(width: Gap.lg),
             Expanded(child: Text('Submitting to the ledger')),
           ],

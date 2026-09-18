@@ -39,7 +39,7 @@ class LifecycleRail extends StatelessWidget {
     final surface = context.lamp;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
         color: surface.surfaceAlt,
         borderRadius: BorderRadius.circular(LaMPRadius.card),
@@ -80,7 +80,7 @@ class LifecycleRail extends StatelessWidget {
                             ),
                     ),
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 8),
                   Text(
                     steps[i]['label'] as String,
                     style: TextStyle(

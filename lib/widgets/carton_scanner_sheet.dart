@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../core/constants/colors.dart';
+import 'ui/lamp_skeleton.dart';
 
 /// What the chaincode made of a scanned payload.
 class CartonScanResult {
@@ -181,11 +182,7 @@ class _CartonScannerSheetState extends State<CartonScannerSheet> {
               left: 0,
               right: 0,
               child: Center(
-                child: SizedBox(
-                  width: 22,
-                  height: 22,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                ),
+                child: LampBusy(size: 22, color: Colors.white),
               ),
             ),
         ],
@@ -291,7 +288,7 @@ class _ResultBanner extends StatelessWidget {
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
         color: colour,
         borderRadius: BorderRadius.circular(10),
@@ -303,7 +300,7 @@ class _ResultBanner extends StatelessWidget {
             color: Colors.white,
             size: 20,
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
               result.message,

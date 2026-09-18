@@ -44,7 +44,7 @@ class PrivateSeal extends StatelessWidget {
               ),
             ),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 color: LaMPColors.verified.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(4),
@@ -110,7 +110,7 @@ class PrivateSeal extends StatelessWidget {
             ),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               color: LaMPColors.pending.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(4),
