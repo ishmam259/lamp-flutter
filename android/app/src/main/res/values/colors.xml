@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The window background while the process starts, before Flutter draws
+         its first frame. It has to match the app's own ground or the launch
+         reads as a flash. Light portal ground. -->
+    <color name="lamp_ground">#FFFFFF</color>
+</resources>

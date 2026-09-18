@@ -14,6 +14,7 @@ import 'package:lamp_flutter/features/manufacturer/manufacturer_screen.dart';
 import 'package:lamp_flutter/features/mpo/mpo_screen.dart';
 import 'package:lamp_flutter/features/pharmacy/pharmacy_screen.dart';
 import 'package:lamp_flutter/features/regulator/regulator_screen.dart';
+import 'package:lamp_flutter/features/splash/splash_screen.dart';
 import 'package:lamp_flutter/widgets/demo_director_sheet.dart';
 import 'package:lamp_flutter/widgets/ledger_inspector_sheet.dart';
 
@@ -119,14 +120,29 @@ Future<List<String>> _sweep(
 
   // The world seeds asynchronously; without settling, every screen is still
   // showing its spinner and the sweep proves nothing.
-  await tester.pumpAndSettle(const Duration(seconds: 2));
+  //
+  // Some screens never settle by design — a splash with an indeterminate
+  // progress bar animates until it is replaced — so a timeout here is not a
+  // failure. Pump a few frames instead and measure those; layout is what is
+  // under test, not whether the animation stops.
+  try {
+    await tester.pumpAndSettle(const Duration(seconds: 2));
+  } on FlutterError {
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 120));
+    }
+  }
 
   for (var i = 0; i < tabCount; i++) {
     if (i > 0) {
       final tabs = find.byType(Tab);
       if (tabs.evaluate().length > i) {
         await tester.tap(tabs.at(i), warnIfMissed: false);
-        await tester.pumpAndSettle();
+        try {
+          await tester.pumpAndSettle();
+        } on FlutterError {
+          await tester.pump(const Duration(milliseconds: 120));
+        }
       }
     }
     // Scroll the tab to its end, so content below the fold is built and
@@ -134,7 +150,11 @@ Future<List<String>> _sweep(
     final scrollable = find.byType(Scrollable);
     if (scrollable.evaluate().isNotEmpty) {
       await tester.drag(scrollable.first, const Offset(0, -2000));
-      await tester.pumpAndSettle();
+      try {
+        await tester.pumpAndSettle();
+      } on FlutterError {
+        await tester.pump(const Duration(milliseconds: 120));
+      }
     }
   }
 
@@ -210,6 +230,10 @@ void main() {
   final sheets = <String, Widget Function()>{
     'demo director': () => const DemoDirectorSheet(),
     'ledger inspector': () => const LedgerInspectorSheet(),
+    // The splash is a screen, but it only exists before the world is seeded,
+    // so the screen sweep above can never reach it — by the time that settles
+    // it has already been replaced.
+    'splash': () => const SplashScreen(),
   };
 
   for (final entry in sheets.entries) {
@@ -222,12 +246,14 @@ void main() {
           // A sheet is opened from a screen, so it is pumped inside a Scaffold
           // rather than as a bare widget — it inherits a Material ancestor and
           // the same bounded width it gets in the app.
-          screen: Scaffold(
-            body: Align(
-              alignment: Alignment.bottomCenter,
-              child: entry.value(),
-            ),
-          ),
+          screen: entry.key == 'splash'
+              ? entry.value()
+              : Scaffold(
+                  body: Align(
+                    alignment: Alignment.bottomCenter,
+                    child: entry.value(),
+                  ),
+                ),
           world: LampWorld.portal,
           brightness: brightness,
           tabCount: 1,

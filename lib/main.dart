@@ -10,6 +10,7 @@ import 'features/manufacturer/manufacturer_screen.dart';
 import 'features/mpo/mpo_screen.dart';
 import 'features/pharmacy/pharmacy_screen.dart';
 import 'features/regulator/regulator_screen.dart';
+import 'features/splash/splash_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -87,11 +88,30 @@ class _MainShellState extends State<MainShell> {
     // canPop is true only on the launcher, where leaving the app is what back
     // should do. Anywhere else it is intercepted and returns to the launcher,
     // matching the arrow in the app bar.
+    // Hold on the splash until the world is seeded. isInitialized existed and
+    // nothing read it, so the launcher rendered a block height of zero and
+    // then visibly corrected itself.
+    final ready = context.watch<LaMPState>().isInitialized;
+
     return PopScope(
       canPop: _activePersona == null,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) _toLauncher();
       },
+      // Cross-fade rather than cut. The splash has just finished its own
+      // entrance; replacing it in a single frame throws that away.
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 350),
+        child: !ready
+            ? const SplashScreen(key: ValueKey('splash'))
+            : _seat(),
+      ),
+    );
+  }
+
+  Widget _seat() {
+    return KeyedSubtree(
+      key: const ValueKey('app'),
       child: switch (_activePersona) {
         null => LauncherScreen(
             onSelectPersona: (p) => setState(() => _activePersona = p),

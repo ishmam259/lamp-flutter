@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark portal ground. Android selects this automatically when the OS is
+         in dark mode, which is what stops the white flash. -->
+    <color name="lamp_ground">#090D0C</color>
+</resources>

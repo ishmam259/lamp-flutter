@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 12 masks the splash icon to a circle and only shows roughly the
+  inner two-thirds of the drawable. A full-bleed logo therefore loses its
+  outer edge — the LaMP wordmark along the bottom was being cut off.
+
+  Insetting pulls the mark inside that safe zone, so what the platform keeps
+  is the whole logo rather than the middle of it.
+-->
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/splash_logo"
+    android:inset="26%" />
