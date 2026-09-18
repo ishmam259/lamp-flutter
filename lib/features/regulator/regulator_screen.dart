@@ -181,7 +181,7 @@ class RegulatorScreen extends StatelessWidget {
             if (duplicateAttempts.isEmpty)
               LampCard(
                 child: Text(
-                  'None recorded. Finance the same receivable from Padma to raise one.',
+                  'None recorded. Finance this receivable from Padma to raise one.',
                   style: LaMPType.caption.copyWith(color: c.inkFaint),
                 ),
               )

@@ -823,7 +823,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
     });
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Drained $count offline scans in 1 batch transaction!')),
+        SnackBar(content: Text('Drained $count scans in one transaction')),
       );
     }
   }
@@ -955,7 +955,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                     ListTile(
                       leading: Icon(Icons.report_problem_outlined, color: c.pending),
                       title: const Text('Damage in Transit', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                      subtitle: const Text('Carton seals broken or crushed during delivery'),
+                      subtitle: const Text('Seals broken in transit'),
                       trailing: ElevatedButton(
                         onPressed: () async {
                           await state.raiseDispute(delivery.tokenId, 'Damage in transit reported by MPO');

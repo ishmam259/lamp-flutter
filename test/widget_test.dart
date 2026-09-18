@@ -40,5 +40,35 @@ void main() {
     expect(find.text('Bank'), findsOneWidget);
     expect(find.text('Regulator'), findsOneWidget);
   });
-}
 
+  testWidgets('system back returns to the launcher, it does not close the app',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => LaMPState()),
+          ChangeNotifierProvider(create: (_) => ThemeController()),
+        ],
+        child: const LaMPApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Into a seat.
+    await tester.tap(find.text('Delivery officer'));
+    await tester.pumpAndSettle();
+    expect(find.text('Delivery officer'), findsNothing);
+
+    // Seats are swapped by setState rather than pushed, so there is only ever
+    // one route. Before PopScope, this popped it and closed the app.
+    final popped = await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    expect(popped, isTrue, reason: 'back should have been handled, not ignored');
+    expect(
+      find.text('Delivery officer'),
+      findsOneWidget,
+      reason: 'back from a seat should land on the launcher',
+    );
+  });
+}

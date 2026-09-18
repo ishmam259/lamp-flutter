@@ -75,25 +75,34 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   PersonaId? _activePersona;
 
+  void _toLauncher() => setState(() => _activePersona = null);
+
   @override
   Widget build(BuildContext context) {
-    if (_activePersona == null) {
-      return LauncherScreen(
-        onSelectPersona: (p) => setState(() => _activePersona = p),
-      );
-    }
-
-    switch (_activePersona!) {
-      case PersonaId.mpo:
-        return MpoScreen(onBackToLauncher: () => setState(() => _activePersona = null));
-      case PersonaId.pharmacy:
-        return PharmacyScreen(onBackToLauncher: () => setState(() => _activePersona = null));
-      case PersonaId.manufacturer:
-        return ManufacturerScreen(onBackToLauncher: () => setState(() => _activePersona = null));
-      case PersonaId.bank:
-        return BankScreen(onBackToLauncher: () => setState(() => _activePersona = null));
-      case PersonaId.regulator:
-        return RegulatorScreen(onBackToLauncher: () => setState(() => _activePersona = null));
-    }
+    // Seats are swapped by setState rather than pushed, so the navigator only
+    // ever holds one route. Without this, the system back gesture found
+    // nothing to pop and closed the app from inside a persona — which reads as
+    // a crash, not as navigation.
+    //
+    // canPop is true only on the launcher, where leaving the app is what back
+    // should do. Anywhere else it is intercepted and returns to the launcher,
+    // matching the arrow in the app bar.
+    return PopScope(
+      canPop: _activePersona == null,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _toLauncher();
+      },
+      child: switch (_activePersona) {
+        null => LauncherScreen(
+            onSelectPersona: (p) => setState(() => _activePersona = p),
+          ),
+        PersonaId.mpo => MpoScreen(onBackToLauncher: _toLauncher),
+        PersonaId.pharmacy => PharmacyScreen(onBackToLauncher: _toLauncher),
+        PersonaId.manufacturer =>
+          ManufacturerScreen(onBackToLauncher: _toLauncher),
+        PersonaId.bank => BankScreen(onBackToLauncher: _toLauncher),
+        PersonaId.regulator => RegulatorScreen(onBackToLauncher: _toLauncher),
+      },
+    );
   }
 }

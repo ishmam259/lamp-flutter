@@ -443,7 +443,7 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
                         style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: c.ink)),
                     const SizedBox(height: 4),
                     Text(
-                      'Better repayment history moves risk from the manufacturer to the bank.',
+                      'Repayment history moves risk to the bank.',
                       style: TextStyle(fontSize: 12, color: c.inkMuted),
                     ),
                     const SizedBox(height: 16),
@@ -484,7 +484,7 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
                 Text('Exposure across financed receivables.',
                     style: TextStyle(fontSize: 12, color: c.inkMuted)),
                 SizedBox(height: 20),
-                Text('Total Portfolio Size: ৳ 45,00,000 across 18 pharmacies',
+                Text('৳ 45,00,000 across 18 pharmacies',
                     style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: c.brand)),
                 Text('Historical Default Rate: 0.0%',
                     style: TextStyle(fontSize: 12, color: c.verified)),

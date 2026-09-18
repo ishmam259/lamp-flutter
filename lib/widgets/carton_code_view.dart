@@ -52,7 +52,7 @@ class CartonCodeView extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          'QR carrying the GS1 payload — a printed carton uses DataMatrix',
+          'QR standing in for the carton DataMatrix',
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 10, color: c.inkFaint, height: 1.3),
         ),
