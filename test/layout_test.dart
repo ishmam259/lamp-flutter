@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -13,6 +14,8 @@ import 'package:lamp_flutter/features/manufacturer/manufacturer_screen.dart';
 import 'package:lamp_flutter/features/mpo/mpo_screen.dart';
 import 'package:lamp_flutter/features/pharmacy/pharmacy_screen.dart';
 import 'package:lamp_flutter/features/regulator/regulator_screen.dart';
+import 'package:lamp_flutter/widgets/demo_director_sheet.dart';
+import 'package:lamp_flutter/widgets/ledger_inspector_sheet.dart';
 
 /// Every screen, every tab, in both themes, at the size of a real phone.
 ///
@@ -27,9 +30,21 @@ import 'package:lamp_flutter/features/regulator/regulator_screen.dart';
 /// A 360x800 viewport is deliberately small: it is a cheap phone, which is what
 /// a delivery officer in Bogura is actually holding.
 
-/// Logical 360x800 — the narrow end of Android, where things break first.
-const Size _phone = Size(1080, 2400);
-const double _dpr = 3.0;
+/// A device to lay out against.
+///
+/// Three, deliberately. A 360x800 Android is the narrow end of the platform,
+/// where horizontal overflow shows up first. The iPhone SE is *shorter* than
+/// anything Android in this list — 667 logical points against 800 — so it is
+/// the one that catches content running off the bottom, which is how the demo
+/// sheet hid its own reset button. The 15 Pro is the common modern size and
+/// the one with a home indicator eating the bottom inset.
+typedef Device = ({String name, Size size, double dpr, TargetPlatform platform});
+
+const List<Device> _devices = [
+  (name: 'android 360x800', size: Size(1080, 2400), dpr: 3.0, platform: TargetPlatform.android),
+  (name: 'iPhone SE 375x667', size: Size(750, 1334), dpr: 2.0, platform: TargetPlatform.iOS),
+  (name: 'iPhone 15 Pro 393x852', size: Size(1179, 2556), dpr: 3.0, platform: TargetPlatform.iOS),
+];
 
 Future<List<String>> _sweep(
   WidgetTester tester, {
@@ -38,6 +53,7 @@ Future<List<String>> _sweep(
   required Brightness brightness,
   required int tabCount,
   required String label,
+  required Device device,
 }) async {
   final problems = <String>[];
 
@@ -63,10 +79,18 @@ Future<List<String>> _sweep(
     }
   };
 
-  tester.view.physicalSize = _phone;
-  tester.view.devicePixelRatio = _dpr;
+  tester.view.physicalSize = device.size;
+  tester.view.devicePixelRatio = device.dpr;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
+
+  // Drives the platform-dependent parts of layout: iOS uses different page
+  // transitions, scroll physics and default typography metrics, and any of the
+  // three can change where a line wraps.
+  // Reset before the sweep returns, not in a tearDown: the test binding
+  // asserts every foundation debug variable is back to null at the end of the
+  // test body, which runs first.
+  debugDefaultTargetPlatformOverride = device.platform;
 
   await tester.pumpWidget(
     MultiProvider(
@@ -76,7 +100,19 @@ Future<List<String>> _sweep(
       ],
       child: MaterialApp(
         theme: LaMPTheme.build(world, brightness),
-        home: screen,
+        home: MediaQuery(
+          // The notch and the home indicator. Without them the test lays out
+          // against a taller window than the phone actually offers, which is
+          // precisely the margin a bottom-anchored button lives in.
+          data: MediaQueryData(
+            size: device.size / device.dpr,
+            devicePixelRatio: device.dpr,
+            padding: device.platform == TargetPlatform.iOS
+                ? const EdgeInsets.only(top: 47, bottom: 34)
+                : const EdgeInsets.only(top: 24, bottom: 24),
+          ),
+          child: screen,
+        ),
       ),
     ),
   );
@@ -103,6 +139,7 @@ Future<List<String>> _sweep(
   }
 
   FlutterError.onError = previous;
+  debugDefaultTargetPlatformOverride = null;
   return problems;
 }
 
@@ -143,16 +180,18 @@ void main() {
   };
 
   for (final entry in screens.entries) {
-    for (final brightness in Brightness.values) {
-      testWidgets('${entry.key} lays out on a 360x800 phone (${brightness.name})',
-          (tester) async {
+    for (final device in _devices) {
+      for (final brightness in Brightness.values) {
+        testWidgets('${entry.key} on ${device.name} (${brightness.name})',
+            (tester) async {
         final problems = await _sweep(
           tester,
           screen: entry.value.build(),
           world: entry.value.world,
           brightness: brightness,
           tabCount: entry.value.tabs,
-          label: '${entry.key}/${brightness.name}',
+          device: device,
+          label: '${entry.key}/${device.name}/${brightness.name}',
         );
 
         expect(
@@ -160,7 +199,49 @@ void main() {
           isEmpty,
           reason: 'Layout overflowed:\n${problems.join('\n')}',
         );
-      });
+        });
+      }
+    }
+  }
+
+  // The sheets are pages too. The first version of this sweep walked the six
+  // screens and stopped there, so the demo director and the ledger inspector
+  // went unchecked while the suite reported that every page had been covered.
+  final sheets = <String, Widget Function()>{
+    'demo director': () => const DemoDirectorSheet(),
+    'ledger inspector': () => const LedgerInspectorSheet(),
+  };
+
+  for (final entry in sheets.entries) {
+    for (final device in _devices) {
+      for (final brightness in Brightness.values) {
+        testWidgets('${entry.key} sheet on ${device.name} (${brightness.name})',
+            (tester) async {
+        final problems = await _sweep(
+          tester,
+          // A sheet is opened from a screen, so it is pumped inside a Scaffold
+          // rather than as a bare widget — it inherits a Material ancestor and
+          // the same bounded width it gets in the app.
+          screen: Scaffold(
+            body: Align(
+              alignment: Alignment.bottomCenter,
+              child: entry.value(),
+            ),
+          ),
+          world: LampWorld.portal,
+          brightness: brightness,
+          tabCount: 1,
+          device: device,
+          label: '${entry.key}/${device.name}/${brightness.name}',
+        );
+
+        expect(
+          problems,
+          isEmpty,
+          reason: 'Layout overflowed:\n${problems.join('\n')}',
+        );
+        });
+      }
     }
   }
 }

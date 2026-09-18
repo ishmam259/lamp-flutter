@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../core/constants/colors.dart';
 import '../core/constants/formatters.dart';
+import '../core/constants/palette.dart';
 import '../core/models/ledger_models.dart';
 import '../core/state/lamp_state.dart';
 import '../core/constants/typography.dart';
@@ -20,15 +20,16 @@ class LedgerInspectorSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.lamp;
     final state = context.watch<LaMPState>();
     final txs = state.txs.reversed.toList();
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.88,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: Color(0xFF0A0F0D),
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-        border: Border(top: BorderSide(color: LaMPColors.portalLine2, width: 1.5)),
+        border: Border(top: BorderSide(color: c.lineStrong, width: 1.5)),
       ),
       child: Column(
         children: [
@@ -50,65 +51,45 @@ class LedgerInspectorSheet extends StatelessWidget {
               spacing: 8,
               runSpacing: 8,
               children: [
+                // Title and "live" badge. The badge was a third item on this
+                // row and pushed it 124 pixels past the sheet; the block count
+                // beside it already says the feed is live.
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.account_tree_outlined, color: LaMPColors.verified, size: 20),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'Ledger Inspector',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: LaMPColors.portalInk,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: LaMPColors.verified.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: const Text(
-                        'LIVE BLOCKS',
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                          color: LaMPColors.verified,
-                        ),
-                      ),
-                    ),
+                    Icon(Icons.account_tree_outlined, color: c.verified, size: IconSize.md),
+                    const SizedBox(width: Gap.sm),
+                    Text('Ledger', style: LaMPType.head.copyWith(color: c.ink)),
                   ],
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: LaMPColors.portalSurface2,
+                    color: c.surfaceAlt,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: LaMPColors.portalLine),
+                    border: Border.all(color: c.line),
                   ),
                   child: Text(
                     'Block Height: ${state.blockHeight}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
                       fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback,
                       fontWeight: FontWeight.bold,
-                      color: LaMPColors.portalInk,
+                      color: c.ink,
                     ),
                   ),
                 ),
               ],
             ),
           ),
-          const Divider(color: LaMPColors.portalLine, height: 1),
+          Divider(color: c.line, height: 1),
 
           Expanded(
             child: txs.isEmpty
-                ? const Center(
+                ? Center(
                     child: Text(
                       'No transactions yet on ledger',
-                      style: TextStyle(color: LaMPColors.portalInk3),
+                      style: TextStyle(color: c.inkFaint),
                     ),
                   )
                 : ListView.separated(
@@ -124,17 +105,18 @@ class LedgerInspectorSheet extends StatelessWidget {
   }
 
   Widget _buildTxTile(BuildContext context, ChainTx tx) {
+    final c = context.lamp;
     Color statusColor;
     switch (tx.status) {
       case TxStatus.valid:
-        statusColor = LaMPColors.verified;
+        statusColor = c.verified;
         break;
       case TxStatus.endorsementPolicyFailure:
       case TxStatus.chaincodeError:
-        statusColor = LaMPColors.dispute;
+        statusColor = c.dispute;
         break;
       case TxStatus.mvccReadConflict:
-        statusColor = LaMPColors.pending;
+        statusColor = c.pending;
         break;
     }
 
@@ -144,9 +126,9 @@ class LedgerInspectorSheet extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: const Color(0xFF131B17),
+          color: c.surface,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: LaMPColors.portalLine),
+          border: Border.all(color: c.line),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -154,35 +136,38 @@ class LedgerInspectorSheet extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.06),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        'blk ${tx.blockNumber}',
-                        style: const TextStyle(
-                          fontSize: 10,
-                          fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback,
-                          color: LaMPColors.portalInk2,
+                // The function name flexes. `recordPoDBatch` beside a block
+                // badge and a status chip is what overflowed here.
+                Expanded(
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: c.surfaceAlt,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          '${tx.blockNumber}',
+                          style: LaMPType.monoCaption.copyWith(color: c.inkMuted),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      tx.fn,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback,
-                        color: LaMPColors.portalInk,
+                      const SizedBox(width: Gap.sm),
+                      Expanded(
+                        child: Text(
+                          tx.fn,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: LaMPType.monoBody.copyWith(
+                            color: c.ink,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
+                const SizedBox(width: Gap.sm),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
@@ -201,24 +186,22 @@ class LedgerInspectorSheet extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 6),
+            // The hash is the half that can afford to shorten; the timestamp
+            // keeps its width. Unflexed, the pair overflowed by 69.
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'TxID: ${LaMPFormatters.shortHash(tx.txId, head: 10, tail: 8)}',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback,
-                    color: LaMPColors.hashInk,
+                Expanded(
+                  child: Text(
+                    LaMPFormatters.shortHash(tx.txId, head: 8, tail: 6),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: LaMPType.monoCaption.copyWith(color: c.inkFaint),
                   ),
                 ),
+                const SizedBox(width: Gap.sm),
                 Text(
                   LaMPFormatters.formatTime(tx.timestamp),
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback,
-                    color: LaMPColors.portalInk3,
-                  ),
+                  style: LaMPType.monoCaption.copyWith(color: c.inkFaint),
                 ),
               ],
             ),
@@ -226,9 +209,9 @@ class LedgerInspectorSheet extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 tx.message!,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 11,
-                  color: LaMPColors.dispute,
+                  color: c.dispute,
                 ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
@@ -241,18 +224,19 @@ class LedgerInspectorSheet extends StatelessWidget {
   }
 
   void _showTxDetail(BuildContext context, ChainTx tx) {
+    final c = context.lamp;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF131B17),
+        backgroundColor: c.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: Row(
           children: [
-            const Icon(Icons.receipt_long, color: LaMPColors.brand, size: 20),
+            Icon(Icons.receipt_long, color: c.brand, size: 20),
             const SizedBox(width: 8),
             Text(
               'Tx ${LaMPFormatters.shortHash(tx.txId, head: 8, tail: 6)}',
-              style: const TextStyle(fontSize: 16, color: LaMPColors.portalInk),
+              style: TextStyle(fontSize: 16, color: c.ink),
             ),
           ],
         ),
@@ -263,31 +247,31 @@ class LedgerInspectorSheet extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                _detailRow('Function', tx.fn, mono: true),
-                _detailRow('Block', '${tx.blockNumber}', mono: true),
-                _detailRow('Status', tx.status.label),
-                _detailRow('Submitter', tx.submitter, mono: true),
-                _detailRow('Time', LaMPFormatters.formatDateTime(tx.timestamp)),
+                _detailRow(context, 'Function', tx.fn, mono: true),
+                _detailRow(context, 'Block', '${tx.blockNumber}', mono: true),
+                _detailRow(context, 'Status', tx.status.label),
+                _detailRow(context, 'Submitter', tx.submitter, mono: true),
+                _detailRow(context, 'Time', LaMPFormatters.formatDateTime(tx.timestamp)),
                 const SizedBox(height: 10),
-                const Text(
+                Text(
                   'ENDORSEMENT POLICY',
-                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: LaMPColors.portalInk3),
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: c.inkFaint),
                 ),
                 Container(
                   margin: const EdgeInsets.only(top: 4, bottom: 10),
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.black26,
+                    color: c.surfaceSunken,
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
                     tx.policy,
-                    style: const TextStyle(fontSize: 11, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, color: LaMPColors.portalInk),
+                    style: TextStyle(fontSize: 11, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, color: c.ink),
                   ),
                 ),
-                const Text(
+                Text(
                   'SIGNATURES & MSP ENDORSEMENTS',
-                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: LaMPColors.portalInk3),
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: c.inkFaint),
                 ),
                 const SizedBox(height: 4),
                 for (final e in tx.endorsements)
@@ -295,31 +279,31 @@ class LedgerInspectorSheet extends StatelessWidget {
                     margin: const EdgeInsets.only(bottom: 4),
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: Colors.black26,
+                      color: c.surfaceSunken,
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(e.msp, style: const TextStyle(fontSize: 11, color: LaMPColors.portalInk)),
+                        Text(e.msp, style: TextStyle(fontSize: 11, color: c.ink)),
                         Text('cert: ${e.certFingerprint}',
-                            style: const TextStyle(fontSize: 10, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, color: LaMPColors.hashInk)),
+                            style: TextStyle(fontSize: 10, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, color: c.inkFaint)),
                       ],
                     ),
                   ),
                 const SizedBox(height: 10),
-                const Text(
+                Text(
                   'WRITES TO LEDGER',
-                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: LaMPColors.portalInk3),
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: c.inkFaint),
                 ),
                 const SizedBox(height: 4),
                 for (final w in tx.writes)
                   Text(
                     '• ${w.key}',
-                    style: const TextStyle(fontSize: 11, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, color: LaMPColors.portalInk2),
+                    style: TextStyle(fontSize: 11, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, color: c.inkMuted),
                   ),
                 if (tx.writes.isEmpty)
-                  const Text('No public state mutated', style: TextStyle(fontSize: 11, color: LaMPColors.portalInk3)),
+                  Text('No public state mutated', style: TextStyle(fontSize: 11, color: c.inkFaint)),
               ],
             ),
           ),
@@ -334,20 +318,21 @@ class LedgerInspectorSheet extends StatelessWidget {
     );
   }
 
-  Widget _detailRow(String label, String value, {bool mono = false}) {
+  Widget _detailRow(BuildContext context, String label, String value, {bool mono = false}) {
+    final c = context.lamp;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(fontSize: 12, color: LaMPColors.portalInk3)),
+          Text(label, style: TextStyle(fontSize: 12, color: c.inkFaint)),
           Text(
             value,
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
               fontFamily: mono ? 'monospace' : null,
-              color: LaMPColors.portalInk,
+              color: c.ink,
             ),
           ),
         ],

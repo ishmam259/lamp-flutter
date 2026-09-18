@@ -1,235 +1,155 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../core/constants/colors.dart';
-import '../core/constants/formatters.dart';
-import '../core/state/lamp_state.dart';
-import '../core/constants/typography.dart';
 
+import '../core/constants/formatters.dart';
+import '../core/constants/palette.dart';
+import '../core/constants/typography.dart';
+import '../core/state/lamp_state.dart';
+
+/// The controls that drive a demo: move the clock, jump to a seat, start over.
+///
+/// The content is scrollable. It was a plain Column inside a sheet capped at
+/// 85% of the window, and on a 360x800 phone it ran 333 pixels past the bottom
+/// — the reset button, the last thing anyone reaches for between takes, was
+/// simply not on screen. A sheet whose height is capped has to assume its
+/// content will exceed the cap.
 class DemoDirectorSheet extends StatelessWidget {
   const DemoDirectorSheet({super.key});
 
   static void show(BuildContext context) {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => const DemoDirectorSheet(),
+      builder: (_) => const DemoDirectorSheet(),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final state = context.watch<LaMPState>();
+    final c = context.lamp;
 
     return Container(
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height * 0.85,
       ),
-      decoration: const BoxDecoration(
-        color: Color(0xFF131B17),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-        border: Border(top: BorderSide(color: LaMPColors.portalLine2, width: 1.5)),
+      decoration: BoxDecoration(
+        color: c.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(LaMPRadius.surface)),
+        border: Border(top: BorderSide(color: c.lineStrong)),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Center(
-            child: Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.white24,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.movie_filter_outlined, color: LaMPColors.brand, size: 20),
-                  SizedBox(width: 8),
-                  Text(
-                    'Demo Director',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: LaMPColors.portalInk,
-                    ),
+          // The handle and the title stay put; everything under them scrolls.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(Gap.xl, Gap.md, Gap.xl, 0),
+            child: Column(
+              children: [
+                Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: c.lineStrong,
+                    borderRadius: BorderRadius.circular(2),
                   ),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: LaMPColors.portalSurface2,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: LaMPColors.portalLine),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
+                const SizedBox(height: Gap.lg),
+                Row(
                   children: [
-                    const Icon(Icons.access_time, size: 13, color: LaMPColors.brand),
-                    const SizedBox(width: 6),
+                    Icon(Icons.tune, color: c.brand, size: IconSize.md),
+                    const SizedBox(width: Gap.sm),
+                    Expanded(
+                      child: Text(
+                        'Demo controls',
+                        style: LaMPType.head.copyWith(color: c.ink),
+                      ),
+                    ),
                     Text(
                       LaMPFormatters.formatDateTime(state.now),
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback,
-                        color: LaMPColors.portalInk,
+                      style: LaMPType.monoCaption.copyWith(color: c.inkFaint),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: Gap.md),
+                Divider(color: c.line, height: 1),
+              ],
+            ),
+          ),
+
+          Flexible(
+            child: ListView(
+              shrinkWrap: true,
+              padding: const EdgeInsets.fromLTRB(Gap.xl, Gap.lg, Gap.xl, Gap.xl),
+              children: [
+                Text(
+                  'Move the clock',
+                  style: LaMPType.caption.copyWith(
+                    color: c.inkFaint,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: Gap.sm),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => _advance(context, state, hours: 24),
+                        child: const Text('+24 hours'),
+                      ),
+                    ),
+                    const SizedBox(width: Gap.md),
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => _advance(context, state, days: 30),
+                        child: const Text('+30 days'),
                       ),
                     ),
                   ],
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          const Divider(color: LaMPColors.portalLine),
-          const SizedBox(height: 12),
 
-          // Clock Jumps
-          const Text(
-            'FAST-FORWARD CLOCK',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 0.8,
-              color: LaMPColors.portalInk3,
-            ),
-          ),
-          const SizedBox(height: 8),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final btn1 = OutlinedButton.icon(
-                onPressed: () {
-                  state.advanceHours(24);
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Clock advanced +24h (Dispute window closed)')),
-                  );
-                },
-                icon: const Icon(Icons.fast_forward, size: 16, color: LaMPColors.brand),
-                label: const Text('+24 Hours (Close Window)'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: LaMPColors.portalInk,
-                  side: const BorderSide(color: LaMPColors.portalLine2),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+                const SizedBox(height: Gap.xl),
+                Text(
+                  'Jump to a seat',
+                  style: LaMPType.caption.copyWith(
+                    color: c.inkFaint,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              );
-              final btn2 = OutlinedButton.icon(
-                onPressed: () {
-                  state.advanceDays(30);
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Clock advanced +30d (Payment due)')),
-                  );
-                },
-                icon: const Icon(Icons.fast_forward, size: 16, color: LaMPColors.pending),
-                label: const Text('+30 Days (Settle Due)'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: LaMPColors.portalInk,
-                  side: const BorderSide(color: LaMPColors.portalLine2),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+                const SizedBox(height: Gap.sm),
+
+                // The subtitles used to narrate the whole beat — "Execute
+                // Meghna financing & reject Padma duplicate attempt" was
+                // fifty-six characters. The person reading this wrote the
+                // shot list.
+                _Scene(n: '1', title: 'Manufacturer', note: 'Mint', persona: PersonaId.manufacturer),
+                _Scene(n: '2', title: 'Delivery officer', note: 'Scan', persona: PersonaId.mpo),
+                _Scene(n: '3', title: 'Bank', note: 'Finance', persona: PersonaId.bank),
+                _Scene(n: '4', title: 'Pharmacy', note: 'Settle', persona: PersonaId.pharmacy),
+                _Scene(n: '5', title: 'Regulator', note: 'Audit', persona: PersonaId.regulator),
+
+                const SizedBox(height: Gap.lg),
+                Divider(color: c.line, height: 1),
+                const SizedBox(height: Gap.sm),
+
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton.icon(
+                    style: TextButton.styleFrom(foregroundColor: c.dispute),
+                    onPressed: () async {
+                      await state.resetWorld();
+                      if (!context.mounted) return;
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('World reset')),
+                      );
+                    },
+                    icon: const Icon(Icons.refresh, size: IconSize.sm),
+                    label: const Text('Reset world'),
+                  ),
                 ),
-              );
-
-              if (constraints.maxWidth < 460) {
-                return Column(
-                  children: [
-                    SizedBox(width: double.infinity, child: btn1),
-                    const SizedBox(height: 8),
-                    SizedBox(width: double.infinity, child: btn2),
-                  ],
-                );
-              }
-              return Row(
-                children: [
-                  Expanded(child: btn1),
-                  const SizedBox(width: 10),
-                  Expanded(child: btn2),
-                ],
-              );
-            },
-          ),
-
-          const SizedBox(height: 20),
-          const Text(
-            'JUMP TO SCENE',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 0.8,
-              color: LaMPColors.portalInk3,
-            ),
-          ),
-          const SizedBox(height: 8),
-
-          _buildSceneTile(
-            context,
-            sceneNum: '01',
-            title: 'Manufacturer Portal',
-            subtitle: 'Mint receivable INV-00235 (25 cartons)',
-            persona: PersonaId.manufacturer,
-          ),
-          _buildSceneTile(
-            context,
-            sceneNum: '02',
-            title: 'MPO Mobile App',
-            subtitle: 'Scan consignment & reject mismatched carton 14',
-            persona: PersonaId.mpo,
-          ),
-          _buildSceneTile(
-            context,
-            sceneNum: '03',
-            title: 'Bank SCF Portal',
-            subtitle: 'Execute Meghna financing & reject Padma duplicate attempt',
-            persona: PersonaId.bank,
-          ),
-          _buildSceneTile(
-            context,
-            sceneNum: '04',
-            title: 'Pharmacy Owner App',
-            subtitle: 'View credit ring & settle via bKash to upgrade tier',
-            persona: PersonaId.pharmacy,
-          ),
-          _buildSceneTile(
-            context,
-            sceneNum: '05',
-            title: 'Regulator Compliance View',
-            subtitle: 'Inspect duplicate advance attempt audit trail',
-            persona: PersonaId.regulator,
-          ),
-
-          const SizedBox(height: 16),
-          const Divider(color: LaMPColors.portalLine),
-          const SizedBox(height: 8),
-
-          SizedBox(
-            width: double.infinity,
-            child: TextButton.icon(
-              onPressed: () async {
-                await state.resetWorld();
-                if (context.mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('World reset deterministically to seed state')),
-                  );
-                }
-              },
-              icon: const Icon(Icons.refresh, color: LaMPColors.dispute, size: 18),
-              label: const Text(
-                'Reset the World (Rebuild all blocks from seed)',
-                style: TextStyle(color: LaMPColors.dispute, fontWeight: FontWeight.bold),
-              ),
+              ],
             ),
           ),
         ],
@@ -237,76 +157,90 @@ class DemoDirectorSheet extends StatelessWidget {
     );
   }
 
-  Widget _buildSceneTile(
-    BuildContext context, {
-    required String sceneNum,
-    required String title,
-    required String subtitle,
-    required PersonaId persona,
-  }) {
-    final state = Provider.of<LaMPState>(context, listen: false);
-    final isSelected = state.currentPersona == persona;
+  void _advance(BuildContext context, LaMPState state, {int hours = 0, int days = 0}) {
+    if (hours > 0) state.advanceHours(hours);
+    if (days > 0) state.advanceDays(days);
+    Navigator.pop(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(days > 0 ? 'Clock +${days}d' : 'Clock +${hours}h')),
+    );
+  }
+}
 
-    return InkWell(
-      onTap: () {
-        state.setPersona(persona);
-        Navigator.pop(context);
-      },
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 6),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? LaMPColors.brand.withValues(alpha: 0.2) : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: isSelected ? LaMPColors.brand : Colors.transparent,
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: isSelected ? LaMPColors.brand : LaMPColors.portalSurface2,
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text(
-                sceneNum,
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback,
-                  color: isSelected ? Colors.white : LaMPColors.portalInk3,
-                ),
-              ),
+class _Scene extends StatelessWidget {
+  final String n;
+  final String title;
+  final String note;
+  final PersonaId persona;
+
+  const _Scene({
+    required this.n,
+    required this.title,
+    required this.note,
+    required this.persona,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final state = Provider.of<LaMPState>(context, listen: false);
+    final c = context.lamp;
+    final selected = state.currentPersona == persona;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Gap.xs),
+      child: Material(
+        color: selected ? c.brandSoft : Colors.transparent,
+        borderRadius: BorderRadius.circular(LaMPRadius.control),
+        child: InkWell(
+          onTap: () {
+            state.setPersona(persona);
+            Navigator.pop(context);
+          },
+          borderRadius: BorderRadius.circular(LaMPRadius.control),
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 48),
+            padding: const EdgeInsets.symmetric(
+              horizontal: Gap.md,
+              vertical: Gap.sm,
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                      color: isSelected ? LaMPColors.brand : LaMPColors.portalInk,
+            child: Row(
+              children: [
+                Container(
+                  width: 24,
+                  height: 24,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: selected ? c.brand : c.surfaceAlt,
+                    borderRadius: BorderRadius.circular(LaMPRadius.control),
+                  ),
+                  child: Text(
+                    n,
+                    style: LaMPType.monoCaption.copyWith(
+                      color: selected ? c.onBrand : c.inkFaint,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(fontSize: 11, color: LaMPColors.portalInk3),
+                ),
+                const SizedBox(width: Gap.md),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: LaMPType.sub.copyWith(
+                      color: selected ? c.brand : c.ink,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(width: Gap.sm),
+                Text(
+                  note,
+                  style: LaMPType.caption.copyWith(color: c.inkFaint),
+                ),
+              ],
             ),
-            Icon(
-              Icons.chevron_right,
-              size: 16,
-              color: isSelected ? LaMPColors.brand : LaMPColors.portalInk3,
-            ),
-          ],
+          ),
         ),
       ),
     );
