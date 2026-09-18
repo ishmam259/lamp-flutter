@@ -6,6 +6,7 @@ import '../../core/state/lamp_state.dart';
 import '../../widgets/demo_director_sheet.dart';
 import '../../widgets/ledger_inspector_sheet.dart';
 import '../../widgets/lamp_mark.dart';
+import '../../core/constants/typography.dart';
 
 class LauncherScreen extends StatelessWidget {
   final ValueChanged<PersonaId> onSelectPersona;
@@ -42,7 +43,7 @@ class LauncherScreen extends StatelessWidget {
                   'Last Mile Pharmacy',
                   style: TextStyle(
                     fontSize: 10,
-                    fontFamily: 'monospace',
+                    fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback,
                     color: LaMPColors.portalInk3,
                   ),
                 ),
@@ -90,17 +91,24 @@ class LauncherScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Both halves flex: at a large display font scale the
+                      // chip and the timestamp together exceed a 1080px-wide
+                      // phone, and a bare Row overflows rather than shrinking.
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
+                          // The chip is a fixed label and takes the width it
+                          // needs; the date flexes, because it is the half
+                          // that can afford to shorten.
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
                               color: LaMPColors.verified.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(4),
+                              borderRadius: BorderRadius.circular(LaMPRadius.control),
                             ),
                             child: const Text(
                               'BCOLBD 2026 PROTOTYPE',
+                              maxLines: 1,
                               style: TextStyle(
                                 fontSize: 10,
                                 fontWeight: FontWeight.bold,
@@ -109,12 +117,21 @@ class LauncherScreen extends StatelessWidget {
                               ),
                             ),
                           ),
-                          Text(
-                            LaMPFormatters.formatDateTime(state.now),
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontFamily: 'monospace',
-                              color: LaMPColors.portalInk2,
+                          const SizedBox(width: 8),
+                          Flexible(
+                            // Date only: the clock beside it is ledger time to
+                            // the second, and a timestamp truncated mid-way by
+                            // the ellipsis reads worse than no time at all.
+                            child: Text(
+                              LaMPFormatters.formatDate(state.now),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.end,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback,
+                                color: LaMPColors.portalInk2,
+                              ),
                             ),
                           ),
                         ],
@@ -147,16 +164,11 @@ class LauncherScreen extends StatelessWidget {
                               ],
                             ),
                           ),
-                          const SizedBox(width: 12),
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.black26,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: LaMPColors.portalLine),
-                            ),
-                            child: const LampMark(size: 56),
-                          ),
+                          // The mark is already in the app bar, a couple of
+                          // centimetres above this on a phone. Repeating it
+                          // here read as the logo twice rather than as brand
+                          // presence, and dropping it gives the headline the
+                          // full column width.
                         ],
                       ),
                       const SizedBox(height: 16),
@@ -185,7 +197,7 @@ class LauncherScreen extends StatelessWidget {
                     Icon(Icons.smartphone, size: 16, color: LaMPColors.brand),
                     SizedBox(width: 8),
                     Text(
-                      'Field Applications (Light Mode)',
+                      'Field applications',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
@@ -246,7 +258,7 @@ class LauncherScreen extends StatelessWidget {
                     Icon(Icons.laptop, size: 16, color: LaMPColors.portalInk2),
                     SizedBox(width: 8),
                     Text(
-                      'Institutional Portals (Dark Mode)',
+                      'Institutional portals',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,

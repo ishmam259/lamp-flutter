@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../core/constants/app_theme.dart';
 import '../../core/constants/colors.dart';
 import '../../core/constants/formatters.dart';
 import '../../core/models/domain_models.dart';
@@ -9,6 +10,7 @@ import '../../widgets/credit_ring.dart';
 import '../../widgets/demo_director_sheet.dart';
 import '../../widgets/ledger_inspector_sheet.dart';
 import '../../widgets/lamp_mark.dart';
+import '../../core/constants/typography.dart';
 
 class PharmacyScreen extends StatefulWidget {
   final VoidCallback onBackToLauncher;
@@ -43,14 +45,7 @@ class _PharmacyScreenState extends State<PharmacyScreen> with SingleTickerProvid
     final credit = state.creditHistory;
 
     return Theme(
-      data: ThemeData.light().copyWith(
-        scaffoldBackgroundColor: LaMPColors.fieldGround,
-        primaryColor: LaMPColors.brand,
-        colorScheme: const ColorScheme.light(
-          primary: LaMPColors.brand,
-          secondary: LaMPColors.verified,
-        ),
-      ),
+      data: LaMPTheme.field(),
       child: Scaffold(
         appBar: AppBar(
           backgroundColor: Colors.white,
@@ -291,7 +286,7 @@ class _PharmacyScreenState extends State<PharmacyScreen> with SingleTickerProvid
                           children: [
                             const Text('INVOICE ID', style: TextStyle(fontSize: 10, color: LaMPColors.fieldInk3)),
                             Text(state.demoInvoiceId,
-                                style: const TextStyle(fontSize: 14, fontFamily: 'monospace', fontWeight: FontWeight.bold)),
+                                style: const TextStyle(fontSize: 14, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, fontWeight: FontWeight.bold)),
                           ],
                         ),
                       ],
@@ -342,7 +337,7 @@ class _PharmacyScreenState extends State<PharmacyScreen> with SingleTickerProvid
                           child: const Icon(Icons.local_shipping_outlined, color: LaMPColors.brand, size: 20),
                         ),
                         title: Text(demoDelivery.invoiceId,
-                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, fontFamily: 'monospace')),
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback)),
                         subtitle: Text(
                           '${demoDelivery.cartons.length} cartons · Shomota Pharma',
                           style: const TextStyle(fontSize: 11, color: LaMPColors.fieldInk3),
@@ -460,7 +455,7 @@ class _PharmacyScreenState extends State<PharmacyScreen> with SingleTickerProvid
                             Row(
                               children: [
                                 Text(LaMPFormatters.formatBDT(c.value),
-                                    style: const TextStyle(fontSize: 12, fontFamily: 'monospace', fontWeight: FontWeight.bold)),
+                                    style: const TextStyle(fontSize: 12, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, fontWeight: FontWeight.bold)),
                                 const SizedBox(width: 8),
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -528,7 +523,7 @@ class _PharmacyScreenState extends State<PharmacyScreen> with SingleTickerProvid
                       children: [
                         const Text('Invoice:', style: TextStyle(fontSize: 13, color: LaMPColors.fieldInk3)),
                         Text(state.demoInvoiceId,
-                            style: const TextStyle(fontSize: 14, fontFamily: 'monospace', fontWeight: FontWeight.bold)),
+                            style: const TextStyle(fontSize: 14, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, fontWeight: FontWeight.bold)),
                       ],
                     ),
                     const SizedBox(height: 6),

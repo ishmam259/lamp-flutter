@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'core/constants/colors.dart';
+import 'core/constants/typography.dart';
 import 'core/state/lamp_state.dart';
 import 'features/bank/bank_screen.dart';
 import 'features/launcher/launcher_screen.dart';
@@ -28,13 +29,38 @@ class LaMPApp extends StatelessWidget {
       title: 'LaMP — Last Mile Pharmacy',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        fontFamily: 'Inter',
+        fontFamily: LaMPType.sans,
+        fontFamilyFallback: LaMPType.fallback,
         scaffoldBackgroundColor: LaMPColors.portalGround,
         colorScheme: const ColorScheme.dark(
           primary: LaMPColors.brand,
           secondary: LaMPColors.verified,
         ),
+        textTheme: LaMPType.textTheme(
+          LaMPColors.portalInk,
+          LaMPColors.portalInk2,
+        ),
       ),
+      builder: (context, child) {
+        final media = MediaQuery.of(context);
+        return MediaQuery(
+          /// Bound the system font scale.
+          ///
+          /// These are dense financial screens — a 25-row carton manifest, a
+          /// credit history table — laid out against a fixed type scale. A
+          /// device set to 130% was breaking words mid-syllable ("Paracetam /
+          /// ol") and overflowing rows. Clamping respects someone who has
+          /// turned text up without letting the instrument panel come apart;
+          /// the floor stops a device set small from rendering 9px hashes.
+          data: media.copyWith(
+            textScaler: media.textScaler.clamp(
+              minScaleFactor: 0.9,
+              maxScaleFactor: 1.15,
+            ),
+          ),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
       home: const MainShell(),
     );
   }

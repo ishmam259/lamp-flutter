@@ -4,6 +4,7 @@ import '../core/constants/colors.dart';
 import '../core/constants/formatters.dart';
 import '../core/models/ledger_models.dart';
 import '../core/state/lamp_state.dart';
+import '../core/constants/typography.dart';
 
 class LedgerInspectorSheet extends StatelessWidget {
   const LedgerInspectorSheet({super.key});
@@ -91,7 +92,7 @@ class LedgerInspectorSheet extends StatelessWidget {
                     'Block Height: ${state.blockHeight}',
                     style: const TextStyle(
                       fontSize: 11,
-                      fontFamily: 'monospace',
+                      fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback,
                       fontWeight: FontWeight.bold,
                       color: LaMPColors.portalInk,
                     ),
@@ -165,7 +166,7 @@ class LedgerInspectorSheet extends StatelessWidget {
                         'blk ${tx.blockNumber}',
                         style: const TextStyle(
                           fontSize: 10,
-                          fontFamily: 'monospace',
+                          fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback,
                           color: LaMPColors.portalInk2,
                         ),
                       ),
@@ -176,7 +177,7 @@ class LedgerInspectorSheet extends StatelessWidget {
                       style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.bold,
-                        fontFamily: 'monospace',
+                        fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback,
                         color: LaMPColors.portalInk,
                       ),
                     ),
@@ -207,7 +208,7 @@ class LedgerInspectorSheet extends StatelessWidget {
                   'TxID: ${LaMPFormatters.shortHash(tx.txId, head: 10, tail: 8)}',
                   style: const TextStyle(
                     fontSize: 11,
-                    fontFamily: 'monospace',
+                    fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback,
                     color: LaMPColors.hashInk,
                   ),
                 ),
@@ -215,7 +216,7 @@ class LedgerInspectorSheet extends StatelessWidget {
                   LaMPFormatters.formatTime(tx.timestamp),
                   style: const TextStyle(
                     fontSize: 11,
-                    fontFamily: 'monospace',
+                    fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback,
                     color: LaMPColors.portalInk3,
                   ),
                 ),
@@ -281,7 +282,7 @@ class LedgerInspectorSheet extends StatelessWidget {
                   ),
                   child: Text(
                     tx.policy,
-                    style: const TextStyle(fontSize: 11, fontFamily: 'monospace', color: LaMPColors.portalInk),
+                    style: const TextStyle(fontSize: 11, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, color: LaMPColors.portalInk),
                   ),
                 ),
                 const Text(
@@ -302,7 +303,7 @@ class LedgerInspectorSheet extends StatelessWidget {
                       children: [
                         Text(e.msp, style: const TextStyle(fontSize: 11, color: LaMPColors.portalInk)),
                         Text('cert: ${e.certFingerprint}',
-                            style: const TextStyle(fontSize: 10, fontFamily: 'monospace', color: LaMPColors.hashInk)),
+                            style: const TextStyle(fontSize: 10, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, color: LaMPColors.hashInk)),
                       ],
                     ),
                   ),
@@ -315,7 +316,7 @@ class LedgerInspectorSheet extends StatelessWidget {
                 for (final w in tx.writes)
                   Text(
                     '• ${w.key}',
-                    style: const TextStyle(fontSize: 11, fontFamily: 'monospace', color: LaMPColors.portalInk2),
+                    style: const TextStyle(fontSize: 11, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, color: LaMPColors.portalInk2),
                   ),
                 if (tx.writes.isEmpty)
                   const Text('No public state mutated', style: TextStyle(fontSize: 11, color: LaMPColors.portalInk3)),

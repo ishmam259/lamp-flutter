@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../core/constants/colors.dart';
 import '../core/constants/formatters.dart';
 import '../core/state/lamp_state.dart';
+import '../core/constants/typography.dart';
 
 class DemoDirectorSheet extends StatelessWidget {
   const DemoDirectorSheet({super.key});
@@ -82,7 +83,7 @@ class DemoDirectorSheet extends StatelessWidget {
                       LaMPFormatters.formatDateTime(state.now),
                       style: const TextStyle(
                         fontSize: 11,
-                        fontFamily: 'monospace',
+                        fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback,
                         color: LaMPColors.portalInk,
                       ),
                     ),
@@ -275,7 +276,7 @@ class DemoDirectorSheet extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.bold,
-                  fontFamily: 'monospace',
+                  fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback,
                   color: isSelected ? Colors.white : LaMPColors.portalInk3,
                 ),
               ),

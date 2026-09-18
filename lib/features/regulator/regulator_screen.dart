@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../core/constants/app_theme.dart';
 import '../../core/constants/colors.dart';
 import '../../core/constants/formatters.dart';
 import '../../core/models/ledger_models.dart';
@@ -7,6 +8,7 @@ import '../../core/state/lamp_state.dart';
 import '../../widgets/demo_director_sheet.dart';
 import '../../widgets/ledger_inspector_sheet.dart';
 import '../../widgets/lamp_mark.dart';
+import '../../core/constants/typography.dart';
 
 class RegulatorScreen extends StatelessWidget {
   final VoidCallback onBackToLauncher;
@@ -33,14 +35,7 @@ class RegulatorScreen extends StatelessWidget {
     final policyFailures = txs.where((t) => t.status == TxStatus.endorsementPolicyFailure).toList();
 
     return Theme(
-      data: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: LaMPColors.portalGround,
-        primaryColor: LaMPColors.brand,
-        colorScheme: const ColorScheme.dark(
-          primary: LaMPColors.brand,
-          secondary: LaMPColors.verified,
-        ),
-      ),
+      data: LaMPTheme.portal(),
       child: Scaffold(
         appBar: AppBar(
           backgroundColor: const Color(0xFF131B17),
@@ -249,7 +244,7 @@ class RegulatorScreen extends StatelessWidget {
                                           style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: LaMPColors.dispute),
                                         ),
                                         Text('Block #${att.blockNumber}',
-                                            style: const TextStyle(fontSize: 11, fontFamily: 'monospace', color: LaMPColors.portalInk3)),
+                                            style: const TextStyle(fontSize: 11, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, color: LaMPColors.portalInk3)),
                                       ],
                                     ),
                                     const SizedBox(height: 4),
@@ -260,7 +255,7 @@ class RegulatorScreen extends StatelessWidget {
                                     const SizedBox(height: 4),
                                     Text(
                                       'TxHash: ${att.txId}',
-                                      style: const TextStyle(fontSize: 10, fontFamily: 'monospace', color: LaMPColors.hashInk),
+                                      style: const TextStyle(fontSize: 10, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, color: LaMPColors.hashInk),
                                     ),
                                   ],
                                 ),
@@ -313,7 +308,7 @@ class RegulatorScreen extends StatelessWidget {
                                 ),
                                 Text(
                                   LaMPFormatters.formatTime(cf.timestamp),
-                                  style: const TextStyle(fontSize: 10, fontFamily: 'monospace', color: LaMPColors.portalInk3),
+                                  style: const TextStyle(fontSize: 10, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, color: LaMPColors.portalInk3),
                                 ),
                               ],
                             ),

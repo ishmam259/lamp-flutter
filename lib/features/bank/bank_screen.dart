@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../core/constants/app_theme.dart';
 import '../../core/constants/colors.dart';
 import '../../core/constants/formatters.dart';
 import '../../core/models/domain_models.dart';
@@ -9,6 +10,7 @@ import '../../widgets/demo_director_sheet.dart';
 import '../../widgets/ledger_inspector_sheet.dart';
 import '../../widgets/recourse_dial.dart';
 import '../../widgets/lamp_mark.dart';
+import '../../core/constants/typography.dart';
 
 class BankScreen extends StatefulWidget {
   final VoidCallback onBackToLauncher;
@@ -43,14 +45,7 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
     final delivery = state.getDelivery(state.demoTokenId);
 
     return Theme(
-      data: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: LaMPColors.portalGround,
-        primaryColor: LaMPColors.brand,
-        colorScheme: const ColorScheme.dark(
-          primary: LaMPColors.brand,
-          secondary: LaMPColors.verified,
-        ),
-      ),
+      data: LaMPTheme.portal(),
       child: Scaffold(
         appBar: AppBar(
           backgroundColor: const Color(0xFF131B17),
@@ -235,7 +230,7 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
                               style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
-                                fontFamily: 'monospace',
+                                fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback,
                                 color: LaMPColors.portalInk,
                               ),
                             ),

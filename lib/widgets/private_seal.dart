@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/constants/colors.dart';
 import '../core/constants/formatters.dart';
+import '../core/constants/typography.dart';
 
 class PrivateSeal extends StatelessWidget {
   final String cleartext;
@@ -101,7 +102,7 @@ class PrivateSeal extends StatelessWidget {
                   LaMPFormatters.shortHash(hash, head: 16, tail: 12),
                   style: const TextStyle(
                     fontSize: 11,
-                    fontFamily: 'monospace',
+                    fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback,
                     color: LaMPColors.hashInk,
                   ),
                 ),

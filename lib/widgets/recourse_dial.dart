@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/constants/colors.dart';
 import '../core/models/domain_models.dart';
+import '../core/constants/typography.dart';
 
 class RecourseDial extends StatelessWidget {
   final List<RateCurveBand> bands;
@@ -116,7 +117,7 @@ class RecourseDial extends StatelessWidget {
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              fontFamily: 'monospace',
+              fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback,
               color: textColor,
             ),
           ),
@@ -149,11 +150,11 @@ class RecourseDial extends StatelessWidget {
             children: [
               Text(
                 'mfr ${band.manufacturerRecoursePct.round()}',
-                style: TextStyle(fontSize: 9, fontFamily: 'monospace', color: subColor),
+                style: TextStyle(fontSize: 9, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, color: subColor),
               ),
               Text(
                 'bnk ${(100 - band.manufacturerRecoursePct).round()}',
-                style: TextStyle(fontSize: 9, fontFamily: 'monospace', color: subColor),
+                style: TextStyle(fontSize: 9, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, color: subColor),
               ),
             ],
           ),

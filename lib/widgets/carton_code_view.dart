@@ -3,6 +3,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../core/constants/colors.dart';
 import '../core/world/gs1.dart';
+import '../core/constants/typography.dart';
 
 /// A genuinely scannable rendering of a carton's GS1 payload.
 ///
@@ -62,7 +63,7 @@ class CartonCodeView extends StatelessWidget {
               '(17) ${fields.expiry}   (21) ${fields.serial}',
               textAlign: TextAlign.center,
               style: const TextStyle(
-                fontFamily: 'monospace',
+                fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback,
                 fontSize: 10,
                 color: LaMPColors.fieldInk2,
                 height: 1.5,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../core/constants/app_theme.dart';
 import '../../core/constants/colors.dart';
 import '../../core/constants/formatters.dart';
 import '../../core/models/domain_models.dart';
@@ -10,6 +11,7 @@ import '../../widgets/ledger_inspector_sheet.dart';
 import '../../widgets/lifecycle_rail.dart';
 import '../../widgets/private_seal.dart';
 import '../../widgets/lamp_mark.dart';
+import '../../core/constants/typography.dart';
 
 class ManufacturerScreen extends StatefulWidget {
   final VoidCallback onBackToLauncher;
@@ -49,14 +51,7 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
     final delivery = state.getDelivery(state.demoTokenId);
 
     return Theme(
-      data: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: LaMPColors.portalGround,
-        primaryColor: LaMPColors.brand,
-        colorScheme: const ColorScheme.dark(
-          primary: LaMPColors.brand,
-          secondary: LaMPColors.verified,
-        ),
-      ),
+      data: LaMPTheme.portal(),
       child: Scaffold(
         appBar: AppBar(
           backgroundColor: const Color(0xFF131B17),
@@ -223,7 +218,7 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                         ),
                         Text(
                           'Consortium Channel: lamp-channel',
-                          style: TextStyle(fontSize: 10, fontFamily: 'monospace', color: LaMPColors.portalInk3),
+                          style: TextStyle(fontSize: 10, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, color: LaMPColors.portalInk3),
                         ),
                       ],
                     ),
@@ -250,7 +245,7 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                                     style: const TextStyle(
                                       fontSize: 15,
                                       fontWeight: FontWeight.bold,
-                                      fontFamily: 'monospace',
+                                      fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback,
                                       color: LaMPColors.portalInk,
                                     ),
                                   ),
@@ -294,7 +289,7 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               const Text('Token ID: RCV-00235',
-                                  style: TextStyle(fontSize: 11, fontFamily: 'monospace', color: LaMPColors.hashInk)),
+                                  style: TextStyle(fontSize: 11, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, color: LaMPColors.hashInk)),
                               Text('Terms: 45 days · 25 Cartons',
                                   style: const TextStyle(fontSize: 11, color: LaMPColors.portalInk3)),
                             ],
@@ -384,7 +379,7 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                         Text('$scanned of $total cartons confirmed on-chain',
                             style: const TextStyle(fontSize: 11, color: LaMPColors.portalInk2)),
                         Text('${(ratio * 100).toInt()}%',
-                            style: const TextStyle(fontSize: 11, fontFamily: 'monospace', fontWeight: FontWeight.bold, color: LaMPColors.brand)),
+                            style: const TextStyle(fontSize: 11, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, fontWeight: FontWeight.bold, color: LaMPColors.brand)),
                       ],
                     ),
                     const SizedBox(height: 16),
@@ -435,7 +430,7 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
               Text(label, style: const TextStyle(fontSize: 11, color: LaMPColors.portalInk2)),
             ],
           ),
-          Text(value, style: TextStyle(fontSize: 11, fontFamily: 'monospace', color: isChain ? LaMPColors.verified : LaMPColors.portalInk3)),
+          Text(value, style: TextStyle(fontSize: 11, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, color: isChain ? LaMPColors.verified : LaMPColors.portalInk3)),
         ],
       ),
     );
@@ -522,7 +517,7 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                               },
                             ),
                             Text('${_selectedCartons[prod.sku] ?? 0} ctn',
-                                style: const TextStyle(fontSize: 13, fontFamily: 'monospace', fontWeight: FontWeight.bold)),
+                                style: const TextStyle(fontSize: 13, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, fontWeight: FontWeight.bold)),
                             IconButton(
                               icon: const Icon(Icons.add_circle_outline, size: 18),
                               onPressed: () {

@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../core/constants/colors.dart';
 import '../core/models/domain_models.dart';
+import '../core/constants/typography.dart';
 
 class CreditRing extends StatelessWidget {
   final List<CreditCycle> cycles;
@@ -44,7 +45,7 @@ class CreditRing extends StatelessWidget {
                 style: TextStyle(
                   fontSize: size * 0.22,
                   fontWeight: FontWeight.bold,
-                  fontFamily: 'monospace',
+                  fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback,
                   color: LaMPColors.fieldInk,
                   height: 1.0,
                 ),

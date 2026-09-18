@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/chain/crypto.dart';
+import '../../core/constants/app_theme.dart';
 import '../../core/constants/colors.dart';
 import '../../core/constants/formatters.dart';
 import '../../core/models/domain_models.dart';
@@ -13,6 +14,7 @@ import '../../widgets/demo_director_sheet.dart';
 import '../../widgets/ledger_inspector_sheet.dart';
 import '../../widgets/signature_pad.dart';
 import '../../widgets/lamp_mark.dart';
+import '../../core/constants/typography.dart';
 
 class MpoScreen extends StatefulWidget {
   final VoidCallback onBackToLauncher;
@@ -60,14 +62,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
     final delivery = state.getDelivery(state.demoTokenId);
 
     return Theme(
-      data: ThemeData.light().copyWith(
-        scaffoldBackgroundColor: LaMPColors.fieldGround,
-        primaryColor: LaMPColors.brand,
-        colorScheme: const ColorScheme.light(
-          primary: LaMPColors.brand,
-          secondary: LaMPColors.verified,
-        ),
-      ),
+      data: LaMPTheme.field(),
       child: Scaffold(
         appBar: AppBar(
           backgroundColor: Colors.white,
@@ -224,7 +219,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                           children: [
                             const Text('INVOICE ID', style: TextStyle(fontSize: 10, color: LaMPColors.fieldInk3)),
                             Text(delivery.invoiceId,
-                                style: const TextStyle(fontSize: 14, fontFamily: 'monospace', fontWeight: FontWeight.bold)),
+                                style: const TextStyle(fontSize: 14, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, fontWeight: FontWeight.bold)),
                           ],
                         ),
                         Column(
@@ -232,7 +227,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                           children: [
                             const Text('CARTONS', style: TextStyle(fontSize: 10, color: LaMPColors.fieldInk3)),
                             Text('$scannedCount / $totalCartons',
-                                style: const TextStyle(fontSize: 14, fontFamily: 'monospace', fontWeight: FontWeight.bold)),
+                                style: const TextStyle(fontSize: 14, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, fontWeight: FontWeight.bold)),
                           ],
                         ),
                         Column(
@@ -318,7 +313,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
           Expanded(
             child: Text(name, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
           ),
-          Text(cartons, style: const TextStyle(fontSize: 12, fontFamily: 'monospace', fontWeight: FontWeight.bold)),
+          Text(cartons, style: const TextStyle(fontSize: 12, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, fontWeight: FontWeight.bold)),
           const SizedBox(width: 8),
           Text(units, style: const TextStyle(fontSize: 11, color: LaMPColors.fieldInk3)),
         ],
@@ -568,7 +563,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                                     style: const TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.bold,
-                                      fontFamily: 'monospace',
+                                      fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback,
                                     ),
                                   ),
                                   if (isPlant)
@@ -851,7 +846,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                       children: [
                         const Text('Cartons Received:', style: TextStyle(fontSize: 13, color: LaMPColors.fieldInk2)),
                         Text('${delivery.cartons.length} cartons',
-                            style: const TextStyle(fontSize: 13, fontFamily: 'monospace', fontWeight: FontWeight.bold)),
+                            style: const TextStyle(fontSize: 13, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, fontWeight: FontWeight.bold)),
                       ],
                     ),
                     const SizedBox(height: 6),
