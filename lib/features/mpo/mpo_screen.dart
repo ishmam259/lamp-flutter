@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/chain/crypto.dart';
 import '../../core/constants/app_theme.dart';
+import '../../core/constants/palette.dart';
 import '../../core/constants/colors.dart';
 import '../../core/constants/formatters.dart';
 import '../../core/models/domain_models.dart';
@@ -62,7 +63,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
     final delivery = state.getDelivery(state.demoTokenId);
 
     return Theme(
-      data: LaMPTheme.field(),
+      data: LaMPTheme.of(context, LampWorld.field),
       child: Scaffold(
         appBar: AppBar(
           backgroundColor: Colors.white,

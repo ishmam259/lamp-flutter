@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_theme.dart';
+import '../../core/constants/palette.dart';
 import '../../core/constants/colors.dart';
 import '../../core/constants/formatters.dart';
 import '../../core/models/ledger_models.dart';
@@ -35,7 +36,7 @@ class RegulatorScreen extends StatelessWidget {
     final policyFailures = txs.where((t) => t.status == TxStatus.endorsementPolicyFailure).toList();
 
     return Theme(
-      data: LaMPTheme.portal(),
+      data: LaMPTheme.of(context, LampWorld.portal),
       child: Scaffold(
         appBar: AppBar(
           backgroundColor: const Color(0xFF131B17),

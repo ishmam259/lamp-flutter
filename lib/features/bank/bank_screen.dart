@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_theme.dart';
+import '../../core/constants/palette.dart';
 import '../../core/constants/colors.dart';
 import '../../core/constants/formatters.dart';
 import '../../core/models/domain_models.dart';
@@ -45,7 +46,7 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
     final delivery = state.getDelivery(state.demoTokenId);
 
     return Theme(
-      data: LaMPTheme.portal(),
+      data: LaMPTheme.of(context, LampWorld.portal),
       child: Scaffold(
         appBar: AppBar(
           backgroundColor: const Color(0xFF131B17),

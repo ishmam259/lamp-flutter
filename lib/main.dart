@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'core/constants/colors.dart';
-import 'core/constants/typography.dart';
+import 'core/constants/app_theme.dart';
+import 'core/constants/palette.dart';
 import 'core/state/lamp_state.dart';
+import 'core/state/theme_controller.dart';
 import 'features/bank/bank_screen.dart';
 import 'features/launcher/launcher_screen.dart';
 import 'features/manufacturer/manufacturer_screen.dart';
@@ -13,8 +14,11 @@ import 'features/regulator/regulator_screen.dart';
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => LaMPState(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => LaMPState()),
+        ChangeNotifierProvider(create: (_) => ThemeController()),
+      ],
       child: const LaMPApp(),
     ),
   );
@@ -25,22 +29,17 @@ class LaMPApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The launcher is a portal surface; each persona re-themes itself to its
+    // own world on entry. Both brightnesses are supplied so the app can follow
+    // the phone, and so the toggle has somewhere to switch to.
+    final themeMode = context.watch<ThemeController>().mode;
+
     return MaterialApp(
       title: 'LaMP — Last Mile Pharmacy',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        fontFamily: LaMPType.sans,
-        fontFamilyFallback: LaMPType.fallback,
-        scaffoldBackgroundColor: LaMPColors.portalGround,
-        colorScheme: const ColorScheme.dark(
-          primary: LaMPColors.brand,
-          secondary: LaMPColors.verified,
-        ),
-        textTheme: LaMPType.textTheme(
-          LaMPColors.portalInk,
-          LaMPColors.portalInk2,
-        ),
-      ),
+      themeMode: themeMode,
+      theme: LaMPTheme.build(LampWorld.portal, Brightness.light),
+      darkTheme: LaMPTheme.build(LampWorld.portal, Brightness.dark),
       builder: (context, child) {
         final media = MediaQuery.of(context);
         return MediaQuery(

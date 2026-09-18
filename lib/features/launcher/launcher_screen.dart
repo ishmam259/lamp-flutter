@@ -1,13 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../core/constants/colors.dart';
-import '../../core/constants/formatters.dart';
+
+import '../../core/constants/palette.dart';
+import '../../core/constants/typography.dart';
 import '../../core/state/lamp_state.dart';
 import '../../widgets/demo_director_sheet.dart';
 import '../../widgets/ledger_inspector_sheet.dart';
 import '../../widgets/lamp_mark.dart';
-import '../../core/constants/typography.dart';
+import '../../widgets/theme_toggle.dart';
+import '../../widgets/ui/lamp_ui.dart';
 
+/// Pick a seat.
+///
+/// This screen used to open with a headline and a line of positioning copy —
+/// "Five interfaces over one consortium ledger", "Make the invoice itself
+/// trustworthy, so the money can follow the medicine" — and then describe each
+/// seat in a sentence of about eighty characters. That is a pitch deck. Someone
+/// opening the app already knows what it is; what they need is the state of the
+/// ledger and a way in. The pitch is gone and the descriptions with it: a seat
+/// is named by its role and its organisation, which is what a person actually
+/// scans for.
 class LauncherScreen extends StatelessWidget {
   final ValueChanged<PersonaId> onSelectPersona;
 
@@ -16,437 +28,245 @@ class LauncherScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = context.watch<LaMPState>();
+    final c = context.lamp;
 
     return Scaffold(
-      backgroundColor: LaMPColors.portalGround,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: const Row(
+        titleSpacing: Gap.lg,
+        title: Row(
           children: [
-            LampMark(size: 34),
-            SizedBox(width: 10),
+            const LampMark(size: 28),
+            const SizedBox(width: Gap.sm),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  'LaMP',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: LaMPColors.portalInk,
-                    letterSpacing: -0.3,
-                  ),
-                ),
+                Text('LaMP', style: LaMPType.head.copyWith(color: c.ink)),
                 Text(
                   'Last Mile Pharmacy',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback,
-                    color: LaMPColors.portalInk3,
-                  ),
+                  style: LaMPType.monoCaption.copyWith(color: c.inkFaint),
                 ),
               ],
             ),
           ],
         ),
         actions: [
+          const ThemeToggle(),
           IconButton(
-            tooltip: 'Ledger Inspector',
-            icon: const Icon(Icons.account_tree_outlined, color: LaMPColors.verified),
+            tooltip: 'Ledger',
+            icon: Icon(Icons.account_tree_outlined, color: c.inkMuted),
             onPressed: () => LedgerInspectorSheet.show(context),
           ),
           IconButton(
-            tooltip: 'Demo Director',
-            icon: const Icon(Icons.movie_filter_outlined, color: LaMPColors.brand),
+            tooltip: 'Demo controls',
+            icon: Icon(Icons.tune, color: c.inkMuted),
             onPressed: () => DemoDirectorSheet.show(context),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: Gap.xs),
         ],
       ),
       body: SafeArea(
-        // Android draws its gesture bar over the bottom of the window.
-        // Without this the last row of every list sits underneath it.
-        // Top is already handled by the AppBar.
         top: false,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 860),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Top Banner
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          LaMPColors.brand.withValues(alpha: 0.25),
-                          const Color(0xFF131B17),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: LaMPColors.portalLine),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Both halves flex: at a large display font scale the
-                        // chip and the timestamp together exceed a 1080px-wide
-                        // phone, and a bare Row overflows rather than shrinking.
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            // The chip is a fixed label and takes the width it
-                            // needs; the date flexes, because it is the half
-                            // that can afford to shorten.
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: LaMPColors.verified.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(LaMPRadius.control),
-                              ),
-                              child: const Text(
-                                'BCOLBD 2026 PROTOTYPE',
-                                maxLines: 1,
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 0.8,
-                                  color: LaMPColors.verified,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Flexible(
-                              // Date only: the clock beside it is ledger time to
-                              // the second, and a timestamp truncated mid-way by
-                              // the ellipsis reads worse than no time at all.
-                              child: Text(
-                                LaMPFormatters.formatDate(state.now),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                textAlign: TextAlign.end,
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback,
-                                  color: LaMPColors.portalInk2,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Five interfaces over one consortium ledger.',
-                                    style: TextStyle(
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.bold,
-                                      color: LaMPColors.portalInk,
-                                      letterSpacing: -0.5,
-                                    ),
-                                  ),
-                                  SizedBox(height: 6),
-                                  Text(
-                                    'Make the invoice itself trustworthy, so the money can follow the medicine.',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: LaMPColors.portalInk2,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            // The mark is already in the app bar, a couple of
-                            // centimetres above this on a phone. Repeating it
-                            // here read as the logo twice rather than as brand
-                            // presence, and dropping it gives the headline the
-                            // full column width.
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        Wrap(
-                          spacing: 20,
-                          runSpacing: 10,
-                          children: [
-                            _buildMiniStat('Block Height', '${state.blockHeight}', LaMPColors.verified),
-                            _buildMiniStat('Active Invoices', '${state.invoices.length}', LaMPColors.portalInk),
-                            _buildMiniStat(
-                              'Demo Invoice',
-                              state.demoInvoiceId,
-                              LaMPColors.brand,
-                              mono: true,
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 28),
-  
-                  // Section 1: Field Applications
-                  const Row(
-                    children: [
-                      Icon(Icons.smartphone, size: 16, color: LaMPColors.brand),
-                      SizedBox(width: 8),
-                      Text(
-                        'Field applications',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.5,
-                          color: LaMPColors.portalInk,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final isNarrow = constraints.maxWidth < 640;
-                      final mpoCard = _buildPersonaCard(
-                        context,
-                        persona: PersonaId.mpo,
-                        title: 'MPO Mobile App',
-                        subtitle: 'Kamrul Hasan · Bogura Sadar',
-                        description: 'GS1 carton scanner with cascade, rejection of misrouted carton 14, and offline sync.',
-                        badge: 'Delivery Proof',
-                        badgeColor: LaMPColors.brand,
-                        icon: Icons.qr_code_scanner,
-                      );
-                      final pharmacyCard = _buildPersonaCard(
-                        context,
-                        persona: PersonaId.pharmacy,
-                        title: 'Pharmacy Owner App',
-                        subtitle: 'Rahman Medical Hall (রহমান মেডিকেল হল)',
-                        description: 'Credit cycle ring, bKash payment, and tier upgrade from Building to Established.',
-                        badge: 'Credit Building',
-                        badgeColor: LaMPColors.verified,
-                        icon: Icons.local_pharmacy_outlined,
-                      );
-  
-                      if (isNarrow) {
-                        return Column(
-                          children: [
-                            mpoCard,
-                            const SizedBox(height: 12),
-                            pharmacyCard,
-                          ],
-                        );
-                      }
-                      return Row(
-                        children: [
-                          Expanded(child: mpoCard),
-                          const SizedBox(width: 14),
-                          Expanded(child: pharmacyCard),
-                        ],
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 28),
-  
-                  // Section 2: Institutional Portals
-                  const Row(
-                    children: [
-                      Icon(Icons.laptop, size: 16, color: LaMPColors.portalInk2),
-                      SizedBox(width: 8),
-                      Text(
-                        'Institutional portals',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.5,
-                          color: LaMPColors.portalInk,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final isNarrow = constraints.maxWidth < 640;
-                      final mfrCard = _buildPersonaCard(
-                        context,
-                        persona: PersonaId.manufacturer,
-                        title: 'Manufacturer Portal',
-                        subtitle: 'Shomota Pharmaceuticals Ltd',
-                        description: 'Mint receivables with multi-MSP quorum, track carton scans, and monitor collections.',
-                        badge: 'Receivables',
-                        badgeColor: LaMPColors.brand,
-                        icon: Icons.business_outlined,
-                      );
-                      final bankCard = _buildPersonaCard(
-                        context,
-                        persona: PersonaId.bank,
-                        title: 'Bank SCF Portal',
-                        subtitle: 'Meghna Commercial & Padma Bank',
-                        description: 'Smart contract financing, rate curve bands, and duplicate financing rejection.',
-                        badge: 'Financing',
-                        badgeColor: LaMPColors.pending,
-                        icon: Icons.account_balance_outlined,
-                      );
-  
-                      if (isNarrow) {
-                        return Column(
-                          children: [
-                            mfrCard,
-                            const SizedBox(height: 12),
-                            bankCard,
-                          ],
-                        );
-                      }
-                      return Row(
-                        children: [
-                          Expanded(child: mfrCard),
-                          const SizedBox(width: 14),
-                          Expanded(child: bankCard),
-                        ],
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 14),
-                  _buildPersonaCard(
-                    context,
-                    persona: PersonaId.regulator,
-                    title: 'Regulator Dashboard',
-                    subtitle: 'Bangladesh Bank / DGDA — Observer Node',
-                    description: 'Independent oversight, duplicate advance audit log, and medicine supply chain traceability.',
-                    badge: 'Compliance & Audit',
-                    badgeColor: LaMPColors.dispute,
-                    icon: Icons.security_outlined,
-                  ),
-                  const SizedBox(height: 30),
-                ],
-              ),
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.sm, Gap.lg, Gap.xxl),
+          children: [
+            _LedgerStrip(state: state),
+            const SizedBox(height: Gap.xl),
+
+            const LampSectionHeader(
+              title: 'In the field',
+              caption: 'Phone apps, built for sunlight',
             ),
-          ),
+            _SeatCard(
+              icon: Icons.qr_code_scanner,
+              title: 'Delivery officer',
+              org: 'Kamrul Hasan · Bogura Sadar',
+              tone: LampTone.brand,
+              onTap: () => onSelectPersona(PersonaId.mpo),
+            ),
+            const SizedBox(height: Gap.md),
+            _SeatCard(
+              icon: Icons.local_pharmacy_outlined,
+              title: 'Pharmacy',
+              org: 'Rahman Medical Hall · রহমান মেডিকেল হল',
+              tone: LampTone.verified,
+              onTap: () => onSelectPersona(PersonaId.pharmacy),
+            ),
+
+            const SizedBox(height: Gap.xl),
+            const LampSectionHeader(
+              title: 'At the desk',
+              caption: 'Institutional portals on one channel',
+            ),
+            _SeatCard(
+              icon: Icons.business_outlined,
+              title: 'Manufacturer',
+              org: 'Shomota Pharmaceuticals',
+              tone: LampTone.brand,
+              onTap: () => onSelectPersona(PersonaId.manufacturer),
+            ),
+            const SizedBox(height: Gap.md),
+            _SeatCard(
+              icon: Icons.account_balance_outlined,
+              title: 'Bank',
+              org: 'Meghna Commercial · Padma',
+              tone: LampTone.pending,
+              onTap: () => onSelectPersona(PersonaId.bank),
+            ),
+            const SizedBox(height: Gap.md),
+            _SeatCard(
+              icon: Icons.verified_user_outlined,
+              title: 'Regulator',
+              org: 'Bangladesh Bank · DGDA',
+              tone: LampTone.chain,
+              onTap: () => onSelectPersona(PersonaId.regulator),
+            ),
+          ],
         ),
       ),
     );
   }
+}
 
-  Widget _buildMiniStat(String label, String value, Color color, {bool mono = false}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(fontSize: 10, color: LaMPColors.portalInk3)),
-        const SizedBox(height: 2),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-            fontFamily: mono ? 'monospace' : null,
-            color: color,
+/// The ledger, in three figures.
+///
+/// What replaced the headline. A person opening the app wants to know the chain
+/// is alive and which invoice the demo is on; both fit here, and neither needs
+/// a sentence.
+class _LedgerStrip extends StatelessWidget {
+  final LaMPState state;
+
+  const _LedgerStrip({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.lamp;
+
+    return LampCard(
+      raised: true,
+      padding: const EdgeInsets.all(Gap.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: c.verified,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: Gap.sm),
+              Expanded(
+                child: Text(
+                  'Consortium ledger · lamp-channel',
+                  style: LaMPType.monoCaption.copyWith(color: c.inkFaint),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
           ),
-        ),
-      ],
+          const SizedBox(height: Gap.lg),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Short labels and a wider share for the invoice id, which is
+              // the longest value of the three. "Open invoices" did not fit its
+              // column and ran into the label beside it.
+              Expanded(
+                flex: 2,
+                child: LampStat(
+                  label: 'Block',
+                  value: '${state.blockHeight}',
+                  valueColor: c.verified,
+                ),
+              ),
+              Expanded(
+                flex: 2,
+                child: LampStat(label: 'Invoices', value: '1'),
+              ),
+              Expanded(
+                flex: 4,
+                child: LampStat(
+                  label: 'Demo invoice',
+                  value: state.demoInvoiceId,
+                  valueColor: c.brand,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
+}
 
-  Widget _buildPersonaCard(
-    BuildContext context, {
-    required PersonaId persona,
-    required String title,
-    required String subtitle,
-    required String description,
-    required String badge,
-    required Color badgeColor,
-    required IconData icon,
-  }) {
-    return InkWell(
-      onTap: () => onSelectPersona(persona),
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: const Color(0xFF131B17),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: LaMPColors.portalLine),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Icon(icon, color: badgeColor, size: 22),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: badgeColor.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      badge,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: badgeColor,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+/// One seat. Role, organisation, and a way in — nothing else.
+class _SeatCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String org;
+  final LampTone tone;
+  final VoidCallback onTap;
+
+  const _SeatCard({
+    required this.icon,
+    required this.title,
+    required this.org,
+    required this.tone,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.lamp;
+    final accent = tone.fg(context);
+
+    return LampCard(
+      onTap: onTap,
+      padding: const EdgeInsets.all(Gap.md),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: tone.bg(context),
+              borderRadius: BorderRadius.circular(LaMPRadius.card),
             ),
-            const SizedBox(height: 12),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-                color: LaMPColors.portalInk,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              subtitle,
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-                color: LaMPColors.portalInk3,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              description,
-              style: const TextStyle(
-                fontSize: 12,
-                color: LaMPColors.portalInk2,
-                height: 1.35,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+            child: Icon(icon, size: IconSize.lg, color: accent),
+          ),
+          const SizedBox(width: Gap.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'Launch Seat →',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: badgeColor,
+                  title,
+                  style: LaMPType.sub.copyWith(
+                    color: c.ink,
+                    fontWeight: FontWeight.w600,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  org,
+                  style: LaMPType.caption.copyWith(color: c.inkFaint),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+          const SizedBox(width: Gap.sm),
+          Icon(Icons.chevron_right, size: IconSize.md, color: c.inkFaint),
+        ],
       ),
     );
   }

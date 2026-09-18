@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../core/constants/app_theme.dart';
+import '../core/constants/palette.dart';
 import '../core/constants/colors.dart';
 import '../core/constants/typography.dart';
 import '../core/models/domain_models.dart';
@@ -36,12 +36,12 @@ class LifecycleRail extends StatelessWidget {
 
     // This rail sits on a dark portal card and on a light field card. Ask the
     // ambient theme which, rather than assuming the field palette.
-    final surface = LaMPSurface.of(context);
+    final surface = context.lamp;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
       decoration: BoxDecoration(
-        color: surface.surface,
+        color: surface.surfaceAlt,
         borderRadius: BorderRadius.circular(LaMPRadius.card),
         border: Border.all(color: surface.line),
       ),
@@ -61,7 +61,7 @@ class LifecycleRail extends StatelessWidget {
                       shape: BoxShape.circle,
                       color: i <= activeIndex
                           ? (isDisputed && i == activeIndex ? LaMPColors.dispute : LaMPColors.verified)
-                          : surface.muted,
+                          : surface.surfaceSunken,
                       border: Border.all(
                         color: i == activeIndex ? LaMPColors.brand : Colors.transparent,
                         width: 2,
@@ -75,7 +75,7 @@ class LifecycleRail extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
-                                color: i <= activeIndex ? Colors.white : surface.ink3,
+                                color: i <= activeIndex ? Colors.white : surface.inkFaint,
                               ),
                             ),
                     ),
@@ -86,7 +86,7 @@ class LifecycleRail extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: i == activeIndex ? FontWeight.bold : FontWeight.w500,
-                      color: i <= activeIndex ? surface.ink : surface.ink3,
+                      color: i <= activeIndex ? surface.ink : surface.inkFaint,
                     ),
                   ),
                 ],
@@ -96,7 +96,7 @@ class LifecycleRail extends StatelessWidget {
                   width: 24,
                   height: 2,
                   margin: const EdgeInsets.symmetric(horizontal: 8),
-                  color: i < activeIndex ? LaMPColors.verified : surface.muted,
+                  color: i < activeIndex ? LaMPColors.verified : surface.surfaceSunken,
                 ),
             ],
           ],

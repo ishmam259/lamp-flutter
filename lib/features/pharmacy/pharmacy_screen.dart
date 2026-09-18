@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_theme.dart';
+import '../../core/constants/palette.dart';
 import '../../core/constants/colors.dart';
 import '../../core/constants/formatters.dart';
 import '../../core/models/domain_models.dart';
@@ -45,7 +46,7 @@ class _PharmacyScreenState extends State<PharmacyScreen> with SingleTickerProvid
     final credit = state.creditHistory;
 
     return Theme(
-      data: LaMPTheme.field(),
+      data: LaMPTheme.of(context, LampWorld.field),
       child: Scaffold(
         appBar: AppBar(
           backgroundColor: Colors.white,
