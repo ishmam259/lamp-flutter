@@ -10,6 +10,21 @@ import '../world/clock.dart';
 import '../world/gs1.dart';
 import '../world/seed.dart';
 
+/// What the app is doing before the first screen appears.
+enum WorldLoad {
+  /// Nothing decided yet — the store has not answered.
+  opening,
+
+  /// A stored world was found and is being parsed. Fast.
+  restoring,
+
+  /// No stored world. Replaying the seed through the chaincode. Slower.
+  seeding,
+
+  /// Ready.
+  ready,
+}
+
 enum PersonaId {
   mpo('mpo', 'MPO App', 'Delivery Proof', Msp.manufacturerMSP, true),
   pharmacy('pharmacy', 'Pharmacy App', 'Credit Building', Msp.manufacturerMSP, true),
@@ -36,6 +51,17 @@ class LaMPState extends ChangeNotifier {
   bool _initialized = false;
   bool get isInitialized => _initialized;
 
+  WorldLoad _loadPhase = WorldLoad.opening;
+
+  /// What the app is doing before the first screen.
+  ///
+  /// Seeding a fresh world and restoring a stored one are different amounts of
+  /// work — the first replays two rate curves, seven settled cycles and the
+  /// hero consignment through the chaincode; the second parses one JSON
+  /// document. The splash says which, rather than showing the same word for
+  /// both and being wrong half the time.
+  WorldLoad get loadPhase => _loadPhase;
+
   List<Invoice> invoices = [];
   List<Delivery> deliveries = [];
   CreditHistory? creditHistory;
@@ -60,21 +86,31 @@ class LaMPState extends ChangeNotifier {
   /// being broken — so anything unreadable falls through to a reseed.
   Future<void> initWorld() async {
     final stored = await LaMPStore.load();
-    if (stored != null && _restoreFrom(stored)) {
-      _initialized = true;
+
+    if (stored != null) {
+      _loadPhase = WorldLoad.restoring;
       notifyListeners();
-      return;
+      if (_restoreFrom(stored)) {
+        _loadPhase = WorldLoad.ready;
+        _initialized = true;
+        notifyListeners();
+        return;
+      }
     }
     await _seedWorld();
   }
 
   Future<void> _seedWorld() async {
+    _loadPhase = WorldLoad.seeding;
+    notifyListeners();
+
     final seedResult = await SeedData.buildWorld(ledger, clock);
     invoices = List<Invoice>.from(seedResult['invoices'] as List);
     deliveries = List<Delivery>.from(seedResult['deliveries'] as List);
     creditHistory = seedResult['creditHistory'] as CreditHistory;
     demoTokenId = seedResult['demoTokenId'] as String;
     demoInvoiceId = seedResult['demoInvoiceId'] as String;
+    _loadPhase = WorldLoad.ready;
     _initialized = true;
     notifyListeners();
     await saveNow();

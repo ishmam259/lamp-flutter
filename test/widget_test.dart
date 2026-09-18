@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lamp_flutter/main.dart';
 import 'package:lamp_flutter/core/state/lamp_state.dart';
 import 'package:lamp_flutter/core/state/theme_controller.dart';
+import 'package:lamp_flutter/features/splash/splash_screen.dart';
 
 void main() {
   setUp(() {
@@ -70,5 +71,32 @@ void main() {
       findsOneWidget,
       reason: 'back from a seat should land on the launcher',
     );
+  });
+
+  testWidgets('a fast load never flashes the splash', (WidgetTester tester) async {
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => LaMPState()),
+          ChangeNotifierProvider(create: (_) => ThemeController()),
+        ],
+        child: const LaMPApp(),
+      ),
+    );
+
+    // Before the show-delay elapses there must be nothing to see. Platform
+    // guidance on both sides is that a launch screen should disappear as soon
+    // as possible; a splash that appears for eighty milliseconds and vanishes
+    // reads as a glitch, and its entrance animation is caught mid-flight.
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(
+      find.byType(SplashScreen),
+      findsNothing,
+      reason: 'the splash appeared before the show-delay had elapsed',
+    );
+
+    // And it still arrives at the app.
+    await tester.pumpAndSettle();
+    expect(find.text('Delivery officer'), findsOneWidget);
   });
 }

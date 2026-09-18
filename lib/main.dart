@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'core/constants/app_theme.dart';
@@ -76,6 +78,85 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   PersonaId? _activePersona;
 
+  /// How long to wait before admitting the app is loading at all.
+  ///
+  /// Platform guidance on both sides is that a launch screen should disappear
+  /// as soon as possible and is not a branding opportunity — extending one
+  /// makes an app measurably slower in order to look more considered. A
+  /// restored world parses in tens of milliseconds, so showing a splash for it
+  /// would be a flash, which is worse than showing nothing.
+  ///
+  /// So nothing is shown for the first quarter second. Seeding a fresh world
+  /// takes longer than that and earns the splash; restoring does not and skips
+  /// it entirely, going straight from the platform's own launch screen to the
+  /// launcher.
+  static const Duration _showSplashAfter = Duration(milliseconds: 250);
+
+  /// Once it *has* appeared, hold it long enough to be read.
+  ///
+  /// The other half of the same problem: a splash that appears and vanishes in
+  /// 80ms reads as a glitch, and its entrance animation is caught mid-flight.
+  static const Duration _minimumSplashVisible = Duration(milliseconds: 650);
+
+  bool _handedOver = false;
+  bool _splashShowing = false;
+  DateTime? _splashShownAt;
+  Timer? _showTimer;
+  Timer? _hideTimer;
+
+  @override
+  void initState() {
+    super.initState();
+
+    final state = context.read<LaMPState>();
+    if (state.isInitialized) {
+      _handedOver = true;
+      return;
+    }
+
+    state.addListener(_onWorldChanged);
+    _showTimer = Timer(_showSplashAfter, () {
+      if (!mounted || _handedOver) return;
+      setState(() {
+        _splashShowing = true;
+        _splashShownAt = DateTime.now();
+      });
+    });
+  }
+
+  void _onWorldChanged() {
+    if (!mounted) return;
+    final state = context.read<LaMPState>();
+    if (!state.isInitialized) return;
+
+    state.removeListener(_onWorldChanged);
+    _showTimer?.cancel();
+
+    // Never appeared: hand over now, and the platform splash was the whole
+    // launch experience — which is the intended outcome for a restore.
+    if (!_splashShowing) {
+      setState(() => _handedOver = true);
+      return;
+    }
+
+    final shownFor = DateTime.now().difference(_splashShownAt!);
+    final remaining = _minimumSplashVisible - shownFor;
+    if (remaining <= Duration.zero) {
+      setState(() => _handedOver = true);
+    } else {
+      _hideTimer = Timer(remaining, () {
+        if (mounted) setState(() => _handedOver = true);
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _showTimer?.cancel();
+    _hideTimer?.cancel();
+    super.dispose();
+  }
+
   void _toLauncher() => setState(() => _activePersona = null);
 
   @override
@@ -88,10 +169,10 @@ class _MainShellState extends State<MainShell> {
     // canPop is true only on the launcher, where leaving the app is what back
     // should do. Anywhere else it is intercepted and returns to the launcher,
     // matching the arrow in the app bar.
-    // Hold on the splash until the world is seeded. isInitialized existed and
-    // nothing read it, so the launcher rendered a block height of zero and
-    // then visibly corrected itself.
-    final ready = context.watch<LaMPState>().isInitialized;
+    // Three states, not two: handed over, showing the splash, or showing
+    // nothing yet because the load may still turn out to be instant. That last
+    // one is what stops a fast restore from flashing a splash it did not need.
+    final phase = context.watch<LaMPState>().loadPhase;
 
     return PopScope(
       canPop: _activePersona == null,
@@ -102,9 +183,21 @@ class _MainShellState extends State<MainShell> {
       // entrance; replacing it in a single frame throws that away.
       child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 350),
-        child: !ready
-            ? const SplashScreen(key: ValueKey('splash'))
-            : _seat(),
+        child: switch ((_handedOver, _splashShowing)) {
+          (true, _) => _seat(),
+          (false, true) => SplashScreen(
+              key: const ValueKey('splash'),
+              phase: phase,
+            ),
+          // Loading, but not for long enough to say so yet. The platform's own
+          // launch screen is still the last thing drawn, so holding its ground
+          // colour here is continuous rather than blank.
+          (false, false) => ColoredBox(
+              key: const ValueKey('quiet'),
+              color: context.lamp.bg,
+              child: const SizedBox.expand(),
+            ),
+        },
       ),
     );
   }

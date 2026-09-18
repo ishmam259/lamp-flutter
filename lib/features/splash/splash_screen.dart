@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/constants/palette.dart';
 import '../../core/constants/typography.dart';
+import '../../core/state/lamp_state.dart';
 import '../../widgets/lamp_mark.dart';
 
 /// First run, while the world seeds.
@@ -17,7 +18,9 @@ import '../../widgets/lamp_mark.dart';
 /// then it hands over. Nothing repeats or loops for its own sake; a splash
 /// that draws attention to itself is a splash that has outstayed its welcome.
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key});
+  final WorldLoad phase;
+
+  const SplashScreen({super.key, this.phase = WorldLoad.seeding});
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -146,7 +149,15 @@ class _SplashScreenState extends State<SplashScreen>
                         ),
                         const SizedBox(height: Gap.md),
                         Text(
-                          'Building the ledger',
+                          // Say which wait this is. Seeding replays the whole
+                          // demo world through the chaincode; restoring parses
+                          // one document. Calling both the same thing would be
+                          // wrong half the time.
+                          switch (widget.phase) {
+                            WorldLoad.seeding => 'Building the ledger',
+                            WorldLoad.restoring => 'Opening the ledger',
+                            _ => 'Starting',
+                          },
                           style: LaMPType.caption.copyWith(color: c.inkFaint),
                         ),
                       ],
