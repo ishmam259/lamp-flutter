@@ -1,6 +1,6 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import '../core/constants/colors.dart';
+import '../core/constants/palette.dart';
 
 class SignaturePad extends StatefulWidget {
   final ValueChanged<bool> onSigned;
@@ -31,6 +31,7 @@ class _SignaturePadState extends State<SignaturePad> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.lamp;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -39,7 +40,7 @@ class _SignaturePadState extends State<SignaturePad> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: LaMPColors.fieldLine2),
+            border: Border.all(color: c.lineStrong),
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8),
@@ -61,7 +62,7 @@ class _SignaturePadState extends State<SignaturePad> {
                 });
               },
               child: CustomPaint(
-                painter: _SignaturePainter(points: _points),
+                painter: _SignaturePainter(points: _points, inkColor: context.lamp.ink),
                 size: Size.infinite,
               ),
             ),
@@ -71,9 +72,9 @@ class _SignaturePadState extends State<SignaturePad> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
+            Text(
               'Pharmacy owner signs above',
-              style: TextStyle(fontSize: 11, color: LaMPColors.fieldInk3),
+              style: TextStyle(fontSize: 11, color: c.inkFaint),
             ),
             TextButton(
               onPressed: _points.isEmpty ? null : _clear,
@@ -92,13 +93,14 @@ class _SignaturePadState extends State<SignaturePad> {
 
 class _SignaturePainter extends CustomPainter {
   final List<Offset?> points;
+  final Color inkColor;
 
-  _SignaturePainter({required this.points});
+  _SignaturePainter({required this.points, required this.inkColor});
 
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = LaMPColors.fieldInk
+      ..color = inkColor
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
       ..strokeWidth = 2.5;

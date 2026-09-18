@@ -450,7 +450,6 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
                     RecourseDial(
                       bands: SeedData.meghnaCurve.bands,
                       currentTier: state.creditHistory?.tier ?? RecourseTier.building,
-                      isDark: true,
                     ),
                   ],
                 ),

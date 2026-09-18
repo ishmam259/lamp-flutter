@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
-import '../core/constants/colors.dart';
+import '../core/constants/palette.dart';
 import '../core/world/gs1.dart';
 import '../core/constants/typography.dart';
 
@@ -28,6 +28,7 @@ class CartonCodeView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.lamp;
     final fields = GS1Barcode.parse(gs1);
 
     return Column(
@@ -38,7 +39,7 @@ class CartonCodeView extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: LaMPColors.fieldLine),
+            border: Border.all(color: c.line),
           ),
           child: QrImageView(
             data: gs1,
@@ -50,10 +51,10 @@ class CartonCodeView extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        const Text(
+        Text(
           'QR carrying the GS1 payload — a printed carton uses DataMatrix',
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 10, color: LaMPColors.fieldInk3, height: 1.3),
+          style: TextStyle(fontSize: 10, color: c.inkFaint, height: 1.3),
         ),
         if (showPayload) ...[
           const SizedBox(height: 8),
@@ -62,10 +63,10 @@ class CartonCodeView extends StatelessWidget {
               '(01) ${fields.gtin}   (10) ${fields.batch}\n'
               '(17) ${fields.expiry}   (21) ${fields.serial}',
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback,
                 fontSize: 10,
-                color: LaMPColors.fieldInk2,
+                color: c.inkMuted,
                 height: 1.5,
               ),
             ),

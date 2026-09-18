@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../core/constants/colors.dart';
+import '../core/constants/palette.dart';
 import '../core/constants/formatters.dart';
 import '../core/constants/typography.dart';
 
@@ -8,7 +8,6 @@ class PrivateSeal extends StatelessWidget {
   final String hash;
   final bool isVisible;
   final String memberName;
-  final bool isDark;
 
   const PrivateSeal({
     super.key,
@@ -16,19 +15,19 @@ class PrivateSeal extends StatelessWidget {
     required this.hash,
     required this.isVisible,
     required this.memberName,
-    this.isDark = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final c = context.lamp;
     if (isVisible) {
       return Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isDark ? LaMPColors.portalSurface2 : LaMPColors.fieldSurface,
+          color: c.surfaceAlt,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isDark ? LaMPColors.portalLine : LaMPColors.fieldLine,
+            color: c.line,
           ),
         ),
         child: Row(
@@ -39,27 +38,27 @@ class PrivateSeal extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
-                  color: isDark ? LaMPColors.portalInk : LaMPColors.fieldInk,
+                  color: c.ink,
                 ),
               ),
             ),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: LaMPColors.verified.withValues(alpha: 0.15),
+                color: c.verified.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.lock_open, size: 12, color: LaMPColors.verifiedDark),
+                  Icon(Icons.lock_open, size: 12, color: c.verified),
                   const SizedBox(width: 4),
                   Text(
                     'visible to $memberName',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
-                      color: LaMPColors.verifiedDark,
+                      color: c.verified,
                     ),
                   ),
                 ],
@@ -73,15 +72,15 @@ class PrivateSeal extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isDark ? Colors.black38 : Colors.black.withValues(alpha: 0.02),
+        color: c.surfaceAlt,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: isDark ? LaMPColors.portalLine : Colors.black12,
+          color: c.line,
         ),
       ),
       child: Row(
         children: [
-          const Icon(Icons.lock_outline, size: 16, color: LaMPColors.hashInk),
+          Icon(Icons.lock_outline, size: 16, color: c.inkFaint),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
@@ -94,16 +93,16 @@ class PrivateSeal extends StatelessWidget {
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 0.8,
-                    color: isDark ? LaMPColors.portalInk3 : LaMPColors.fieldInk3,
+                    color: c.inkFaint,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   LaMPFormatters.shortHash(hash, head: 16, tail: 12),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
                     fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback,
-                    color: LaMPColors.hashInk,
+                    color: c.inkFaint,
                   ),
                 ),
               ],
@@ -112,15 +111,15 @@ class PrivateSeal extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: LaMPColors.pending.withValues(alpha: 0.15),
+              color: c.pending.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(4),
             ),
-            child: const Text(
+            child: Text(
               'hash only',
               style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.bold,
-                color: LaMPColors.pending,
+                color: c.pending,
               ),
             ),
           ),

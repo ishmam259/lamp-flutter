@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import '../core/constants/colors.dart';
+import '../core/constants/palette.dart';
 import '../core/models/domain_models.dart';
 import '../core/constants/typography.dart';
 
@@ -20,6 +20,7 @@ class CreditRing extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.lamp;
     final target = tier.cyclesToNext ?? cycles.length;
     final total = math.max(target, math.max(cycles.length, 1));
 
@@ -32,6 +33,9 @@ class CreditRing extends StatelessWidget {
           CustomPaint(
             size: Size(size, size),
             painter: _CreditRingPainter(
+              onTimeColor: c.verified,
+              lateColor: c.pending,
+              trackColor: c.surfaceSunken,
               cycles: cycles,
               total: total,
               strokeWidth: strokeWidth,
@@ -46,7 +50,7 @@ class CreditRing extends StatelessWidget {
                   fontSize: size * 0.22,
                   fontWeight: FontWeight.bold,
                   fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback,
-                  color: LaMPColors.fieldInk,
+                  color: c.ink,
                   height: 1.0,
                 ),
               ),
@@ -56,7 +60,7 @@ class CreditRing extends StatelessWidget {
                 style: TextStyle(
                   fontSize: size * 0.08,
                   fontWeight: FontWeight.w600,
-                  color: LaMPColors.fieldInk3,
+                  color: c.inkFaint,
                   letterSpacing: 0.5,
                 ),
               ),
@@ -72,8 +76,14 @@ class _CreditRingPainter extends CustomPainter {
   final List<CreditCycle> cycles;
   final int total;
   final double strokeWidth;
+  final Color onTimeColor;
+  final Color lateColor;
+  final Color trackColor;
 
   _CreditRingPainter({
+    required this.onTimeColor,
+    required this.lateColor,
+    required this.trackColor,
     required this.cycles,
     required this.total,
     required this.strokeWidth,
@@ -94,9 +104,9 @@ class _CreditRingPainter extends CustomPainter {
     for (int i = 0; i < total; i++) {
       Color arcColor;
       if (i < cycles.length) {
-        arcColor = cycles[i].onTime ? LaMPColors.verified : LaMPColors.pending;
+        arcColor = cycles[i].onTime ? onTimeColor : lateColor;
       } else {
-        arcColor = Colors.black.withValues(alpha: 0.08);
+        arcColor = trackColor;
       }
 
       final paint = Paint()

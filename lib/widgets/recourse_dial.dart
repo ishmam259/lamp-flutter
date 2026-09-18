@@ -1,18 +1,16 @@
 import 'package:flutter/material.dart';
-import '../core/constants/colors.dart';
+import '../core/constants/palette.dart';
 import '../core/models/domain_models.dart';
 import '../core/constants/typography.dart';
 
 class RecourseDial extends StatelessWidget {
   final List<RateCurveBand> bands;
   final RecourseTier currentTier;
-  final bool isDark;
 
   const RecourseDial({
     super.key,
     required this.bands,
     required this.currentTier,
-    this.isDark = false,
   });
 
   @override
@@ -26,7 +24,7 @@ class RecourseDial extends StatelessWidget {
           children: [
             for (final tier in tiers) ...[
               Expanded(
-                child: _buildTierCard(tier),
+                child: _buildTierCard(context, tier),
               ),
               if (tier != tiers.last) const SizedBox(width: 8),
             ],
@@ -36,7 +34,8 @@ class RecourseDial extends StatelessWidget {
     );
   }
 
-  Widget _buildTierCard(RecourseTier tier) {
+  Widget _buildTierCard(BuildContext context, RecourseTier tier) {
+    final c = context.lamp;
     final band = bands.firstWhere(
       (b) => b.tier == tier,
       orElse: () => RateCurveBand(
@@ -64,17 +63,17 @@ class RecourseDial extends StatelessWidget {
     final isReached = tier.index <= currentTier.index;
 
     final borderColor = isActive
-        ? LaMPColors.brand
-        : (isReached ? (isDark ? LaMPColors.portalLine2 : LaMPColors.fieldLine2) : Colors.transparent);
+        ? c.brand
+        : (isReached ? c.lineStrong : Colors.transparent);
 
     final bgColor = isActive
-        ? (isDark ? LaMPColors.brand.withValues(alpha: 0.25) : LaMPColors.brandSoft)
+        ? c.brandSoft
         : (isReached
-            ? (isDark ? LaMPColors.portalSurface2 : LaMPColors.fieldSurface2)
-            : (isDark ? LaMPColors.portalSurface : Colors.black.withValues(alpha: 0.03)));
+            ? c.surfaceAlt
+            : c.surfaceAlt);
 
-    final textColor = isDark ? LaMPColors.portalInk : LaMPColors.fieldInk;
-    final subColor = isDark ? LaMPColors.portalInk3 : LaMPColors.fieldInk3;
+    final textColor = c.ink;
+    final subColor = c.inkFaint;
 
     return Container(
       padding: const EdgeInsets.all(8),
@@ -96,10 +95,10 @@ class RecourseDial extends StatelessWidget {
                   // black26 disappeared against the bank portal's dark card,
                   // so an unreached tier read as no dot at all.
                   color: isActive
-                      ? LaMPColors.brand
+                      ? c.brand
                       : (isReached
-                          ? LaMPColors.verified
-                          : (isDark ? LaMPColors.portalSurface3 : Colors.black26)),
+                          ? c.verified
+                          : c.surfaceSunken),
                 ),
               ),
               const SizedBox(width: 4),
@@ -110,7 +109,7 @@ class RecourseDial extends StatelessWidget {
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 0.6,
-                    color: isActive ? LaMPColors.brand : subColor,
+                    color: isActive ? c.brand : subColor,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -140,11 +139,11 @@ class RecourseDial extends StatelessWidget {
                 children: [
                   Expanded(
                     flex: band.manufacturerRecoursePct.round(),
-                    child: Container(color: LaMPColors.pending),
+                    child: Container(color: c.pending),
                   ),
                   Expanded(
                     flex: (100 - band.manufacturerRecoursePct).round(),
-                    child: Container(color: LaMPColors.verified),
+                    child: Container(color: c.verified),
                   ),
                 ],
               ),

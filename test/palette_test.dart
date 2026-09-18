@@ -16,13 +16,22 @@ import 'package:lamp_flutter/core/constants/palette.dart';
 /// A screen that names `LaMPColors.portalInk` has opted out of theming, so the
 /// check is simply that no screen names one.
 void main() {
-  group('screens resolve colour from the theme', () {
-    final screens = Directory('lib/features')
-        .listSync(recursive: true)
+  group('screens and widgets resolve colour from the theme', () {
+    // Widgets are covered as well as screens. The first version of this guard
+    // checked `lib/features` only, which let RecourseDial and PrivateSeal keep
+    // an `isDark` flag — a second source of truth for something the ambient
+    // theme already knows.
+    final sources = [
+      ...Directory('lib/features').listSync(recursive: true),
+      ...Directory('lib/widgets').listSync(recursive: true),
+    ]
         .whereType<File>()
-        .where((f) => f.path.endsWith('_screen.dart'));
+        .where((f) => f.path.endsWith('.dart'))
+        // The camera sheet paints its own chrome over a live preview, where
+        // white-on-black is the only thing that reads regardless of theme.
+        .where((f) => !f.path.endsWith('carton_scanner_sheet.dart'));
 
-    for (final file in screens) {
+    for (final file in sources) {
       final name = file.uri.pathSegments.last;
 
       test('$name names no world-specific colour', () {
@@ -35,7 +44,10 @@ void main() {
 
           if (line.contains('LaMPColors.portal') ||
               line.contains('LaMPColors.field') ||
-              line.contains('Color(0xFF131B17)')) {
+              line.contains('Color(0xFF131B17)') ||
+              // A flag that says which theme is in force is the same mistake
+              // as a hardcoded colour: it can disagree with the theme.
+              line.contains('isDark')) {
             offenders.add('  ${i + 1}: ${line.trim()}');
           }
         }
