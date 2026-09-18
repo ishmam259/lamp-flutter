@@ -264,24 +264,24 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
 
                     // Smart Contract Verification Checklist
                     Text(
-                      'SMART CONTRACT FINANCING PREREQUISITES',
+                      'Before financing',
                       style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: c.inkFaint),
                     ),
                     const SizedBox(height: 8),
 
                     _checkItem(context,
-                      label: 'Delivery Confirmed (≥90% Scanned)',
+                      label: 'Delivery confirmed',
                       detail: '$scannedCount/$totalCartons cartons (${(deliveryRatio * 100).toInt()}%)',
                       isPassed: isDeliveryConfirmed,
                     ),
                     _checkItem(context,
-                      label: '24-Hour Dispute Window Closed',
-                      detail: disputeWindowClosed ? 'Window closed · No objections filed' : 'Dispute window counting down',
+                      label: 'Dispute window closed',
+                      detail: disputeWindowClosed ? 'Window closed · No objections filed' : 'Counting down',
                       isPassed: disputeWindowClosed,
                     ),
                     _checkItem(context,
-                      label: 'Receivable Unencumbered & Unfinanced',
-                      detail: 'No previous financing token recorded on ledger',
+                      label: 'Not already financed',
+                      detail: 'No prior advance',
                       isPassed: true,
                     ),
 
@@ -299,10 +299,10 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
                         runSpacing: 10,
                         alignment: WrapAlignment.spaceBetween,
                         children: [
-                          _statItem(context, 'COUNTERPARTY TIER', state.creditHistory?.tier.label ?? 'BUILDING', c.brand),
-                          _statItem(context, 'ADVANCE RATE', '80.0%', c.ink),
-                          _statItem(context, 'DISCOUNT FEE', '8.8%', c.pending),
-                          _statItem(context, 'DISBURSED AMOUNT', LaMPFormatters.formatBDT(182400 * 0.8), c.verified),
+                          _statItem(context, 'Tier', state.creditHistory?.tier.label ?? 'BUILDING', c.brand),
+                          _statItem(context, 'Advance', '80.0%', c.ink),
+                          _statItem(context, 'Fee', '8.8%', c.pending),
+                          _statItem(context, 'You receive', LaMPFormatters.formatBDT(182400 * 0.8), c.verified),
                         ],
                       ),
                     ),
@@ -316,7 +316,7 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
                         onPressed: () => _executeSmartContractAdvance(state),
                         icon: const Icon(Icons.flash_on),
                         label: Text(
-                          'Execute Smart Contract Advance as ${_activeBank.shortName}',
+                          'Finance ${LaMPFormatters.formatBDT(145920)}',
                           textAlign: TextAlign.center,
                           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                         ),
@@ -439,11 +439,11 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Dynamic Rate Curve & Recourse Dial (Whitepaper §4.6)',
+                    Text('Rate curve',
                         style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: c.ink)),
                     const SizedBox(height: 4),
                     Text(
-                      'As on-chain repayment history accumulates, loss exposure automatically shifts from manufacturer to bank.',
+                      'Better repayment history moves risk from the manufacturer to the bank.',
                       style: TextStyle(fontSize: 12, color: c.inkMuted),
                     ),
                     const SizedBox(height: 16),
@@ -478,10 +478,10 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Bank Portfolio Management',
+                Text('Portfolio',
                     style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: c.ink)),
                 SizedBox(height: 8),
-                Text('Real-time exposure across all verified pharmacy supply chain receivables.',
+                Text('Exposure across financed receivables.',
                     style: TextStyle(fontSize: 12, color: c.inkMuted)),
                 SizedBox(height: 20),
                 Text('Total Portfolio Size: ৳ 45,00,000 across 18 pharmacies',

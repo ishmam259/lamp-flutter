@@ -127,9 +127,9 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
             unselectedLabelColor: c.inkFaint,
             indicatorColor: c.brand,
             tabs: const [
-              Tab(text: "Today's Route"),
-              Tab(text: "Carton Scanner"),
-              Tab(text: "Pharmacy Sign"),
+              Tab(text: "Route"),
+              Tab(text: "Scan"),
+              Tab(text: "Sign"),
               Tab(text: "Returns"),
             ],
           ),
@@ -200,7 +200,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
-                            'STOP 1 OF 1',
+                            'Stop 1 of 1',
                             style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: c.brand),
                           ),
                         ),
@@ -276,7 +276,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '${(ratio * 100).toInt()}% consignment verified on blockchain',
+                      '${(ratio * 100).toInt()}% verified',
                       style: TextStyle(fontSize: 11, color: c.inkFaint),
                     ),
                     const SizedBox(height: 16),
@@ -311,7 +311,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Consignment Manifest (Shomota Pharma)',
+                      'Manifest',
                       style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: c.ink),
                     ),
                     const SizedBox(height: 8),
@@ -526,8 +526,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
               if (!cameraScanningSupported) ...[
                 const SizedBox(height: 8),
                 Text(
-                  'Camera scanning runs on Android and iOS. This build is using '
-                  'the on-screen cascade.',
+                  'Camera scanning runs on Android and iOS.',
                   style: TextStyle(
                     fontSize: 11,
                     color: c.inkFaint,
@@ -539,7 +538,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
 
               // List of 25 Cartons
               Text(
-                'Consignment Cartons (Sequential Proof)',
+                'Cartons',
                 style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: c.ink),
               ),
               const SizedBox(height: 8),
@@ -788,7 +787,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Carton ${targetCarton.cartonId} queued offline (${_offlineQueue.length} queued)'),
+          content: Text('Queued · ${_offlineQueue.length} offline'),
           duration: const Duration(milliseconds: 700),
         ),
       );
@@ -854,38 +853,27 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: c.ink),
                     ),
                     Text(
-                      'Abdur Rahman signs on MPO device to generate verifiable Proof of Delivery',
+                      'Sign to confirm delivery',
                       style: TextStyle(fontSize: 12, color: c.inkMuted),
                     ),
                     const SizedBox(height: 16),
                     Divider(color: c.line, height: 1),
                     const SizedBox(height: 16),
 
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('Invoice Total:', style: TextStyle(fontSize: 13, color: c.inkMuted)),
-                        Text(LaMPFormatters.formatBDT(182400),
-                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-                      ],
+                    // Three label/value pairs, each of which was a
+                    // spaceBetween that overflowed once the sweep could
+                    // actually reach this tab.
+                    LampKeyValue(
+                      label: 'Invoice total',
+                      value: LaMPFormatters.formatBDT(182400),
+                      mono: true,
                     ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('Cartons Received:', style: TextStyle(fontSize: 13, color: c.inkMuted)),
-                        Text('${delivery.cartons.length} cartons',
-                            style: const TextStyle(fontSize: 13, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, fontWeight: FontWeight.bold)),
-                      ],
+                    LampKeyValue(
+                      label: 'Cartons received',
+                      value: '${delivery.cartons.length}',
+                      mono: true,
                     ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('Payment Terms:', style: TextStyle(fontSize: 13, color: c.inkMuted)),
-                        const Text('45 Days Credit', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
+                    const LampKeyValue(label: 'Terms', value: '45 days'),
                     const SizedBox(height: 20),
 
                     // Signature Pad
@@ -908,7 +896,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                                 if (context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
-                                      content: Text('Delivery Confirmed! 24h Dispute Window is now active on-chain.'),
+                                      content: Text('Delivered. Dispute window open 24h.'),
                                     ),
                                   );
                                   _tabController.animateTo(0);
@@ -960,7 +948,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: c.ink),
                     ),
                     Text(
-                      'Report damaged or misrouted carton to reopen receivable token',
+                      'Report a damaged or misrouted carton',
                       style: TextStyle(fontSize: 12, color: c.inkMuted),
                     ),
                     const SizedBox(height: 16),

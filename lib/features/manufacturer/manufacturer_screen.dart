@@ -162,23 +162,23 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
               LayoutBuilder(
                 builder: (context, constraints) {
                   final card1 = _buildMetricCard(context,
-                    'Total Receivables',
+                    'Receivables',
                     LaMPFormatters.formatBDT(182400),
-                    '1 active consignment',
+                    '1 consignment',
                     c.brand,
                   );
                   final card2 = _buildMetricCard(context,
-                    'Delivery Ratio',
+                    'Delivered',
                     delivery != null
                         ? '${((delivery.cartons.where((c) => c.scannedAt != null).length / delivery.cartons.length) * 100).toInt()}%'
                         : '0%',
-                    'Target: ≥90% for SCF',
+                    '≥90% to finance',
                     c.verified,
                   );
                   final card3 = _buildMetricCard(context,
-                    'Financing Status',
+                    'Financing',
                     delivery?.status == DeliveryStatus.completed ? 'ELIGIBLE' : 'IN TRANSIT',
-                    'Meghna Bank matching',
+                    'Meghna matching',
                     c.pending,
                   );
 
@@ -231,11 +231,11 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                       runSpacing: 4,
                       children: [
                         Text(
-                          'Active Receivable Tokens on Ledger',
+                          'On the ledger',
                           style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: c.ink),
                         ),
                         Text(
-                          'Consortium Channel: lamp-channel',
+                          'lamp-channel',
                           style: TextStyle(fontSize: 10, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, color: c.inkFaint),
                         ),
                       ],
@@ -497,7 +497,7 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
               children: [
                 Text('Mint New Receivable Token',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: c.ink)),
-                Text('Enforces multi-MSP endorsement quorum AND(Mfr, OR(Banks)) upon creation',
+                Text('Needs a bank co-signature',
                     style: TextStyle(fontSize: 12, color: c.inkMuted)),
                 const SizedBox(height: 16),
                 Divider(color: c.line),
@@ -611,7 +611,7 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               backgroundColor: c.verified,
-                              content: Text('Receivable token minted on blockchain with 2-MSP endorsement!'),
+                              content: Text('Receivable minted'),
                             ),
                           );
                           _tabController.animateTo(0);

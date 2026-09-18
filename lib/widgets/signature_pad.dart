@@ -72,9 +72,13 @@ class _SignaturePadState extends State<SignaturePad> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Pharmacy owner signs above',
-              style: TextStyle(fontSize: 11, color: c.inkFaint),
+            // Flexes, so the clear button keeps its width and the caption
+            // shortens rather than pushing it off the pad.
+            Expanded(
+              child: Text(
+                'Sign above',
+                style: TextStyle(fontSize: 11, color: c.inkFaint),
+              ),
             ),
             TextButton(
               onPressed: _points.isEmpty ? null : _clear,
