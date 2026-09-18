@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../../core/chain/crypto.dart';
 import '../../core/constants/app_theme.dart';
 import '../../core/constants/palette.dart';
-import '../../core/constants/colors.dart';
 import '../../core/constants/formatters.dart';
 import '../../core/models/domain_models.dart';
 import '../../core/state/lamp_state.dart';
@@ -60,17 +59,24 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
 
   @override
   Widget build(BuildContext context) {
-    final state = context.watch<LaMPState>();
-    final delivery = state.getDelivery(state.demoTokenId);
-
+    // Built below the Theme so `context.lamp` resolves to the field palette.
     return Theme(
       data: LaMPTheme.of(context, LampWorld.field),
-      child: Scaffold(
+      child: Builder(builder: _buildScaffold),
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context) {
+    final state = context.watch<LaMPState>();
+    final delivery = state.getDelivery(state.demoTokenId);
+    final c = context.lamp;
+
+    return Scaffold(
         appBar: AppBar(
-          backgroundColor: Colors.white,
+          backgroundColor: c.surface,
           elevation: 1,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: LaMPColors.fieldInk),
+            icon: Icon(Icons.arrow_back, color: c.ink),
             onPressed: widget.onBackToLauncher,
             tooltip: 'All Personas',
           ),
@@ -81,34 +87,34 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                 children: [
                   const LampMark(size: 20),
                   const SizedBox(width: 8),
-                  const Flexible(
+                  Flexible(
                     child: Text(
                       'MPO Delivery App',
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: LaMPColors.fieldInk),
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: c.ink),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   const SizedBox(width: 6),
-                  const Icon(Icons.wifi, size: 14, color: LaMPColors.brand),
+                  Icon(Icons.wifi, size: 14, color: c.brand),
                 ],
               ),
               Text(
                 'Kamrul Hasan · LMP-DEV-4471 · Bogura Sadar',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 11, color: LaMPColors.fieldInk3),
+                style: TextStyle(fontSize: 11, color: c.inkFaint),
               ),
             ],
           ),
           actions: [
             IconButton(
               tooltip: 'Ledger Inspector',
-              icon: const Icon(Icons.account_tree_outlined, color: LaMPColors.verifiedDark),
+              icon: Icon(Icons.account_tree_outlined, color: c.verified),
               onPressed: () => LedgerInspectorSheet.show(context),
             ),
             IconButton(
               tooltip: 'Demo Director',
-              icon: const Icon(Icons.movie_filter_outlined, color: LaMPColors.brand),
+              icon: Icon(Icons.movie_filter_outlined, color: c.brand),
               onPressed: () => DemoDirectorSheet.show(context),
             ),
             const SizedBox(width: 6),
@@ -116,9 +122,9 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
           bottom: TabBar(
             controller: _tabController,
             isScrollable: true,
-            labelColor: LaMPColors.brand,
-            unselectedLabelColor: LaMPColors.fieldInk3,
-            indicatorColor: LaMPColors.brand,
+            labelColor: c.brand,
+            unselectedLabelColor: c.inkFaint,
+            indicatorColor: c.brand,
             tabs: const [
               Tab(text: "Today's Route"),
               Tab(text: "Carton Scanner"),
@@ -144,11 +150,11 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                   ],
                 ),
         ),
-      ),
     );
   }
 
   Widget _buildRouteTab(BuildContext context, Delivery delivery, LaMPState state) {
+    final c = context.lamp;
     final scannedCount = delivery.cartons.where((c) => c.scannedAt != null).length;
     final totalCartons = delivery.cartons.length;
     final ratio = totalCartons > 0 ? scannedCount / totalCartons : 0.0;
@@ -165,9 +171,9 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: c.surface,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: LaMPColors.fieldLine),
+                  border: Border.all(color: c.line),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -178,20 +184,20 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: LaMPColors.brandSoft,
+                            color: c.brandSoft,
                             borderRadius: BorderRadius.circular(6),
                           ),
-                          child: const Text(
+                          child: Text(
                             'STOP 1 OF 1',
-                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: LaMPColors.brand),
+                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: c.brand),
                           ),
                         ),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
                             color: delivery.status == DeliveryStatus.completed
-                                ? LaMPColors.verifiedSoft
-                                : LaMPColors.pendingSoft,
+                                ? c.verifiedSoft
+                                : c.pendingSoft,
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
@@ -200,24 +206,24 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
                               color: delivery.status == DeliveryStatus.completed
-                                  ? LaMPColors.verifiedDark
-                                  : LaMPColors.pending,
+                                  ? c.verified
+                                  : c.pending,
                             ),
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 12),
-                    const Text(
+                    Text(
                       'Rahman Medical Hall',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: LaMPColors.fieldInk),
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: c.ink),
                     ),
-                    const Text(
+                    Text(
                       'রহমান মেডিকেল হল · Sherpur Road, Bogura Sadar',
-                      style: TextStyle(fontSize: 12, color: LaMPColors.fieldInk2),
+                      style: TextStyle(fontSize: 12, color: c.inkMuted),
                     ),
                     const SizedBox(height: 14),
-                    const Divider(color: LaMPColors.fieldLine, height: 1),
+                    Divider(color: c.line, height: 1),
                     const SizedBox(height: 14),
                     // Three figures sharing the width. Unflexed beside a
                     // spaceBetween they claimed their natural widths and
@@ -252,14 +258,14 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                       child: LinearProgressIndicator(
                         value: ratio,
                         minHeight: 6,
-                        backgroundColor: LaMPColors.fieldLine,
-                        valueColor: const AlwaysStoppedAnimation<Color>(LaMPColors.brand),
+                        backgroundColor: c.line,
+                        valueColor: AlwaysStoppedAnimation<Color>(c.brand),
                       ),
                     ),
                     const SizedBox(height: 6),
                     Text(
                       '${(ratio * 100).toInt()}% consignment verified on blockchain',
-                      style: const TextStyle(fontSize: 11, color: LaMPColors.fieldInk3),
+                      style: TextStyle(fontSize: 11, color: c.inkFaint),
                     ),
                     const SizedBox(height: 16),
                     SizedBox(
@@ -269,7 +275,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                         icon: const Icon(Icons.qr_code_scanner, size: 18),
                         label: Text(scannedCount >= totalCartons ? 'Review Scanned Cartons' : 'Start Carton Scan'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: LaMPColors.brand,
+                          backgroundColor: c.brand,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -285,21 +291,21 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: c.surface,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: LaMPColors.fieldLine),
+                  border: Border.all(color: c.line),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Consignment Manifest (Shomota Pharma)',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: LaMPColors.fieldInk),
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: c.ink),
                     ),
                     const SizedBox(height: 10),
-                    _manifestRow('Paracetamol 500mg (SHM-PARA-500)', '10 cartons', '50,000 tabs'),
-                    _manifestRow('Esomeprazole 20mg (SHM-ESOM-20)', '8 cartons', '9,600 caps'),
-                    _manifestRow('Metformin HCl 500mg (SHM-METF-500)', '7 cartons', '21,000 tabs'),
+                    _manifestRow(context, 'Paracetamol 500mg (SHM-PARA-500)', '10 cartons', '50,000 tabs'),
+                    _manifestRow(context, 'Esomeprazole 20mg (SHM-ESOM-20)', '8 cartons', '9,600 caps'),
+                    _manifestRow(context, 'Metformin HCl 500mg (SHM-METF-500)', '7 cartons', '21,000 tabs'),
                   ],
                 ),
               ),
@@ -310,7 +316,8 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
     );
   }
 
-  Widget _manifestRow(String name, String cartons, String units) {
+  Widget _manifestRow(BuildContext context, String name, String cartons, String units) {
+    final c = context.lamp;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
@@ -321,13 +328,14 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
           ),
           Text(cartons, style: const TextStyle(fontSize: 12, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, fontWeight: FontWeight.bold)),
           const SizedBox(width: 8),
-          Text(units, style: const TextStyle(fontSize: 11, color: LaMPColors.fieldInk3)),
+          Text(units, style: TextStyle(fontSize: 11, color: c.inkFaint)),
         ],
       ),
     );
   }
 
   Widget _buildScannerTab(BuildContext context, Delivery delivery, LaMPState state) {
+    final c = context.lamp;
     final scannedCount = delivery.cartons.where((c) => c.scannedAt != null).length;
     final totalCartons = delivery.cartons.length;
 
@@ -343,9 +351,9 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: c.surface,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: LaMPColors.fieldLine),
+                  border: Border.all(color: c.line),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -354,7 +362,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('SCAN PROGRESS', style: TextStyle(fontSize: 10, color: LaMPColors.fieldInk3)),
+                          Text('SCAN PROGRESS', style: TextStyle(fontSize: 10, color: c.inkFaint)),
                           Text('$scannedCount of $totalCartons verified',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -366,7 +374,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                       children: [
                         Switch(
                           value: _offlineMode,
-                          activeThumbColor: LaMPColors.pending,
+                          activeThumbColor: c.pending,
                           onChanged: (val) {
                             setState(() {
                               _offlineMode = val;
@@ -381,7 +389,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
-                            color: _offlineMode ? LaMPColors.pending : LaMPColors.brand,
+                            color: _offlineMode ? c.pending : c.brand,
                           ),
                         ),
                       ],
@@ -397,18 +405,18 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                   margin: const EdgeInsets.only(bottom: 12),
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: LaMPColors.disputeSoft,
+                    color: c.disputeSoft,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: LaMPColors.dispute),
+                    border: Border.all(color: c.dispute),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.warning_amber_rounded, color: LaMPColors.dispute, size: 20),
+                      Icon(Icons.warning_amber_rounded, color: c.dispute, size: 20),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           _scanBannerError!,
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: LaMPColors.dispute),
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: c.dispute),
                         ),
                       ),
                       IconButton(
@@ -428,7 +436,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                     icon: const Icon(Icons.qr_code_scanner, size: 18),
                     label: const Text('Scan with camera'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: LaMPColors.brand,
+                      backgroundColor: c.brand,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 13),
                       shape: RoundedRectangleBorder(
@@ -444,14 +452,14 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
               Align(
                 alignment: Alignment.centerLeft,
                 child: TextButton.icon(
-                  onPressed: _showMisroutedCode,
+                  onPressed: () => _showMisroutedCode(context),
                   icon: const Icon(Icons.report_gmailerrorred_outlined, size: 16),
                   label: const Text(
                     'Show a misrouted carton code',
                     style: TextStyle(fontSize: 12),
                   ),
                   style: TextButton.styleFrom(
-                    foregroundColor: LaMPColors.dispute,
+                    foregroundColor: c.dispute,
                     padding: const EdgeInsets.symmetric(horizontal: 4),
                     visualDensity: VisualDensity.compact,
                   ),
@@ -467,8 +475,8 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                             icon: const Icon(Icons.touch_app_outlined, size: 18),
                             label: const Text('Scan Next Carton'),
                             style: OutlinedButton.styleFrom(
-                              foregroundColor: LaMPColors.brand,
-                              side: const BorderSide(color: LaMPColors.brand),
+                              foregroundColor: c.brand,
+                              side: BorderSide(color: c.brand),
                               padding: const EdgeInsets.symmetric(vertical: 12),
                             ),
                           )
@@ -477,7 +485,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                             icon: const Icon(Icons.touch_app_outlined, size: 18),
                             label: const Text('Scan Next Carton'),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: LaMPColors.brand,
+                              backgroundColor: c.brand,
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               shape: RoundedRectangleBorder(
@@ -490,13 +498,13 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                   OutlinedButton(
                     onPressed: () => _toggleAutoScan(state, delivery),
                     style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: _autoScanning ? LaMPColors.dispute : LaMPColors.brand),
+                      side: BorderSide(color: _autoScanning ? c.dispute : c.brand),
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                     ),
                     child: Text(
                       _autoScanning ? 'Stop Auto' : 'Auto Cascade',
                       style: TextStyle(
-                        color: _autoScanning ? LaMPColors.dispute : LaMPColors.brand,
+                        color: _autoScanning ? c.dispute : c.brand,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -510,7 +518,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                   'the on-screen cascade.',
                   style: TextStyle(
                     fontSize: 11,
-                    color: LaMPColors.fieldInk3,
+                    color: c.inkFaint,
                     height: 1.3,
                   ),
                 ),
@@ -518,9 +526,9 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
               const SizedBox(height: 16),
 
               // List of 25 Cartons
-              const Text(
+              Text(
                 'Consignment Cartons (Sequential Proof)',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: LaMPColors.fieldInk),
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: c.ink),
               ),
               const SizedBox(height: 8),
               ListView.separated(
@@ -529,20 +537,20 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                 itemCount: delivery.cartons.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 6),
                 itemBuilder: (ctx, i) {
-                  final c = delivery.cartons[i];
-                  final isScanned = c.scannedAt != null;
-                  final isRejected = c.rejected == true;
+                  final carton = delivery.cartons[i];
+                  final isScanned = carton.scannedAt != null;
+                  final isRejected = carton.rejected == true;
                   final isPlant = (i == 13); // Carton 14 (0-indexed 13)
 
                   return Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: c.surface,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
                         color: isRejected
-                            ? LaMPColors.dispute
-                            : (isScanned ? LaMPColors.verified : LaMPColors.fieldLine),
+                            ? c.dispute
+                            : (isScanned ? c.verified : c.line),
                         width: isRejected || isScanned ? 1.5 : 1,
                       ),
                     ),
@@ -551,9 +559,9 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                         // Tapping enlarges the carton's code into something a
                         // second device can actually read.
                         InkWell(
-                          onTap: () => _showCartonCode(c),
+                          onTap: () => _showCartonCode(context, carton),
                           borderRadius: BorderRadius.circular(4),
-                          child: DataMatrixView(text: c.gs1, size: 40),
+                          child: DataMatrixView(text: carton.gs1, size: 40),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
@@ -565,7 +573,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                                 spacing: 6,
                                 children: [
                                   Text(
-                                    c.cartonId,
+                                    carton.cartonId,
                                     style: const TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.bold,
@@ -585,16 +593,16 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                                 ],
                               ),
                               Text(
-                                '${c.sku} · ${c.batch} · Exp ${c.expiry}',
-                                style: const TextStyle(fontSize: 10, color: LaMPColors.fieldInk3),
+                                '${carton.sku} · ${carton.batch} · Exp ${carton.expiry}',
+                                style: TextStyle(fontSize: 10, color: c.inkFaint),
                               ),
                             ],
                           ),
                         ),
                         if (isRejected)
-                          const Icon(Icons.cancel, color: LaMPColors.dispute, size: 18)
+                          Icon(Icons.cancel, color: c.dispute, size: 18)
                         else if (isScanned)
-                          const Icon(Icons.check_circle, color: LaMPColors.verified, size: 18)
+                          Icon(Icons.check_circle, color: c.verified, size: 18)
                         else
                           const Icon(Icons.radio_button_unchecked, color: Colors.black26, size: 18),
                       ],
@@ -612,7 +620,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                     icon: const Icon(Icons.arrow_forward),
                     label: const Text('Proceed to Pharmacy Owner Signature →'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: LaMPColors.brand,
+                      backgroundColor: c.brand,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
@@ -675,11 +683,12 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
   }
 
   /// Display the misrouted carton, for scanning from another device.
-  void _showMisroutedCode() {
+  void _showMisroutedCode(BuildContext context) {
+    final c = context.lamp;
     showDialog<void>(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: LaMPColors.fieldSurface,
+        backgroundColor: c.surface,
         title: const Text(
           'Misrouted carton',
           style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
@@ -688,11 +697,11 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
+              Text(
                 'This carton belongs to no consignment in this world. Scan it '
                 'with the camera and the chaincode will refuse it — the '
                 'refusal is genuine, not staged.',
-                style: TextStyle(fontSize: 12, height: 1.4, color: LaMPColors.fieldInk2),
+                style: TextStyle(fontSize: 12, height: 1.4, color: c.inkMuted),
               ),
               const SizedBox(height: 14),
               const CartonCodeView(gs1: _misroutedGs1, size: 200),
@@ -714,11 +723,12 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
   /// Without printed labels this is the only way to exercise the camera path,
   /// and it is also how the planted foreign carton gets presented to a second
   /// device during the demo.
-  void _showCartonCode(Carton carton) {
+  void _showCartonCode(BuildContext context, Carton carton) {
+    final c = context.lamp;
     showDialog<void>(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: LaMPColors.fieldSurface,
+        backgroundColor: c.surface,
         title: Text(
           carton.cartonId,
           style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
@@ -808,6 +818,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
   }
 
   Widget _buildConfirmTab(BuildContext context, Delivery delivery, LaMPState state) {
+    final c = context.lamp;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Center(
@@ -819,29 +830,29 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: c.surface,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: LaMPColors.fieldLine),
+                  border: Border.all(color: c.line),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Pharmacy Counter-Confirmation',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: LaMPColors.fieldInk),
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: c.ink),
                     ),
-                    const Text(
+                    Text(
                       'Abdur Rahman signs on MPO device to generate verifiable Proof of Delivery',
-                      style: TextStyle(fontSize: 12, color: LaMPColors.fieldInk2),
+                      style: TextStyle(fontSize: 12, color: c.inkMuted),
                     ),
                     const SizedBox(height: 16),
-                    const Divider(color: LaMPColors.fieldLine, height: 1),
+                    Divider(color: c.line, height: 1),
                     const SizedBox(height: 16),
 
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Invoice Total:', style: TextStyle(fontSize: 13, color: LaMPColors.fieldInk2)),
+                        Text('Invoice Total:', style: TextStyle(fontSize: 13, color: c.inkMuted)),
                         Text(LaMPFormatters.formatBDT(182400),
                             style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
                       ],
@@ -850,7 +861,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Cartons Received:', style: TextStyle(fontSize: 13, color: LaMPColors.fieldInk2)),
+                        Text('Cartons Received:', style: TextStyle(fontSize: 13, color: c.inkMuted)),
                         Text('${delivery.cartons.length} cartons',
                             style: const TextStyle(fontSize: 13, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, fontWeight: FontWeight.bold)),
                       ],
@@ -859,7 +870,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Payment Terms:', style: TextStyle(fontSize: 13, color: LaMPColors.fieldInk2)),
+                        Text('Payment Terms:', style: TextStyle(fontSize: 13, color: c.inkMuted)),
                         const Text('45 Days Credit', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                       ],
                     ),
@@ -895,7 +906,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                         icon: const Icon(Icons.check_circle_outline),
                         label: const Text('Confirm Receipt & Submit PoD'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: LaMPColors.brand,
+                          backgroundColor: c.brand,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           disabledBackgroundColor: Colors.black12,
@@ -913,6 +924,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
   }
 
   Widget _buildReturnsTab(BuildContext context, Delivery delivery, LaMPState state) {
+    final c = context.lamp;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Center(
@@ -924,24 +936,24 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: c.surface,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: LaMPColors.fieldLine),
+                  border: Border.all(color: c.line),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Reverse Carton Scan / Returns',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: LaMPColors.fieldInk),
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: c.ink),
                     ),
-                    const Text(
+                    Text(
                       'Report damaged or misrouted carton to reopen receivable token',
-                      style: TextStyle(fontSize: 12, color: LaMPColors.fieldInk2),
+                      style: TextStyle(fontSize: 12, color: c.inkMuted),
                     ),
                     const SizedBox(height: 16),
                     ListTile(
-                      leading: const Icon(Icons.report_problem_outlined, color: LaMPColors.pending),
+                      leading: Icon(Icons.report_problem_outlined, color: c.pending),
                       title: const Text('Damage in Transit', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                       subtitle: const Text('Carton seals broken or crushed during delivery'),
                       trailing: ElevatedButton(
@@ -954,7 +966,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                           }
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: LaMPColors.pending,
+                          backgroundColor: c.pending,
                           foregroundColor: Colors.white,
                         ),
                         child: const Text('Flag Carton'),

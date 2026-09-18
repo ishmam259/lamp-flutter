@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_theme.dart';
 import '../../core/constants/palette.dart';
-import '../../core/constants/colors.dart';
 import '../../core/constants/formatters.dart';
 import '../../core/models/domain_models.dart';
 import '../../core/state/lamp_state.dart';
@@ -49,17 +48,24 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
 
   @override
   Widget build(BuildContext context) {
-    final state = context.watch<LaMPState>();
-    final delivery = state.getDelivery(state.demoTokenId);
-
+    // Built below the Theme so `context.lamp` resolves to this seat's palette.
     return Theme(
       data: LaMPTheme.of(context, LampWorld.portal),
-      child: Scaffold(
+      child: Builder(builder: _buildScaffold),
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context) {
+    final state = context.watch<LaMPState>();
+    final delivery = state.getDelivery(state.demoTokenId);
+    final c = context.lamp;
+
+    return Scaffold(
         appBar: AppBar(
-          backgroundColor: const Color(0xFF131B17),
+          backgroundColor: c.surface,
           elevation: 1,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: LaMPColors.portalInk),
+            icon: Icon(Icons.arrow_back, color: c.ink),
             onPressed: widget.onBackToLauncher,
             tooltip: 'All Personas',
           ),
@@ -70,10 +76,10 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                 children: [
                   const LampMark(size: 20),
                   const SizedBox(width: 8),
-                  const Flexible(
+                  Flexible(
                     child: Text(
                       'Manufacturer',
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: LaMPColors.portalInk),
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: c.ink),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -81,12 +87,12 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: LaMPColors.brand.withValues(alpha: 0.3),
+                      color: c.brand.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(4),
                     ),
-                    child: const Text(
+                    child: Text(
                       'SHOMOTA',
-                      style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: LaMPColors.brand),
+                      style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: c.brand),
                     ),
                   ),
                 ],
@@ -95,19 +101,19 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                 'Shomota · Bogura Depot',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 11, color: LaMPColors.portalInk3),
+                style: TextStyle(fontSize: 11, color: c.inkFaint),
               ),
             ],
           ),
           actions: [
             IconButton(
               tooltip: 'Ledger Inspector',
-              icon: const Icon(Icons.account_tree_outlined, color: LaMPColors.verified),
+              icon: Icon(Icons.account_tree_outlined, color: c.verified),
               onPressed: () => LedgerInspectorSheet.show(context),
             ),
             IconButton(
               tooltip: 'Demo Director',
-              icon: const Icon(Icons.movie_filter_outlined, color: LaMPColors.brand),
+              icon: Icon(Icons.movie_filter_outlined, color: c.brand),
               onPressed: () => DemoDirectorSheet.show(context),
             ),
             const SizedBox(width: 6),
@@ -115,9 +121,9 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
           bottom: TabBar(
             controller: _tabController,
             isScrollable: true,
-            labelColor: LaMPColors.brand,
-            unselectedLabelColor: LaMPColors.portalInk3,
-            indicatorColor: LaMPColors.brand,
+            labelColor: c.brand,
+            unselectedLabelColor: c.inkFaint,
+            indicatorColor: c.brand,
             tabs: const [
               Tab(text: "Receivables & Pipeline"),
               Tab(text: "Delivery Tracking"),
@@ -139,11 +145,11 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
             ],
           ),
         ),
-      ),
     );
   }
 
   Widget _buildReceivablesTab(BuildContext context, LaMPState state, Delivery? delivery) {
+    final c = context.lamp;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Center(
@@ -155,25 +161,25 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
               // Stat Row
               LayoutBuilder(
                 builder: (context, constraints) {
-                  final card1 = _buildMetricCard(
+                  final card1 = _buildMetricCard(context,
                     'Total Receivables',
                     LaMPFormatters.formatBDT(182400),
                     '1 active consignment',
-                    LaMPColors.brand,
+                    c.brand,
                   );
-                  final card2 = _buildMetricCard(
+                  final card2 = _buildMetricCard(context,
                     'Delivery Ratio',
                     delivery != null
                         ? '${((delivery.cartons.where((c) => c.scannedAt != null).length / delivery.cartons.length) * 100).toInt()}%'
                         : '0%',
                     'Target: ≥90% for SCF',
-                    LaMPColors.verified,
+                    c.verified,
                   );
-                  final card3 = _buildMetricCard(
+                  final card3 = _buildMetricCard(context,
                     'Financing Status',
                     delivery?.status == DeliveryStatus.completed ? 'ELIGIBLE' : 'IN TRANSIT',
                     'Meghna Bank matching',
-                    LaMPColors.pending,
+                    c.pending,
                   );
 
                   if (constraints.maxWidth < 600) {
@@ -212,9 +218,9 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF131B17),
+                  color: c.surface,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: LaMPColors.portalLine),
+                  border: Border.all(color: c.line),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -223,14 +229,14 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                       alignment: WrapAlignment.spaceBetween,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       runSpacing: 4,
-                      children: const [
+                      children: [
                         Text(
                           'Active Receivable Tokens on Ledger',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: LaMPColors.portalInk),
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: c.ink),
                         ),
                         Text(
                           'Consortium Channel: lamp-channel',
-                          style: TextStyle(fontSize: 10, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, color: LaMPColors.portalInk3),
+                          style: TextStyle(fontSize: 10, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, color: c.inkFaint),
                         ),
                       ],
                     ),
@@ -240,9 +246,9 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                     Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1C2722),
+                        color: c.surfaceAlt,
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: LaMPColors.portalLine2),
+                        border: Border.all(color: c.lineStrong),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -256,19 +262,19 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                                   state.demoInvoiceId,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 15,
                                     fontWeight: FontWeight.bold,
                                     fontFamily: LaMPType.mono,
                                     fontFamilyFallback: LaMPType.fallback,
-                                    color: LaMPColors.portalInk,
+                                    color: c.ink,
                                   ),
                                 ),
                               ),
                               const SizedBox(width: 8),
                               Text(
                                 LaMPFormatters.formatBDT(182400),
-                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: LaMPColors.brand),
+                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: c.brand),
                               ),
                             ],
                           ),
@@ -278,9 +284,9 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                             tone: LampTone.verified,
                           ),
                           const SizedBox(height: 6),
-                          const Text(
+                          Text(
                             'Rahman Medical Hall · Bogura Sadar',
-                            style: TextStyle(fontSize: 12, color: LaMPColors.portalInk2),
+                            style: TextStyle(fontSize: 12, color: c.inkMuted),
                           ),
                           const SizedBox(height: 12),
 
@@ -305,11 +311,11 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                                   'Token ${state.demoTokenId}',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 11,
                                     fontFamily: LaMPType.mono,
                                     fontFamilyFallback: LaMPType.fallback,
-                                    color: LaMPColors.hashInk,
+                                    color: c.inkFaint,
                                   ),
                                 ),
                               ),
@@ -320,9 +326,9 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   textAlign: TextAlign.end,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 11,
-                                    color: LaMPColors.portalInk3,
+                                    color: c.inkFaint,
                                   ),
                                 ),
                               ),
@@ -341,28 +347,30 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
     );
   }
 
-  Widget _buildMetricCard(String label, String value, String sub, Color color) {
+  Widget _buildMetricCard(BuildContext context, String label, String value, String sub, Color color) {
+    final c = context.lamp;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF131B17),
+        color: c.surface,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: LaMPColors.portalLine),
+        border: Border.all(color: c.line),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: LaMPColors.portalInk3)),
+          Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: c.inkFaint)),
           const SizedBox(height: 4),
           Text(value, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color)),
           const SizedBox(height: 2),
-          Text(sub, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 10, color: LaMPColors.portalInk3)),
+          Text(sub, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 10, color: c.inkFaint)),
         ],
       ),
     );
   }
 
   Widget _buildTrackingTab(BuildContext context, LaMPState state, Delivery? delivery) {
+    final c = context.lamp;
     if (delivery == null) return const SizedBox();
 
     final scanned = delivery.cartons.where((c) => c.scannedAt != null).length;
@@ -380,9 +388,9 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF131B17),
+                  color: c.surface,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: LaMPColors.portalLine),
+                  border: Border.all(color: c.line),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -391,9 +399,9 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text('Consignment Tracking: ${delivery.invoiceId}',
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: LaMPColors.portalInk)),
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: c.ink)),
                         Text('MPO: Kamrul Hasan',
-                            style: const TextStyle(fontSize: 12, color: LaMPColors.portalInk3)),
+                            style: TextStyle(fontSize: 12, color: c.inkFaint)),
                       ],
                     ),
                     const SizedBox(height: 12),
@@ -402,8 +410,8 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                       child: LinearProgressIndicator(
                         value: ratio,
                         minHeight: 8,
-                        backgroundColor: LaMPColors.portalLine,
-                        valueColor: const AlwaysStoppedAnimation<Color>(LaMPColors.brand),
+                        backgroundColor: c.line,
+                        valueColor: AlwaysStoppedAnimation<Color>(c.brand),
                       ),
                     ),
                     const SizedBox(height: 6),
@@ -411,18 +419,18 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text('$scanned of $total cartons confirmed on-chain',
-                            style: const TextStyle(fontSize: 11, color: LaMPColors.portalInk2)),
+                            style: TextStyle(fontSize: 11, color: c.inkMuted)),
                         Text('${(ratio * 100).toInt()}%',
-                            style: const TextStyle(fontSize: 11, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, fontWeight: FontWeight.bold, color: LaMPColors.brand)),
+                            style: TextStyle(fontSize: 11, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, fontWeight: FontWeight.bold, color: c.brand)),
                       ],
                     ),
                     const SizedBox(height: 16),
-                    const Divider(color: LaMPColors.portalLine),
+                    Divider(color: c.line),
                     const SizedBox(height: 10),
 
                     // Private Data Collection Demo
-                    const Text('Private Data Collection (invoiceLineItems)',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: LaMPColors.portalInk)),
+                    Text('Private Data Collection (invoiceLineItems)',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: c.ink)),
                     const SizedBox(height: 8),
                     const PrivateSeal(
                       cleartext: 'Paracetamol 500mg (10 ctn) · Esomeprazole 20mg (8 ctn) · Metformin HCl (7 ctn)',
@@ -434,13 +442,13 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                     const SizedBox(height: 16),
 
                     // On-chain vs Off-chain split
-                    const Text('On-Chain vs Off-Chain Split (Whitepaper §4.4)',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: LaMPColors.portalInk3)),
+                    Text('On-Chain vs Off-Chain Split (Whitepaper §4.4)',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: c.inkFaint)),
                     const SizedBox(height: 8),
-                    _splitRow('On-Chain Token State', delivery.status.id, isChain: true),
-                    _splitRow('Carton Hash Set (25 hashes)', 'Committed in Block', isChain: true),
-                    _splitRow('Physical GPS & Courier Location', 'Bogura Sadar Road (Off-chain)', isChain: false),
-                    _splitRow('Digital Signature Image', delivery.signatureRef ?? 'Pending (Off-chain)', isChain: false),
+                    _splitRow(context, 'On-Chain Token State', delivery.status.id, isChain: true),
+                    _splitRow(context, 'Carton Hash Set (25 hashes)', 'Committed in Block', isChain: true),
+                    _splitRow(context, 'Physical GPS & Courier Location', 'Bogura Sadar Road (Off-chain)', isChain: false),
+                    _splitRow(context, 'Digital Signature Image', delivery.signatureRef ?? 'Pending (Off-chain)', isChain: false),
                   ],
                 ),
               ),
@@ -451,7 +459,8 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
     );
   }
 
-  Widget _splitRow(String label, String value, {required bool isChain}) {
+  Widget _splitRow(BuildContext context, String label, String value, {required bool isChain}) {
+    final c = context.lamp;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -459,18 +468,19 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
         children: [
           Row(
             children: [
-              Icon(isChain ? Icons.link : Icons.cloud_outlined, size: 14, color: isChain ? LaMPColors.verified : LaMPColors.hashInk),
+              Icon(isChain ? Icons.link : Icons.cloud_outlined, size: 14, color: isChain ? c.verified : c.inkFaint),
               const SizedBox(width: 6),
-              Text(label, style: const TextStyle(fontSize: 11, color: LaMPColors.portalInk2)),
+              Text(label, style: TextStyle(fontSize: 11, color: c.inkMuted)),
             ],
           ),
-          Text(value, style: TextStyle(fontSize: 11, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, color: isChain ? LaMPColors.verified : LaMPColors.portalInk3)),
+          Text(value, style: TextStyle(fontSize: 11, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, color: isChain ? c.verified : c.inkFaint)),
         ],
       ),
     );
   }
 
   Widget _buildMintTab(BuildContext context, LaMPState state) {
+    final c = context.lamp;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Center(
@@ -479,47 +489,47 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
           child: Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: const Color(0xFF131B17),
+              color: c.surface,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: LaMPColors.portalLine),
+              border: Border.all(color: c.line),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Mint New Receivable Token',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: LaMPColors.portalInk)),
-                const Text('Enforces multi-MSP endorsement quorum AND(Mfr, OR(Banks)) upon creation',
-                    style: TextStyle(fontSize: 12, color: LaMPColors.portalInk2)),
+                Text('Mint New Receivable Token',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: c.ink)),
+                Text('Enforces multi-MSP endorsement quorum AND(Mfr, OR(Banks)) upon creation',
+                    style: TextStyle(fontSize: 12, color: c.inkMuted)),
                 const SizedBox(height: 16),
-                const Divider(color: LaMPColors.portalLine),
+                Divider(color: c.line),
                 const SizedBox(height: 14),
 
                 // Buyer Selection
-                const Text('BUYER PHARMACY', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: LaMPColors.portalInk3)),
+                Text('BUYER PHARMACY', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: c.inkFaint)),
                 const SizedBox(height: 6),
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1C2722),
+                    color: c.surfaceAlt,
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: LaMPColors.portalLine2),
+                    border: Border.all(color: c.lineStrong),
                   ),
                   child: Wrap(
                     alignment: WrapAlignment.spaceBetween,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     runSpacing: 4,
-                    children: const [
+                    children: [
                       Text('Rahman Medical Hall (রহমান মেডিকেল হল)',
-                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: LaMPColors.portalInk)),
-                      Text('Bogura Sadar', style: TextStyle(fontSize: 12, color: LaMPColors.portalInk3)),
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: c.ink)),
+                      Text('Bogura Sadar', style: TextStyle(fontSize: 12, color: c.inkFaint)),
                     ],
                   ),
                 ),
                 const SizedBox(height: 16),
 
                 // Products & Cartons
-                const Text('MEDICINE LINE ITEMS & CARTONS',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: LaMPColors.portalInk3)),
+                Text('MEDICINE LINE ITEMS & CARTONS',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: c.inkFaint)),
                 const SizedBox(height: 8),
 
                 for (final prod in SeedData.products.take(3)) ...[
@@ -533,9 +543,9 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(prod.name,
-                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: LaMPColors.portalInk)),
+                                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.ink)),
                               Text('${prod.strength} · ৳${prod.unitPrice}/unit · ${prod.unitsPerCarton} units/ctn',
-                                  style: const TextStyle(fontSize: 11, color: LaMPColors.portalInk3)),
+                                  style: TextStyle(fontSize: 11, color: c.inkFaint)),
                             ],
                           ),
                         ),
@@ -568,7 +578,7 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                 ],
 
                 const SizedBox(height: 16),
-                const Divider(color: LaMPColors.portalLine),
+                Divider(color: c.line),
                 const SizedBox(height: 16),
 
                 SizedBox(
@@ -600,8 +610,8 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                       if (context.mounted) {
                         if (res.ok) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              backgroundColor: LaMPColors.verifiedDark,
+                            SnackBar(
+                              backgroundColor: c.verified,
                               content: Text('Receivable token minted on blockchain with 2-MSP endorsement!'),
                             ),
                           );
@@ -609,7 +619,7 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                         } else {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              backgroundColor: LaMPColors.dispute,
+                              backgroundColor: c.dispute,
                               content: Text(res.error ?? 'Minting failed'),
                             ),
                           );
@@ -619,7 +629,7 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                     icon: const Icon(Icons.token_outlined),
                     label: const Text('Mint Receivable Token to Consortium Ledger'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: LaMPColors.brand,
+                      backgroundColor: c.brand,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),

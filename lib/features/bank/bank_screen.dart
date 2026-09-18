@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_theme.dart';
 import '../../core/constants/palette.dart';
-import '../../core/constants/colors.dart';
 import '../../core/constants/formatters.dart';
 import '../../core/models/domain_models.dart';
 import '../../core/state/lamp_state.dart';
@@ -43,17 +42,26 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
 
   @override
   Widget build(BuildContext context) {
-    final state = context.watch<LaMPState>();
-    final delivery = state.getDelivery(state.demoTokenId);
-
+    // The Scaffold is built below the Theme, not beside it. Built here, every
+    // `context.lamp` in this screen would read the application's palette
+    // rather than this seat's, and the world theme would apply to nothing.
     return Theme(
       data: LaMPTheme.of(context, LampWorld.portal),
-      child: Scaffold(
+      child: Builder(builder: _buildScaffold),
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context) {
+    final state = context.watch<LaMPState>();
+    final delivery = state.getDelivery(state.demoTokenId);
+    final c = context.lamp;
+
+    return Scaffold(
         appBar: AppBar(
-          backgroundColor: const Color(0xFF131B17),
+          backgroundColor: c.surface,
           elevation: 1,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: LaMPColors.portalInk),
+            icon: Icon(Icons.arrow_back, color: c.ink),
             onPressed: widget.onBackToLauncher,
             tooltip: 'All Personas',
           ),
@@ -70,11 +78,11 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
                   // Expanded, not Flexible: loose fit lets the text keep its
                   // natural width and overflow by 13, where tight fit makes it
                   // take exactly what is left.
-                  const Expanded(
+                  Expanded(
                     child: Text(
                       'Financing',
                       maxLines: 1,
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: LaMPColors.portalInk),
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: c.ink),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -84,11 +92,11 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
                   // names the bank; one identifier in the bar is enough.
                 ],
               ),
-              const Text(
+              Text(
                 'Consortium endorser',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 11, color: LaMPColors.portalInk3),
+                style: TextStyle(fontSize: 11, color: c.inkFaint),
               ),
             ],
           ),
@@ -109,12 +117,12 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
             ),
             IconButton(
               tooltip: 'Ledger Inspector',
-              icon: const Icon(Icons.account_tree_outlined, color: LaMPColors.verified),
+              icon: Icon(Icons.account_tree_outlined, color: c.verified),
               onPressed: () => LedgerInspectorSheet.show(context),
             ),
             IconButton(
               tooltip: 'Demo Director',
-              icon: const Icon(Icons.movie_filter_outlined, color: LaMPColors.brand),
+              icon: Icon(Icons.movie_filter_outlined, color: c.brand),
               onPressed: () => DemoDirectorSheet.show(context),
             ),
             const SizedBox(width: 6),
@@ -122,9 +130,9 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
           bottom: TabBar(
             controller: _tabController,
             isScrollable: true,
-            labelColor: LaMPColors.brand,
-            unselectedLabelColor: LaMPColors.portalInk3,
-            indicatorColor: LaMPColors.brand,
+            labelColor: c.brand,
+            unselectedLabelColor: c.inkFaint,
+            indicatorColor: c.brand,
             tabs: const [
               Tab(text: "Financing Opportunities"),
               Tab(text: "Rate Curve & Tiers"),
@@ -146,11 +154,11 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
             ],
           ),
         ),
-      ),
     );
   }
 
   Widget _buildOpportunitiesTab(BuildContext context, LaMPState state, Delivery? delivery) {
+    final c = context.lamp;
     final scannedCount = delivery?.cartons.where((c) => c.scannedAt != null).length ?? 0;
     final totalCartons = delivery?.cartons.length ?? 25;
     final deliveryRatio = totalCartons > 0 ? scannedCount / totalCartons : 0.0;
@@ -173,15 +181,15 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
                   margin: const EdgeInsets.only(bottom: 16),
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: _isSuccessBanner ? LaMPColors.verifiedSoft : LaMPColors.disputeSoft,
+                    color: _isSuccessBanner ? c.verifiedSoft : c.disputeSoft,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: _isSuccessBanner ? LaMPColors.verified : LaMPColors.dispute),
+                    border: Border.all(color: _isSuccessBanner ? c.verified : c.dispute),
                   ),
                   child: Row(
                     children: [
                       Icon(
                         _isSuccessBanner ? Icons.check_circle : Icons.warning_rounded,
-                        color: _isSuccessBanner ? LaMPColors.verifiedDark : LaMPColors.dispute,
+                        color: _isSuccessBanner ? c.verified : c.dispute,
                         size: 22,
                       ),
                       const SizedBox(width: 12),
@@ -191,7 +199,7 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
-                            color: _isSuccessBanner ? LaMPColors.verifiedDark : LaMPColors.dispute,
+                            color: _isSuccessBanner ? c.verified : c.dispute,
                           ),
                         ),
                       ),
@@ -207,9 +215,9 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF131B17),
+                  color: c.surface,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: LaMPColors.portalLine),
+                  border: Border.all(color: c.line),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -225,19 +233,19 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
                             state.demoInvoiceId,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
                               fontFamily: LaMPType.mono,
                               fontFamilyFallback: LaMPType.fallback,
-                              color: LaMPColors.portalInk,
+                              color: c.ink,
                             ),
                           ),
                         ),
                         const SizedBox(width: 10),
                         Text(
                           LaMPFormatters.formatBDT(182400),
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: LaMPColors.brand),
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: c.brand),
                         ),
                       ],
                     ),
@@ -246,32 +254,32 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
                     const SizedBox(height: 6),
                     // "Buyer: X · Seller: Y · Z" was sixty-six characters
                     // restating a relationship the portal never varies.
-                    const Text(
+                    Text(
                       'Rahman Medical Hall · Bogura Sadar',
-                      style: TextStyle(fontSize: 12, color: LaMPColors.portalInk2),
+                      style: TextStyle(fontSize: 12, color: c.inkMuted),
                     ),
                     const SizedBox(height: 16),
-                    const Divider(color: LaMPColors.portalLine),
+                    Divider(color: c.line),
                     const SizedBox(height: 14),
 
                     // Smart Contract Verification Checklist
-                    const Text(
+                    Text(
                       'SMART CONTRACT FINANCING PREREQUISITES',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: LaMPColors.portalInk3),
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: c.inkFaint),
                     ),
                     const SizedBox(height: 10),
 
-                    _checkItem(
+                    _checkItem(context,
                       label: 'Delivery Confirmed (≥90% Scanned)',
                       detail: '$scannedCount/$totalCartons cartons (${(deliveryRatio * 100).toInt()}%)',
                       isPassed: isDeliveryConfirmed,
                     ),
-                    _checkItem(
+                    _checkItem(context,
                       label: '24-Hour Dispute Window Closed',
                       detail: disputeWindowClosed ? 'Window closed · No objections filed' : 'Dispute window counting down',
                       isPassed: disputeWindowClosed,
                     ),
-                    _checkItem(
+                    _checkItem(context,
                       label: 'Receivable Unencumbered & Unfinanced',
                       detail: 'No previous financing token recorded on ledger',
                       isPassed: true,
@@ -283,7 +291,7 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1C2722),
+                        color: c.surfaceAlt,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Wrap(
@@ -291,10 +299,10 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
                         runSpacing: 10,
                         alignment: WrapAlignment.spaceBetween,
                         children: [
-                          _statItem('COUNTERPARTY TIER', state.creditHistory?.tier.label ?? 'BUILDING', LaMPColors.brand),
-                          _statItem('ADVANCE RATE', '80.0%', LaMPColors.portalInk),
-                          _statItem('DISCOUNT FEE', '8.8%', LaMPColors.pending),
-                          _statItem('DISBURSED AMOUNT', LaMPFormatters.formatBDT(182400 * 0.8), LaMPColors.verified),
+                          _statItem(context, 'COUNTERPARTY TIER', state.creditHistory?.tier.label ?? 'BUILDING', c.brand),
+                          _statItem(context, 'ADVANCE RATE', '80.0%', c.ink),
+                          _statItem(context, 'DISCOUNT FEE', '8.8%', c.pending),
+                          _statItem(context, 'DISBURSED AMOUNT', LaMPFormatters.formatBDT(182400 * 0.8), c.verified),
                         ],
                       ),
                     ),
@@ -313,7 +321,7 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
                           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                         ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: _activeBank == Msp.meghnaMSP ? LaMPColors.brand : LaMPColors.pending,
+                          backgroundColor: _activeBank == Msp.meghnaMSP ? c.brand : c.pending,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -338,7 +346,9 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
   /// space and does nothing when there is none — and the detail is the half
   /// that carries the numbers, so truncating it would have been worse than the
   /// overflow it replaced.
-  Widget _checkItem({required String label, required String detail, required bool isPassed}) {
+  Widget _checkItem(BuildContext context,
+      {required String label, required String detail, required bool isPassed}) {
+    final c = context.lamp;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
@@ -349,7 +359,7 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
             child: Icon(
               isPassed ? Icons.check_circle : Icons.hourglass_empty,
               size: 16,
-              color: isPassed ? LaMPColors.verified : LaMPColors.pending,
+              color: isPassed ? c.verified : c.pending,
             ),
           ),
           const SizedBox(width: 8),
@@ -359,20 +369,20 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
               children: [
                 Text(
                   label,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                     height: 1.35,
-                    color: LaMPColors.portalInk,
+                    color: c.ink,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   detail,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
                     height: 1.35,
-                    color: LaMPColors.portalInk3,
+                    color: c.inkFaint,
                   ),
                 ),
               ],
@@ -383,11 +393,12 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
     );
   }
 
-  Widget _statItem(String label, String value, Color color) {
+  Widget _statItem(BuildContext context, String label, String value, Color color) {
+    final c = context.lamp;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 9, color: LaMPColors.portalInk3)),
+        Text(label, style: TextStyle(fontSize: 9, color: c.inkFaint)),
         const SizedBox(height: 2),
         Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: color)),
       ],
@@ -409,6 +420,7 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
   }
 
   Widget _buildRateCurveTab(BuildContext context, LaMPState state) {
+    final c = context.lamp;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Center(
@@ -420,19 +432,19 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
               Container(
                 padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF131B17),
+                  color: c.surface,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: LaMPColors.portalLine),
+                  border: Border.all(color: c.line),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Dynamic Rate Curve & Recourse Dial (Whitepaper §4.6)',
-                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: LaMPColors.portalInk)),
+                    Text('Dynamic Rate Curve & Recourse Dial (Whitepaper §4.6)',
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: c.ink)),
                     const SizedBox(height: 4),
-                    const Text(
+                    Text(
                       'As on-chain repayment history accumulates, loss exposure automatically shifts from manufacturer to bank.',
-                      style: TextStyle(fontSize: 12, color: LaMPColors.portalInk2),
+                      style: TextStyle(fontSize: 12, color: c.inkMuted),
                     ),
                     const SizedBox(height: 16),
                     RecourseDial(
@@ -451,6 +463,7 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
   }
 
   Widget _buildPortfolioTab(BuildContext context, LaMPState state) {
+    final c = context.lamp;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Center(
@@ -459,23 +472,23 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
           child: Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: const Color(0xFF131B17),
+              color: c.surface,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: LaMPColors.portalLine),
+              border: Border.all(color: c.line),
             ),
-            child: const Column(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('Bank Portfolio Management',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: LaMPColors.portalInk)),
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: c.ink)),
                 SizedBox(height: 6),
                 Text('Real-time exposure across all verified pharmacy supply chain receivables.',
-                    style: TextStyle(fontSize: 12, color: LaMPColors.portalInk2)),
+                    style: TextStyle(fontSize: 12, color: c.inkMuted)),
                 SizedBox(height: 20),
                 Text('Total Portfolio Size: ৳ 45,00,000 across 18 pharmacies',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: LaMPColors.brand)),
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: c.brand)),
                 Text('Historical Default Rate: 0.0%',
-                    style: TextStyle(fontSize: 12, color: LaMPColors.verified)),
+                    style: TextStyle(fontSize: 12, color: c.verified)),
               ],
             ),
           ),
