@@ -62,38 +62,27 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
                 children: [
                   const LampMark(size: 20),
                   const SizedBox(width: 8),
-                  Flexible(
+                  // The seat switcher in `actions` already names the bank, and
+                  // naming it here too left neither with room — the title, the
+                  // MSP chip and the dropdown were overlapping each other.
+                  const Flexible(
                     child: Text(
-                      _activeBank == Msp.meghnaMSP ? 'Meghna Commercial' : 'Padma Bank Ltd',
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: LaMPColors.portalInk),
+                      'Financing',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: LaMPColors.portalInk),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const SizedBox(width: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: _activeBank == Msp.meghnaMSP
-                          ? LaMPColors.brand.withValues(alpha: 0.3)
-                          : LaMPColors.pending.withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      _activeBank.id,
-                      style: TextStyle(
-                        fontSize: 9,
-                        fontWeight: FontWeight.bold,
-                        color: _activeBank == Msp.meghnaMSP ? LaMPColors.brand : LaMPColors.pending,
-                      ),
-                    ),
-                  ),
+                  // The MSP chip lived here too, and between it, the title and
+                  // the seat switcher there was no room left — Flexible gave
+                  // the title zero width and it vanished entirely. The switcher
+                  // names the bank; one identifier in the bar is enough.
                 ],
               ),
-              Text(
-                'Supply Chain Finance Division · Consortium Endorser',
+              const Text(
+                'Consortium endorser',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 11, color: LaMPColors.portalInk3),
+                style: TextStyle(fontSize: 11, color: LaMPColors.portalInk3),
               ),
             ],
           ),
@@ -343,20 +332,54 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
     );
   }
 
+  /// One financing precondition: the rule, and how this receivable measures
+  /// against it.
+  ///
+  /// Label and detail stack rather than sitting either side of a Spacer. Side
+  /// by side they overflowed a phone by 236 pixels — a Spacer distributes free
+  /// space and does nothing when there is none — and the detail is the half
+  /// that carries the numbers, so truncating it would have been worse than the
+  /// overflow it replaced.
   Widget _checkItem({required String label, required String detail, required bool isPassed}) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            isPassed ? Icons.check_circle : Icons.hourglass_empty,
-            size: 16,
-            color: isPassed ? LaMPColors.verified : LaMPColors.pending,
+          Padding(
+            padding: const EdgeInsets.only(top: 1),
+            child: Icon(
+              isPassed ? Icons.check_circle : Icons.hourglass_empty,
+              size: 16,
+              color: isPassed ? LaMPColors.verified : LaMPColors.pending,
+            ),
           ),
           const SizedBox(width: 8),
-          Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: LaMPColors.portalInk)),
-          const Spacer(),
-          Text(detail, style: const TextStyle(fontSize: 11, color: LaMPColors.portalInk3)),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    height: 1.35,
+                    color: LaMPColors.portalInk,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  detail,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    height: 1.35,
+                    color: LaMPColors.portalInk3,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );

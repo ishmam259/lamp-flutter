@@ -70,7 +70,7 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                   const SizedBox(width: 8),
                   const Flexible(
                     child: Text(
-                      'Manufacturer Portal',
+                      'Manufacturer',
                       style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: LaMPColors.portalInk),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -90,7 +90,7 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                 ],
               ),
               Text(
-                'Bogura Regional Depot · MSP: ManufacturerMSP',
+                'Shomota · Bogura Depot',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontSize: 11, color: LaMPColors.portalInk3),
@@ -177,7 +177,11 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                   if (constraints.maxWidth < 600) {
                     return Column(
                       children: [
-                        card1,
+                        // Full width, like the pair beneath it. Alone in a
+                        // Column it sized to its own content and floated in
+                        // the middle of the screen, which read as a mistake
+                        // next to two cards that fill the row.
+                        SizedBox(width: double.infinity, child: card1),
                         const SizedBox(height: 10),
                         Row(
                           children: [
@@ -291,13 +295,39 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                           ),
 
                           const SizedBox(height: 12),
+                          // Both halves flex. Unreflowed, these two ran
+                          // straight into each other — "RCV-00235Terms: 45
+                          // days" — because spaceBetween distributes slack it
+                          // does not have and clips nothing.
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text('Token ID: RCV-00235',
-                                  style: TextStyle(fontSize: 11, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, color: LaMPColors.hashInk)),
-                              Text('Terms: 45 days · 25 Cartons',
-                                  style: const TextStyle(fontSize: 11, color: LaMPColors.portalInk3)),
+                              Flexible(
+                                child: Text(
+                                  'Token ${state.demoTokenId}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontFamily: LaMPType.mono,
+                                    fontFamilyFallback: LaMPType.fallback,
+                                    color: LaMPColors.hashInk,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Flexible(
+                                child: Text(
+                                  '45 days · ${delivery?.cartons.length ?? 25} cartons',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.end,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: LaMPColors.portalInk3,
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
                         ],

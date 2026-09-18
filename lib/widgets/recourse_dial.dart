@@ -93,7 +93,13 @@ class RecourseDial extends StatelessWidget {
                 height: 6,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: isActive ? LaMPColors.brand : (isReached ? LaMPColors.verified : Colors.black26),
+                  // black26 disappeared against the bank portal's dark card,
+                  // so an unreached tier read as no dot at all.
+                  color: isActive
+                      ? LaMPColors.brand
+                      : (isReached
+                          ? LaMPColors.verified
+                          : (isDark ? LaMPColors.portalSurface3 : Colors.black26)),
                 ),
               ),
               const SizedBox(width: 5),
@@ -145,18 +151,20 @@ class RecourseDial extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'mfr ${band.manufacturerRecoursePct.round()}',
-                style: TextStyle(fontSize: 9, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, color: subColor),
-              ),
-              Text(
-                'bnk ${(100 - band.manufacturerRecoursePct).round()}',
-                style: TextStyle(fontSize: 9, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, color: subColor),
-              ),
-            ],
+          // One figure, not two. Four tier cards across a phone leaves each
+          // about ninety pixels, and "mfr 100" beside "bnk 0" overflowed every
+          // one of them. The bank's share is the remainder, and the split bar
+          // directly above already shows it.
+          Text(
+            'mfr ${band.manufacturerRecoursePct.round()}%',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 9,
+              fontFamily: LaMPType.mono,
+              fontFamilyFallback: LaMPType.fallback,
+              color: subColor,
+            ),
           ),
         ],
       ),
