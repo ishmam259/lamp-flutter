@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Light, dark, or whatever the phone is set to.
@@ -26,6 +27,10 @@ class ThemeController extends ChangeNotifier {
         _ => ThemeMode.system,
       };
       notifyListeners();
+      // Push it to the platform too. A preference stored before this existed
+      // has never been seen by the system, so the launch screen would keep
+      // disagreeing with the app until the toggle was touched again.
+      await _syncPlatformNightMode(_mode);
     } catch (e) {
       // Storage unavailable is not an error worth surfacing — the app simply
       // follows the system until the next launch.
@@ -33,15 +38,38 @@ class ThemeController extends ChangeNotifier {
     }
   }
 
+  /// Tells the platform which night mode this app runs in.
+  ///
+  /// The launch screen is composed by the system before any app code runs, so
+  /// it cannot read a preference stored inside the app. Handing the choice to
+  /// the platform is what lets the *next* cold start draw a launch screen that
+  /// matches — otherwise a phone in light mode shows a white launch screen and
+  /// then a dark app.
+  static const MethodChannel _platform = MethodChannel('lamp/uimode');
+
   Future<void> set(ThemeMode mode) async {
     if (mode == _mode) return;
     _mode = mode;
     notifyListeners();
+
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_key, mode.name);
     } catch (e) {
       debugPrint('ThemeController: could not save the mode ($e)');
+    }
+
+    await _syncPlatformNightMode(mode);
+  }
+
+  Future<void> _syncPlatformNightMode(ThemeMode mode) async {
+    try {
+      await _platform.invokeMethod<bool>('setNightMode', {'mode': mode.name});
+    } on MissingPluginException {
+      // iOS, web and the test binding have no such channel. The launch screen
+      // there already adapts on its own, so there is nothing to keep in step.
+    } catch (e) {
+      debugPrint('ThemeController: platform night mode not set ($e)');
     }
   }
 
