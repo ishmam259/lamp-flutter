@@ -37,16 +37,27 @@ class LauncherScreen extends StatelessWidget {
           children: [
             const LampMark(size: 28),
             const SizedBox(width: Gap.sm),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('LaMP', style: LaMPType.head.copyWith(color: c.ink)),
-                Text(
-                  'Last Mile Pharmacy',
-                  style: LaMPType.monoCaption.copyWith(color: c.inkFaint),
-                ),
-              ],
+            // Flexible, because three action buttons plus the leading mark
+            // leave under 160dp for the title on a 360dp phone.
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'LaMP',
+                    style: LaMPType.head.copyWith(color: c.ink),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    'Last Mile Pharmacy',
+                    style: LaMPType.monoCaption.copyWith(color: c.inkFaint),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
             ),
           ],
         ),

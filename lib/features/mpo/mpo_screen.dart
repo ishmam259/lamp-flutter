@@ -9,6 +9,7 @@ import '../../core/constants/formatters.dart';
 import '../../core/models/domain_models.dart';
 import '../../core/state/lamp_state.dart';
 import '../../widgets/carton_code_view.dart';
+import '../../widgets/ui/lamp_ui.dart';
 import '../../widgets/carton_scanner_sheet.dart';
 import '../../widgets/data_matrix_view.dart';
 import '../../widgets/demo_director_sheet.dart';
@@ -218,32 +219,30 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                     const SizedBox(height: 14),
                     const Divider(color: LaMPColors.fieldLine, height: 1),
                     const SizedBox(height: 14),
+                    // Three figures sharing the width. Unflexed beside a
+                    // spaceBetween they claimed their natural widths and
+                    // overflowed a 360dp phone by 62 pixels; LampStat scales
+                    // its figure down rather than pushing its neighbours off.
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('INVOICE ID', style: TextStyle(fontSize: 10, color: LaMPColors.fieldInk3)),
-                            Text(delivery.invoiceId,
-                                style: const TextStyle(fontSize: 14, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, fontWeight: FontWeight.bold)),
-                          ],
+                        Expanded(
+                          child: LampStat(
+                            label: 'Invoice',
+                            value: delivery.invoiceId,
+                          ),
                         ),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('CARTONS', style: TextStyle(fontSize: 10, color: LaMPColors.fieldInk3)),
-                            Text('$scannedCount / $totalCartons',
-                                style: const TextStyle(fontSize: 14, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, fontWeight: FontWeight.bold)),
-                          ],
+                        Expanded(
+                          child: LampStat(
+                            label: 'Cartons',
+                            value: '$scannedCount/$totalCartons',
+                          ),
                         ),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('VALUE', style: TextStyle(fontSize: 10, color: LaMPColors.fieldInk3)),
-                            Text(LaMPFormatters.formatBDT(182400),
-                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-                          ],
+                        Expanded(
+                          child: LampStat(
+                            label: 'Value',
+                            value: LaMPFormatters.formatBDT(182400),
+                          ),
                         ),
                       ],
                     ),

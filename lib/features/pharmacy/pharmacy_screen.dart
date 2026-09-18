@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../core/constants/app_theme.dart';
-import '../../core/constants/palette.dart';
 import '../../core/constants/colors.dart';
 import '../../core/constants/formatters.dart';
+import '../../core/constants/palette.dart';
+import '../../core/constants/typography.dart';
 import '../../core/models/domain_models.dart';
 import '../../core/state/lamp_state.dart';
 import '../../core/world/seed.dart';
@@ -11,8 +13,20 @@ import '../../widgets/credit_ring.dart';
 import '../../widgets/demo_director_sheet.dart';
 import '../../widgets/ledger_inspector_sheet.dart';
 import '../../widgets/lamp_mark.dart';
-import '../../core/constants/typography.dart';
+import '../../widgets/theme_toggle.dart';
+import '../../widgets/ui/lamp_ui.dart';
 
+/// The pharmacist's seat: what is owed, what it is building, and how to pay.
+///
+/// Rebuilt after the layout sweep found twenty overflows on this screen alone —
+/// more than the other four put together. Nearly all of them were the same
+/// mistake: a label and a value placed either side of a `spaceBetween`, which
+/// fits until the value gets long and then silently runs off the card. Those
+/// pairs are `LampKeyValue` now, which flexes both halves.
+///
+/// Navigation moved to the bottom. This is a phone held one-handed behind a
+/// counter, and four scrollable tabs pinned under the status bar are the
+/// furthest possible place from a thumb.
 class PharmacyScreen extends StatefulWidget {
   final VoidCallback onBackToLauncher;
 
@@ -22,714 +36,528 @@ class PharmacyScreen extends StatefulWidget {
   State<PharmacyScreen> createState() => _PharmacyScreenState();
 }
 
-class _PharmacyScreenState extends State<PharmacyScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-  String _selectedPaymentMethod = 'bKash';
+class _PharmacyScreenState extends State<PharmacyScreen> {
+  int _tab = 0;
+  String _payMethod = 'bKash';
   bool _justUpgraded = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 4, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
+  static const _invoiceAmount = 182400.0;
 
   @override
   Widget build(BuildContext context) {
+    return Theme(
+      data: LaMPTheme.of(context, LampWorld.field),
+      child: Builder(builder: _buildScaffold),
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context) {
     final state = context.watch<LaMPState>();
+    final c = context.lamp;
     final pharmacy = SeedData.pharmacies[0];
     final credit = state.creditHistory;
 
-    return Theme(
-      data: LaMPTheme.of(context, LampWorld.field),
-      child: Scaffold(
-        appBar: AppBar(
-          backgroundColor: Colors.white,
-          elevation: 1,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: LaMPColors.fieldInk),
-            onPressed: widget.onBackToLauncher,
-            tooltip: 'All Personas',
-          ),
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const LampMark(size: 20),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      pharmacy.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: LaMPColors.fieldInk),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: LaMPColors.brandSoft,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      credit?.tier.label.toUpperCase() ?? 'BUILDING',
-                      style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: LaMPColors.brand),
-                    ),
-                  ),
-                ],
-              ),
-              Text(
-                '${pharmacy.nameBn} · ${pharmacy.territory} · ${pharmacy.licenceNo}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 11, color: LaMPColors.fieldInk3),
-              ),
-            ],
-          ),
-          actions: [
-            IconButton(
-              tooltip: 'Ledger Inspector',
-              icon: const Icon(Icons.account_tree_outlined, color: LaMPColors.verifiedDark),
-              onPressed: () => LedgerInspectorSheet.show(context),
-            ),
-            IconButton(
-              tooltip: 'Demo Director',
-              icon: const Icon(Icons.movie_filter_outlined, color: LaMPColors.brand),
-              onPressed: () => DemoDirectorSheet.show(context),
-            ),
-            const SizedBox(width: 6),
-          ],
-          bottom: TabBar(
-            controller: _tabController,
-            isScrollable: true,
-            labelColor: LaMPColors.brand,
-            unselectedLabelColor: LaMPColors.fieldInk3,
-            indicatorColor: LaMPColors.brand,
-            tabs: const [
-              Tab(text: "Dashboard"),
-              Tab(text: "Credit Ring"),
-              Tab(text: "Pay Invoices"),
-              Tab(text: "Disputes"),
-            ],
-          ),
+    if (credit == null) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    return Scaffold(
+      appBar: AppBar(
+        titleSpacing: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: widget.onBackToLauncher,
+          tooltip: 'All seats',
         ),
-        body: SafeArea(
-          // Android draws its gesture bar over the bottom of the window.
-          // Without this the last row of every list sits underneath it.
-          // Top is already handled by the AppBar.
-          top: false,
-          child: credit == null
-              ? const Center(child: CircularProgressIndicator())
-              : TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildDashboardTab(context, state, pharmacy, credit),
-                    _buildCreditTab(context, credit),
-                    _buildPayTab(context, state, credit),
-                    _buildDisputeTab(context, state),
-                  ],
-                ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDashboardTab(BuildContext context, LaMPState state, Pharmacy pharmacy, CreditHistory credit) {
-    final demoDelivery = state.getDelivery(state.demoTokenId);
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 600),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Tier upgrade celebration banner if just occurred
-              if (_justUpgraded)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFEBFBF4), Colors.white],
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: LaMPColors.verified, width: 1.5),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: const BoxDecoration(
-                          color: LaMPColors.verified,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.upgrade, color: Colors.white, size: 24),
-                      ),
-                      const SizedBox(width: 14),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'TIER UPGRADE UNLOCKED!',
-                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: LaMPColors.verifiedDark),
-                            ),
-                            SizedBox(height: 2),
-                            Text(
-                              '8th cycle completed. Rahman Medical Hall has advanced to ESTABLISHED tier (85% advance rate, reduced fees).',
-                              style: TextStyle(fontSize: 12, color: LaMPColors.fieldInk2),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-              // Credit Status Overview Card
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: LaMPColors.fieldLine),
-                ),
-                child: Row(
-                  children: [
-                    CreditRing(
-                      cycles: credit.cycles,
-                      tier: credit.tier,
-                      size: 110,
-                      strokeWidth: 8,
-                    ),
-                    const SizedBox(width: 20),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Text('Credit Level: ', style: TextStyle(fontSize: 12, color: LaMPColors.fieldInk3)),
-                              Text(credit.tier.label,
-                                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: LaMPColors.brand)),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${credit.onTimeCount} on-time · ${credit.lateCount} late · 0 defaults',
-                            style: const TextStyle(fontSize: 11, color: LaMPColors.fieldInk2),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            credit.tier.blurb,
-                            style: const TextStyle(fontSize: 11, color: LaMPColors.fieldInk3, height: 1.3),
-                          ),
-                          const SizedBox(height: 8),
-                          InkWell(
-                            onTap: () => _tabController.animateTo(1),
-                            child: const Text('View Full History & Cycles →',
-                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: LaMPColors.brand)),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Upcoming Payment Card
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: LaMPColors.fieldLine),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Upcoming Medicine Payment',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: LaMPColors.fieldInk),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: LaMPColors.pendingSoft,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: const Text('PAYABLE',
-                              style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: LaMPColors.pending)),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('AMOUNT DUE', style: TextStyle(fontSize: 10, color: LaMPColors.fieldInk3)),
-                            Text(LaMPFormatters.formatBDT(182400),
-                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                          ],
-                        ),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            const Text('INVOICE ID', style: TextStyle(fontSize: 10, color: LaMPColors.fieldInk3)),
-                            Text(state.demoInvoiceId,
-                                style: const TextStyle(fontSize: 14, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, fontWeight: FontWeight.bold)),
-                          ],
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () => _tabController.animateTo(2),
-                        icon: const Icon(Icons.payment, size: 16),
-                        label: const Text('Pay Invoice via bKash / Nagad'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: LaMPColors.brand,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Recent Deliveries
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: LaMPColors.fieldLine),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Recent Consignments',
-                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: LaMPColors.fieldInk)),
-                    const SizedBox(height: 10),
-                    if (demoDelivery != null)
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: LaMPColors.brandSoft,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(Icons.local_shipping_outlined, color: LaMPColors.brand, size: 20),
-                        ),
-                        title: Text(demoDelivery.invoiceId,
-                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback)),
-                        subtitle: Text(
-                          '${demoDelivery.cartons.length} cartons · Shomota Pharma',
-                          style: const TextStyle(fontSize: 11, color: LaMPColors.fieldInk3),
-                        ),
-                        trailing: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: demoDelivery.status == DeliveryStatus.completed
-                                ? LaMPColors.verifiedSoft
-                                : LaMPColors.pendingSoft,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            demoDelivery.status.id,
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: demoDelivery.status == DeliveryStatus.completed
-                                  ? LaMPColors.verifiedDark
-                                  : LaMPColors.pending,
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCreditTab(BuildContext context, CreditHistory credit) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 600),
-          child: Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: LaMPColors.fieldLine),
-                ),
-                child: Column(
-                  children: [
-                    CreditRing(
-                      cycles: credit.cycles,
-                      tier: credit.tier,
-                      size: 160,
-                      strokeWidth: 12,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      '${credit.tier.label.toUpperCase()} TIER',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: LaMPColors.brand),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${credit.cycles.length} completed credit cycles on-chain',
-                      style: const TextStyle(fontSize: 12, color: LaMPColors.fieldInk2),
-                    ),
-                    const SizedBox(height: 12),
-                    const Divider(color: LaMPColors.fieldLine),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Every on-time settlement builds immutable credit history. No bank or manufacturer can alter or erase these records.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 11, color: LaMPColors.fieldInk3, height: 1.4),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Cycle Breakdown List
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: LaMPColors.fieldLine),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Cycle History',
-                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: LaMPColors.fieldInk)),
-                    const SizedBox(height: 10),
-                    for (final (i, c) in credit.cycles.indexed) ...[
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(
-                                  c.onTime ? Icons.check_circle : Icons.error_outline,
-                                  color: c.onTime ? LaMPColors.verified : LaMPColors.pending,
-                                  size: 16,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Cycle ${i + 1} (${c.invoiceId})',
-                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                                ),
-                              ],
-                            ),
-                            Row(
-                              children: [
-                                Text(LaMPFormatters.formatBDT(c.value),
-                                    style: const TextStyle(fontSize: 12, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, fontWeight: FontWeight.bold)),
-                                const SizedBox(width: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: c.onTime ? LaMPColors.verifiedSoft : LaMPColors.pendingSoft,
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    c.onTime ? 'ON TIME' : '${c.daysLate}d LATE',
-                                    style: TextStyle(
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.bold,
-                                      color: c.onTime ? LaMPColors.verifiedDark : LaMPColors.pending,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (i < credit.cycles.length - 1) const Divider(color: LaMPColors.fieldLine, height: 1),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPayTab(BuildContext context, LaMPState state, CreditHistory credit) {
-    const amount = 182400.0;
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 600),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: LaMPColors.fieldLine),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Settle Consignment',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: LaMPColors.fieldInk)),
-                    const Text('Paying on delivery completes cycle 8 and triggers recourse tier upgrade.',
-                        style: TextStyle(fontSize: 12, color: LaMPColors.fieldInk2)),
-                    const SizedBox(height: 16),
-                    const Divider(color: LaMPColors.fieldLine, height: 1),
-                    const SizedBox(height: 16),
-
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Invoice:', style: TextStyle(fontSize: 13, color: LaMPColors.fieldInk3)),
-                        Text(state.demoInvoiceId,
-                            style: const TextStyle(fontSize: 14, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Amount Payable:', style: TextStyle(fontSize: 13, color: LaMPColors.fieldInk3)),
-                        Text(LaMPFormatters.formatBDT(amount),
-                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: LaMPColors.brand)),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-
-                    const Text('Select Payment Method',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: LaMPColors.fieldInk)),
-                    const SizedBox(height: 10),
-
-                    _paymentOption(
-                      title: 'bKash Merchant Payment',
-                      subtitle: 'Direct instant settlement via MFS wallet',
-                      value: 'bKash',
-                      color: LaMPColors.bKash,
-                    ),
-                    _paymentOption(
-                      title: 'Nagad Business Pay',
-                      subtitle: 'Postal network digital settlement',
-                      value: 'Nagad',
-                      color: LaMPColors.nagad,
-                    ),
-                    _paymentOption(
-                      title: 'Bank EFT / RTGS Transfer',
-                      subtitle: 'Corporate bank account clearance',
-                      value: 'Bank Transfer',
-                      color: LaMPColors.brand,
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () => _executePayment(state, amount),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _selectedPaymentMethod == 'bKash'
-                              ? LaMPColors.bKash
-                              : (_selectedPaymentMethod == 'Nagad' ? LaMPColors.nagad : LaMPColors.brand),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                        child: Text(
-                          'Confirm & Pay ${LaMPFormatters.formatBDT(amount)} via $_selectedPaymentMethod',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _paymentOption({
-    required String title,
-    required String subtitle,
-    required String value,
-    required Color color,
-  }) {
-    final isSelected = _selectedPaymentMethod == value;
-
-    return InkWell(
-      onTap: () => setState(() => _selectedPaymentMethod = value),
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: isSelected ? color.withValues(alpha: 0.08) : Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: isSelected ? color : LaMPColors.fieldLine,
-            width: isSelected ? 2 : 1,
-          ),
-        ),
-        child: Row(
+        title: Row(
           children: [
-            Container(
-              width: 18,
-              height: 18,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: isSelected ? color : Colors.black26, width: 2),
-                color: isSelected ? color : Colors.transparent,
-              ),
-              child: isSelected ? const Icon(Icons.check, size: 12, color: Colors.white) : null,
-            ),
-            const SizedBox(width: 12),
+            const LampMark(size: 22),
+            const SizedBox(width: Gap.sm),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(title, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: isSelected ? color : LaMPColors.fieldInk)),
-                  Text(subtitle, style: const TextStyle(fontSize: 11, color: LaMPColors.fieldInk3)),
+                  Text(
+                    pharmacy.name,
+                    style: LaMPType.head.copyWith(color: c.ink),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    pharmacy.territory,
+                    style: LaMPType.caption.copyWith(color: c.inkFaint),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ],
               ),
             ),
           ],
         ),
+        actions: [
+          const ThemeToggle(),
+          IconButton(
+            tooltip: 'Ledger',
+            icon: Icon(Icons.account_tree_outlined, color: c.inkMuted),
+            onPressed: () => LedgerInspectorSheet.show(context),
+          ),
+          IconButton(
+            tooltip: 'Demo controls',
+            icon: Icon(Icons.tune, color: c.inkMuted),
+            onPressed: () => DemoDirectorSheet.show(context),
+          ),
+          const SizedBox(width: Gap.xs),
+        ],
       ),
-    );
-  }
-
-  void _executePayment(LaMPState state, double amount) async {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        title: Text('Processing $_selectedPaymentMethod Payment'),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
+      body: SafeArea(
+        top: false,
+        child: IndexedStack(
+          index: _tab,
           children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text('Submitting settlement to Hyperledger consortium ledger...'),
+            _dashboard(context, state, credit),
+            _creditHistory(context, credit),
+            _pay(context, state),
+            _disputes(context, state),
           ],
         ),
       ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _tab,
+        onDestinationSelected: (i) => setState(() => _tab = i),
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.dashboard_outlined),
+            selectedIcon: Icon(Icons.dashboard),
+            label: 'Overview',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.donut_large_outlined),
+            selectedIcon: Icon(Icons.donut_large),
+            label: 'Credit',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.payments_outlined),
+            selectedIcon: Icon(Icons.payments),
+            label: 'Pay',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.flag_outlined),
+            selectedIcon: Icon(Icons.flag),
+            label: 'Disputes',
+          ),
+        ],
+      ),
     );
-
-    final res = await state.settleReceivable(state.demoTokenId, amount, _selectedPaymentMethod);
-
-    if (mounted) {
-      Navigator.pop(context); // close progress dialog
-      if (res.ok) {
-        setState(() {
-          _justUpgraded = true;
-        });
-        _tabController.animateTo(0);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            backgroundColor: LaMPColors.verifiedDark,
-            content: Text('Settlement recorded on blockchain! Tier upgraded to ESTABLISHED.'),
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: LaMPColors.dispute,
-            content: Text(res.error ?? 'Settlement rejected'),
-          ),
-        );
-      }
-    }
   }
 
-  Widget _buildDisputeTab(BuildContext context, LaMPState state) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 600),
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: LaMPColors.fieldLine),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+  /* ---------------------------------------------------------------------- */
+  /* Overview                                                                */
+  /* ---------------------------------------------------------------------- */
+
+  Widget _dashboard(BuildContext context, LaMPState state, CreditHistory credit) {
+    final c = context.lamp;
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.lg, Gap.lg, Gap.xxl),
+      children: [
+        if (_justUpgraded) ...[
+          LampCard(
+            background: c.verifiedSoft,
+            border: c.verified,
+            child: Row(
               children: [
-                const Text('Dispute Centre',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: LaMPColors.fieldInk)),
-                const Text('Raise objections before the 24-hour dispute window closes',
-                    style: TextStyle(fontSize: 12, color: LaMPColors.fieldInk2)),
-                const SizedBox(height: 16),
-                ElevatedButton.icon(
-                  onPressed: () async {
-                    await state.raiseDispute(state.demoTokenId, 'Damaged seals reported by Rahman Medical Hall');
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Dispute raised. Token reopened to DISPUTED.')),
-                      );
-                    }
-                  },
-                  icon: const Icon(Icons.report_problem),
-                  label: const Text('Raise Delivery Dispute'),
-                  style: ElevatedButton.styleFrom(backgroundColor: LaMPColors.dispute, foregroundColor: Colors.white),
+                Icon(Icons.trending_up, size: IconSize.lg, color: c.verified),
+                const SizedBox(width: Gap.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Tier upgraded',
+                        style: LaMPType.sub.copyWith(
+                          color: c.ink,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(
+                        'Now Established · 85% advance',
+                        style: LaMPType.caption.copyWith(color: c.inkMuted),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
+          const SizedBox(height: Gap.lg),
+        ],
+
+        // The ring sits above the figures rather than beside them. At 110px
+        // next to a column of text it left under 200px for the text and
+        // overflowed; stacked, both get the full width.
+        LampCard(
+          child: Column(
+            children: [
+              CreditRing(
+                cycles: credit.cycles,
+                tier: credit.tier,
+                size: 120,
+                strokeWidth: 10,
+              ),
+              const SizedBox(height: Gap.lg),
+              Text(
+                credit.tier.label,
+                style: LaMPType.title.copyWith(color: c.brand),
+              ),
+              const SizedBox(height: Gap.xs),
+              Text(
+                '${credit.cycles.length} cycles settled',
+                style: LaMPType.caption.copyWith(color: c.inkFaint),
+              ),
+              const SizedBox(height: Gap.lg),
+              Row(
+                children: [
+                  Expanded(
+                    child: LampStat(
+                      label: 'On time',
+                      value: '${credit.onTimeCount}',
+                      valueColor: c.verified,
+                    ),
+                  ),
+                  Expanded(
+                    child: LampStat(
+                      label: 'Late',
+                      value: '${credit.lateCount}',
+                      valueColor: credit.lateCount > 0 ? c.pending : c.ink,
+                    ),
+                  ),
+                  Expanded(
+                    child: LampStat(
+                      label: 'Defaults',
+                      value: '${credit.defaultCount}',
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: Gap.md),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () => setState(() => _tab = 1),
+                  child: const Text('See cycle history'),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: Gap.xl),
+
+        const LampSectionHeader(title: 'Due now'),
+        LampCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      state.demoInvoiceId,
+                      style: LaMPType.monoBody.copyWith(
+                        color: c.ink,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const LampChip(label: 'Due in 45 days', tone: LampTone.pending),
+                ],
+              ),
+              const SizedBox(height: Gap.md),
+              LampKeyValue(
+                label: 'Amount',
+                value: LaMPFormatters.formatBDT(_invoiceAmount),
+                valueColor: c.brand,
+                mono: true,
+              ),
+              LampKeyValue(
+                label: 'Supplier',
+                value: 'Shomota Pharmaceuticals',
+              ),
+              const SizedBox(height: Gap.md),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => setState(() => _tab = 2),
+                  child: const Text('Pay now'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Credit                                                                  */
+  /* ---------------------------------------------------------------------- */
+
+  Widget _creditHistory(BuildContext context, CreditHistory credit) {
+    final c = context.lamp;
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.lg, Gap.lg, Gap.xxl),
+      children: [
+        LampCard(
+          child: Column(
+            children: [
+              CreditRing(
+                cycles: credit.cycles,
+                tier: credit.tier,
+                size: 150,
+                strokeWidth: 12,
+              ),
+              const SizedBox(height: Gap.lg),
+              Text(
+                credit.tier.label,
+                style: LaMPType.title.copyWith(color: c.brand),
+              ),
+              const SizedBox(height: Gap.xs),
+              Text(
+                credit.tier.blurb,
+                textAlign: TextAlign.center,
+                style: LaMPType.caption.copyWith(color: c.inkFaint),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: Gap.xl),
+
+        const LampSectionHeader(title: 'Settled cycles'),
+        for (final cycle in credit.cycles.reversed) ...[
+          LampCard(
+            padding: const EdgeInsets.all(Gap.md),
+            child: Row(
+              children: [
+                Icon(
+                  cycle.onTime ? Icons.check_circle : Icons.schedule,
+                  size: IconSize.md,
+                  color: cycle.onTime ? c.verified : c.pending,
+                ),
+                const SizedBox(width: Gap.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        cycle.invoiceId,
+                        style: LaMPType.monoCaption.copyWith(
+                          color: c.ink,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(
+                        cycle.onTime
+                            ? 'On time'
+                            : '${cycle.daysLate} days late',
+                        style: LaMPType.micro.copyWith(
+                          color: cycle.onTime ? c.inkFaint : c.pending,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: Gap.sm),
+                Text(
+                  LaMPFormatters.formatBDTCompact(cycle.value),
+                  style: LaMPType.monoCaption.copyWith(color: c.ink),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: Gap.sm),
+        ],
+      ],
+    );
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Pay                                                                     */
+  /* ---------------------------------------------------------------------- */
+
+  Widget _pay(BuildContext context, LaMPState state) {
+    final c = context.lamp;
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.lg, Gap.lg, Gap.xxl),
+      children: [
+        LampCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Settle', style: LaMPType.head.copyWith(color: c.ink)),
+              const SizedBox(height: Gap.md),
+              LampKeyValue(
+                label: 'Invoice',
+                value: state.demoInvoiceId,
+                mono: true,
+              ),
+              LampKeyValue(
+                label: 'Amount',
+                value: LaMPFormatters.formatBDT(_invoiceAmount),
+                valueColor: c.brand,
+                mono: true,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: Gap.xl),
+
+        const LampSectionHeader(title: 'Pay with'),
+        _payOption('bKash', 'Instant', LaMPColors.bKash),
+        const SizedBox(height: Gap.sm),
+        _payOption('Nagad', 'Instant', LaMPColors.nagad),
+        const SizedBox(height: Gap.sm),
+        _payOption('Bank transfer', 'Next business day', c.brand),
+
+        const SizedBox(height: Gap.xl),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: () => _executePayment(state, _invoiceAmount),
+            // The button said "Confirm & Pay ৳1,82,400 via bKash" — seventy-
+            // seven characters wrapping onto two lines. The amount and the
+            // method are both on the card directly above it.
+            child: Text('Pay ${LaMPFormatters.formatBDT(_invoiceAmount)}'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _payOption(String name, String speed, Color accent) {
+    final c = context.lamp;
+    final selected = _payMethod == name;
+
+    return LampCard(
+      onTap: () => setState(() => _payMethod = name),
+      padding: const EdgeInsets.all(Gap.md),
+      background: selected ? accent.withValues(alpha: 0.08) : c.surface,
+      border: selected ? accent : c.line,
+      child: Row(
+        children: [
+          Container(
+            width: 20,
+            height: 20,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: selected ? accent : c.lineStrong,
+                width: 2,
+              ),
+              color: selected ? accent : Colors.transparent,
+            ),
+            child: selected
+                ? const Icon(Icons.check, size: 12, color: Colors.white)
+                : null,
+          ),
+          const SizedBox(width: Gap.md),
+          Expanded(
+            child: Text(
+              name,
+              style: LaMPType.sub.copyWith(
+                color: selected ? accent : c.ink,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Text(speed, style: LaMPType.caption.copyWith(color: c.inkFaint)),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _executePayment(LaMPState state, double amount) async {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const AlertDialog(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            SizedBox(width: Gap.lg),
+            Expanded(child: Text('Submitting to the ledger')),
+          ],
         ),
       ),
+    );
+
+    final res = await state.settleReceivable(state.demoTokenId, amount, _payMethod);
+
+    if (!mounted) return;
+    Navigator.of(context).pop();
+
+    setState(() => _justUpgraded = res.ok);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(res.ok ? 'Settled. Cycle recorded.' : (res.error ?? 'Refused')),
+      ),
+    );
+
+    if (res.ok) setState(() => _tab = 0);
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Disputes                                                                */
+  /* ---------------------------------------------------------------------- */
+
+  Widget _disputes(BuildContext context, LaMPState state) {
+    final c = context.lamp;
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.lg, Gap.lg, Gap.xxl),
+      children: [
+        LampCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Raise a dispute', style: LaMPType.head.copyWith(color: c.ink)),
+              const SizedBox(height: Gap.xs),
+              Text(
+                'Before the 24-hour window closes',
+                style: LaMPType.caption.copyWith(color: c.inkFaint),
+              ),
+              const SizedBox(height: Gap.lg),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: c.dispute,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () async {
+                    await state.raiseDispute(
+                      state.demoTokenId,
+                      'Damaged seals reported by Rahman Medical Hall',
+                    );
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Dispute raised')),
+                    );
+                  },
+                  icon: const Icon(Icons.report_problem_outlined, size: IconSize.sm),
+                  label: const Text('Report a problem'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

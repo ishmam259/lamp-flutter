@@ -10,6 +10,7 @@ import '../../core/world/seed.dart';
 import '../../widgets/demo_director_sheet.dart';
 import '../../widgets/ledger_inspector_sheet.dart';
 import '../../widgets/recourse_dial.dart';
+import '../../widgets/ui/lamp_ui.dart';
 import '../../widgets/lamp_mark.dart';
 import '../../core/constants/typography.dart';
 
@@ -66,9 +67,13 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
                   // The seat switcher in `actions` already names the bank, and
                   // naming it here too left neither with room — the title, the
                   // MSP chip and the dropdown were overlapping each other.
-                  const Flexible(
+                  // Expanded, not Flexible: loose fit lets the text keep its
+                  // natural width and overflow by 13, where tight fit makes it
+                  // take exactly what is left.
+                  const Expanded(
                     child: Text(
                       'Financing',
+                      maxLines: 1,
                       style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: LaMPColors.portalInk),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -88,26 +93,19 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
             ],
           ),
           actions: [
-            // Toggle active bank seat (Meghna vs Padma)
-            DropdownButtonHideUnderline(
-              child: DropdownButton<Msp>(
-                value: _activeBank,
-                dropdownColor: const Color(0xFF1C2722),
-                icon: const Icon(Icons.swap_horiz, color: Colors.white70),
-                items: const [
-                  DropdownMenuItem(
-                    value: Msp.meghnaMSP,
-                    child: Text('Meghna Bank', style: TextStyle(fontSize: 12, color: LaMPColors.portalInk)),
-                  ),
-                  DropdownMenuItem(
-                    value: Msp.padmaMSP,
-                    child: Text('Padma Bank', style: TextStyle(fontSize: 12, color: LaMPColors.portalInk)),
-                  ),
-                ],
-                onChanged: (val) {
-                  if (val != null) setState(() => _activeBank = val);
-                },
-              ),
+            // Which bank's seat this is. An inline dropdown spelled the name
+            // out in the bar and took about 140dp of a 360dp phone, leaving
+            // the title less room than its own leading mark needed. A menu
+            // costs one tap and holds the same two choices.
+            PopupMenuButton<Msp>(
+              tooltip: 'Switch seat',
+              initialValue: _activeBank,
+              onSelected: (v) => setState(() => _activeBank = v),
+              icon: const Icon(Icons.swap_horiz),
+              itemBuilder: (_) => const [
+                PopupMenuItem(value: Msp.meghnaMSP, child: Text('Meghna Bank')),
+                PopupMenuItem(value: Msp.padmaMSP, child: Text('Padma Bank')),
+              ],
             ),
             IconButton(
               tooltip: 'Ledger Inspector',
@@ -216,41 +214,40 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Id and amount share the row; the eligibility chip takes
+                    // the line beneath. All three abreast needed about 200dp
+                    // of the 180dp available and overflowed by 210.
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Row(
-                          children: [
-                            Text(
-                              state.demoInvoiceId,
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback,
-                                color: LaMPColors.portalInk,
-                              ),
+                        Expanded(
+                          child: Text(
+                            state.demoInvoiceId,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              fontFamily: LaMPType.mono,
+                              fontFamilyFallback: LaMPType.fallback,
+                              color: LaMPColors.portalInk,
                             ),
-                            const SizedBox(width: 10),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: LaMPColors.brand.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: const Text('SCF ELIGIBLE',
-                                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: LaMPColors.brand)),
-                            ),
-                          ],
+                          ),
                         ),
+                        const SizedBox(width: 10),
                         Text(
                           LaMPFormatters.formatBDT(182400),
                           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: LaMPColors.brand),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 6),
+                    const LampChip(label: 'SCF eligible', tone: LampTone.verified),
+                    const SizedBox(height: 6),
+                    // "Buyer: X · Seller: Y · Z" was sixty-six characters
+                    // restating a relationship the portal never varies.
                     const Text(
-                      'Buyer: Rahman Medical Hall · Seller: Shomota Pharma · Bogura Sadar',
+                      'Rahman Medical Hall · Bogura Sadar',
                       style: TextStyle(fontSize: 12, color: LaMPColors.portalInk2),
                     ),
                     const SizedBox(height: 16),

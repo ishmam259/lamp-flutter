@@ -11,6 +11,7 @@ import '../../widgets/demo_director_sheet.dart';
 import '../../widgets/ledger_inspector_sheet.dart';
 import '../../widgets/lifecycle_rail.dart';
 import '../../widgets/private_seal.dart';
+import '../../widgets/ui/lamp_ui.dart';
 import '../../widgets/lamp_mark.dart';
 import '../../core/constants/typography.dart';
 
@@ -246,43 +247,39 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          // Id and amount share the row; the status chip goes
+                          // below. All three abreast overflowed by 121.
                           Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Row(
-                                children: [
-                                  Text(
-                                    state.demoInvoiceId,
-                                    style: const TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.bold,
-                                      fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback,
-                                      color: LaMPColors.portalInk,
-                                    ),
+                              Expanded(
+                                child: Text(
+                                  state.demoInvoiceId,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                    fontFamily: LaMPType.mono,
+                                    fontFamilyFallback: LaMPType.fallback,
+                                    color: LaMPColors.portalInk,
                                   ),
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: LaMPColors.verified.withValues(alpha: 0.15),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      delivery?.status.id ?? 'CREATED',
-                                      style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: LaMPColors.verified),
-                                    ),
-                                  ),
-                                ],
+                                ),
                               ),
+                              const SizedBox(width: 8),
                               Text(
                                 LaMPFormatters.formatBDT(182400),
                                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: LaMPColors.brand),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 6),
+                          LampChip(
+                            label: delivery?.status.id ?? 'CREATED',
+                            tone: LampTone.verified,
+                          ),
+                          const SizedBox(height: 6),
                           const Text(
-                            'Rahman Medical Hall (রহমান মেডিকেল হল) · Bogura Sadar',
+                            'Rahman Medical Hall · Bogura Sadar',
                             style: TextStyle(fontSize: 12, color: LaMPColors.portalInk2),
                           ),
                           const SizedBox(height: 12),
