@@ -119,17 +119,23 @@ class _PharmacyScreenState extends State<PharmacyScreen> with SingleTickerProvid
             ],
           ),
         ),
-        body: credit == null
-            ? const Center(child: CircularProgressIndicator())
-            : TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildDashboardTab(context, state, pharmacy, credit),
-                  _buildCreditTab(context, credit),
-                  _buildPayTab(context, state, credit),
-                  _buildDisputeTab(context, state),
-                ],
-              ),
+        body: SafeArea(
+          // Android draws its gesture bar over the bottom of the window.
+          // Without this the last row of every list sits underneath it.
+          // Top is already handled by the AppBar.
+          top: false,
+          child: credit == null
+              ? const Center(child: CircularProgressIndicator())
+              : TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildDashboardTab(context, state, pharmacy, credit),
+                    _buildCreditTab(context, credit),
+                    _buildPayTab(context, state, credit),
+                    _buildDisputeTab(context, state),
+                  ],
+                ),
+        ),
       ),
     );
   }

@@ -65,265 +65,271 @@ class LauncherScreen extends StatelessWidget {
           const SizedBox(width: 8),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 860),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Top Banner
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        LaMPColors.brand.withValues(alpha: 0.25),
-                        const Color(0xFF131B17),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+      body: SafeArea(
+        // Android draws its gesture bar over the bottom of the window.
+        // Without this the last row of every list sits underneath it.
+        // Top is already handled by the AppBar.
+        top: false,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 860),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Top Banner
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          LaMPColors.brand.withValues(alpha: 0.25),
+                          const Color(0xFF131B17),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: LaMPColors.portalLine),
                     ),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: LaMPColors.portalLine),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Both halves flex: at a large display font scale the
+                        // chip and the timestamp together exceed a 1080px-wide
+                        // phone, and a bare Row overflows rather than shrinking.
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            // The chip is a fixed label and takes the width it
+                            // needs; the date flexes, because it is the half
+                            // that can afford to shorten.
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: LaMPColors.verified.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(LaMPRadius.control),
+                              ),
+                              child: const Text(
+                                'BCOLBD 2026 PROTOTYPE',
+                                maxLines: 1,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.8,
+                                  color: LaMPColors.verified,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              // Date only: the clock beside it is ledger time to
+                              // the second, and a timestamp truncated mid-way by
+                              // the ellipsis reads worse than no time at all.
+                              child: Text(
+                                LaMPFormatters.formatDate(state.now),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.end,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback,
+                                  color: LaMPColors.portalInk2,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Five interfaces over one consortium ledger.',
+                                    style: TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.bold,
+                                      color: LaMPColors.portalInk,
+                                      letterSpacing: -0.5,
+                                    ),
+                                  ),
+                                  SizedBox(height: 6),
+                                  Text(
+                                    'Make the invoice itself trustworthy, so the money can follow the medicine.',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: LaMPColors.portalInk2,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            // The mark is already in the app bar, a couple of
+                            // centimetres above this on a phone. Repeating it
+                            // here read as the logo twice rather than as brand
+                            // presence, and dropping it gives the headline the
+                            // full column width.
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Wrap(
+                          spacing: 20,
+                          runSpacing: 10,
+                          children: [
+                            _buildMiniStat('Block Height', '${state.blockHeight}', LaMPColors.verified),
+                            _buildMiniStat('Active Invoices', '${state.invoices.length}', LaMPColors.portalInk),
+                            _buildMiniStat(
+                              'Demo Invoice',
+                              state.demoInvoiceId,
+                              LaMPColors.brand,
+                              mono: true,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  const SizedBox(height: 28),
+  
+                  // Section 1: Field Applications
+                  const Row(
                     children: [
-                      // Both halves flex: at a large display font scale the
-                      // chip and the timestamp together exceed a 1080px-wide
-                      // phone, and a bare Row overflows rather than shrinking.
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          // The chip is a fixed label and takes the width it
-                          // needs; the date flexes, because it is the half
-                          // that can afford to shorten.
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: LaMPColors.verified.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(LaMPRadius.control),
-                            ),
-                            child: const Text(
-                              'BCOLBD 2026 PROTOTYPE',
-                              maxLines: 1,
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 0.8,
-                                color: LaMPColors.verified,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Flexible(
-                            // Date only: the clock beside it is ledger time to
-                            // the second, and a timestamp truncated mid-way by
-                            // the ellipsis reads worse than no time at all.
-                            child: Text(
-                              LaMPFormatters.formatDate(state.now),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              textAlign: TextAlign.end,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback,
-                                color: LaMPColors.portalInk2,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Five interfaces over one consortium ledger.',
-                                  style: TextStyle(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.bold,
-                                    color: LaMPColors.portalInk,
-                                    letterSpacing: -0.5,
-                                  ),
-                                ),
-                                SizedBox(height: 6),
-                                Text(
-                                  'Make the invoice itself trustworthy, so the money can follow the medicine.',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: LaMPColors.portalInk2,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          // The mark is already in the app bar, a couple of
-                          // centimetres above this on a phone. Repeating it
-                          // here read as the logo twice rather than as brand
-                          // presence, and dropping it gives the headline the
-                          // full column width.
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Wrap(
-                        spacing: 20,
-                        runSpacing: 10,
-                        children: [
-                          _buildMiniStat('Block Height', '${state.blockHeight}', LaMPColors.verified),
-                          _buildMiniStat('Active Invoices', '${state.invoices.length}', LaMPColors.portalInk),
-                          _buildMiniStat(
-                            'Demo Invoice',
-                            state.demoInvoiceId,
-                            LaMPColors.brand,
-                            mono: true,
-                          ),
-                        ],
+                      Icon(Icons.smartphone, size: 16, color: LaMPColors.brand),
+                      SizedBox(width: 8),
+                      Text(
+                        'Field applications',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                          color: LaMPColors.portalInk,
+                        ),
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(height: 28),
-
-                // Section 1: Field Applications
-                const Row(
-                  children: [
-                    Icon(Icons.smartphone, size: 16, color: LaMPColors.brand),
-                    SizedBox(width: 8),
-                    Text(
-                      'Field applications',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.5,
-                        color: LaMPColors.portalInk,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final isNarrow = constraints.maxWidth < 640;
-                    final mpoCard = _buildPersonaCard(
-                      context,
-                      persona: PersonaId.mpo,
-                      title: 'MPO Mobile App',
-                      subtitle: 'Kamrul Hasan · Bogura Sadar',
-                      description: 'GS1 carton scanner with cascade, rejection of misrouted carton 14, and offline sync.',
-                      badge: 'Delivery Proof',
-                      badgeColor: LaMPColors.brand,
-                      icon: Icons.qr_code_scanner,
-                    );
-                    final pharmacyCard = _buildPersonaCard(
-                      context,
-                      persona: PersonaId.pharmacy,
-                      title: 'Pharmacy Owner App',
-                      subtitle: 'Rahman Medical Hall (রহমান মেডিকেল হল)',
-                      description: 'Credit cycle ring, bKash payment, and tier upgrade from Building to Established.',
-                      badge: 'Credit Building',
-                      badgeColor: LaMPColors.verified,
-                      icon: Icons.local_pharmacy_outlined,
-                    );
-
-                    if (isNarrow) {
-                      return Column(
+                  const SizedBox(height: 12),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isNarrow = constraints.maxWidth < 640;
+                      final mpoCard = _buildPersonaCard(
+                        context,
+                        persona: PersonaId.mpo,
+                        title: 'MPO Mobile App',
+                        subtitle: 'Kamrul Hasan · Bogura Sadar',
+                        description: 'GS1 carton scanner with cascade, rejection of misrouted carton 14, and offline sync.',
+                        badge: 'Delivery Proof',
+                        badgeColor: LaMPColors.brand,
+                        icon: Icons.qr_code_scanner,
+                      );
+                      final pharmacyCard = _buildPersonaCard(
+                        context,
+                        persona: PersonaId.pharmacy,
+                        title: 'Pharmacy Owner App',
+                        subtitle: 'Rahman Medical Hall (রহমান মেডিকেল হল)',
+                        description: 'Credit cycle ring, bKash payment, and tier upgrade from Building to Established.',
+                        badge: 'Credit Building',
+                        badgeColor: LaMPColors.verified,
+                        icon: Icons.local_pharmacy_outlined,
+                      );
+  
+                      if (isNarrow) {
+                        return Column(
+                          children: [
+                            mpoCard,
+                            const SizedBox(height: 12),
+                            pharmacyCard,
+                          ],
+                        );
+                      }
+                      return Row(
                         children: [
-                          mpoCard,
-                          const SizedBox(height: 12),
-                          pharmacyCard,
+                          Expanded(child: mpoCard),
+                          const SizedBox(width: 14),
+                          Expanded(child: pharmacyCard),
                         ],
                       );
-                    }
-                    return Row(
-                      children: [
-                        Expanded(child: mpoCard),
-                        const SizedBox(width: 14),
-                        Expanded(child: pharmacyCard),
-                      ],
-                    );
-                  },
-                ),
-                const SizedBox(height: 28),
-
-                // Section 2: Institutional Portals
-                const Row(
-                  children: [
-                    Icon(Icons.laptop, size: 16, color: LaMPColors.portalInk2),
-                    SizedBox(width: 8),
-                    Text(
-                      'Institutional portals',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.5,
-                        color: LaMPColors.portalInk,
+                    },
+                  ),
+                  const SizedBox(height: 28),
+  
+                  // Section 2: Institutional Portals
+                  const Row(
+                    children: [
+                      Icon(Icons.laptop, size: 16, color: LaMPColors.portalInk2),
+                      SizedBox(width: 8),
+                      Text(
+                        'Institutional portals',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                          color: LaMPColors.portalInk,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final isNarrow = constraints.maxWidth < 640;
-                    final mfrCard = _buildPersonaCard(
-                      context,
-                      persona: PersonaId.manufacturer,
-                      title: 'Manufacturer Portal',
-                      subtitle: 'Shomota Pharmaceuticals Ltd',
-                      description: 'Mint receivables with multi-MSP quorum, track carton scans, and monitor collections.',
-                      badge: 'Receivables',
-                      badgeColor: LaMPColors.brand,
-                      icon: Icons.business_outlined,
-                    );
-                    final bankCard = _buildPersonaCard(
-                      context,
-                      persona: PersonaId.bank,
-                      title: 'Bank SCF Portal',
-                      subtitle: 'Meghna Commercial & Padma Bank',
-                      description: 'Smart contract financing, rate curve bands, and duplicate financing rejection.',
-                      badge: 'Financing',
-                      badgeColor: LaMPColors.pending,
-                      icon: Icons.account_balance_outlined,
-                    );
-
-                    if (isNarrow) {
-                      return Column(
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isNarrow = constraints.maxWidth < 640;
+                      final mfrCard = _buildPersonaCard(
+                        context,
+                        persona: PersonaId.manufacturer,
+                        title: 'Manufacturer Portal',
+                        subtitle: 'Shomota Pharmaceuticals Ltd',
+                        description: 'Mint receivables with multi-MSP quorum, track carton scans, and monitor collections.',
+                        badge: 'Receivables',
+                        badgeColor: LaMPColors.brand,
+                        icon: Icons.business_outlined,
+                      );
+                      final bankCard = _buildPersonaCard(
+                        context,
+                        persona: PersonaId.bank,
+                        title: 'Bank SCF Portal',
+                        subtitle: 'Meghna Commercial & Padma Bank',
+                        description: 'Smart contract financing, rate curve bands, and duplicate financing rejection.',
+                        badge: 'Financing',
+                        badgeColor: LaMPColors.pending,
+                        icon: Icons.account_balance_outlined,
+                      );
+  
+                      if (isNarrow) {
+                        return Column(
+                          children: [
+                            mfrCard,
+                            const SizedBox(height: 12),
+                            bankCard,
+                          ],
+                        );
+                      }
+                      return Row(
                         children: [
-                          mfrCard,
-                          const SizedBox(height: 12),
-                          bankCard,
+                          Expanded(child: mfrCard),
+                          const SizedBox(width: 14),
+                          Expanded(child: bankCard),
                         ],
                       );
-                    }
-                    return Row(
-                      children: [
-                        Expanded(child: mfrCard),
-                        const SizedBox(width: 14),
-                        Expanded(child: bankCard),
-                      ],
-                    );
-                  },
-                ),
-                const SizedBox(height: 14),
-                _buildPersonaCard(
-                  context,
-                  persona: PersonaId.regulator,
-                  title: 'Regulator Dashboard',
-                  subtitle: 'Bangladesh Bank / DGDA — Observer Node',
-                  description: 'Independent oversight, duplicate advance audit log, and medicine supply chain traceability.',
-                  badge: 'Compliance & Audit',
-                  badgeColor: LaMPColors.dispute,
-                  icon: Icons.security_outlined,
-                ),
-                const SizedBox(height: 30),
-              ],
+                    },
+                  ),
+                  const SizedBox(height: 14),
+                  _buildPersonaCard(
+                    context,
+                    persona: PersonaId.regulator,
+                    title: 'Regulator Dashboard',
+                    subtitle: 'Bangladesh Bank / DGDA — Observer Node',
+                    description: 'Independent oversight, duplicate advance audit log, and medicine supply chain traceability.',
+                    badge: 'Compliance & Audit',
+                    badgeColor: LaMPColors.dispute,
+                    icon: Icons.security_outlined,
+                  ),
+                  const SizedBox(height: 30),
+                ],
+              ),
             ),
           ),
         ),

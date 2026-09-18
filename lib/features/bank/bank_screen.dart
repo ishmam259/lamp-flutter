@@ -144,13 +144,19 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
             ],
           ),
         ),
-        body: TabBarView(
-          controller: _tabController,
-          children: [
-            _buildOpportunitiesTab(context, state, delivery),
-            _buildRateCurveTab(context, state),
-            _buildPortfolioTab(context, state),
-          ],
+        body: SafeArea(
+          // Android draws its gesture bar over the bottom of the window.
+          // Without this the last row of every list sits underneath it.
+          // Top is already handled by the AppBar.
+          top: false,
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              _buildOpportunitiesTab(context, state, delivery),
+              _buildRateCurveTab(context, state),
+              _buildPortfolioTab(context, state),
+            ],
+          ),
         ),
       ),
     );

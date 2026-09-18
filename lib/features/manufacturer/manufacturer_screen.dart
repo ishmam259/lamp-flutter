@@ -123,13 +123,19 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
             ],
           ),
         ),
-        body: TabBarView(
-          controller: _tabController,
-          children: [
-            _buildReceivablesTab(context, state, delivery),
-            _buildTrackingTab(context, state, delivery),
-            _buildMintTab(context, state),
-          ],
+        body: SafeArea(
+          // Android draws its gesture bar over the bottom of the window.
+          // Without this the last row of every list sits underneath it.
+          // Top is already handled by the AppBar.
+          top: false,
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              _buildReceivablesTab(context, state, delivery),
+              _buildTrackingTab(context, state, delivery),
+              _buildMintTab(context, state),
+            ],
+          ),
         ),
       ),
     );

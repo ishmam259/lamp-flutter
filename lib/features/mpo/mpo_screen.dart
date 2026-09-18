@@ -125,17 +125,23 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
             ],
           ),
         ),
-        body: delivery == null
-            ? const Center(child: CircularProgressIndicator())
-            : TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildRouteTab(context, delivery, state),
-                  _buildScannerTab(context, delivery, state),
-                  _buildConfirmTab(context, delivery, state),
-                  _buildReturnsTab(context, delivery, state),
-                ],
-              ),
+        body: SafeArea(
+          // Android draws its gesture bar over the bottom of the window.
+          // Without this the last row of every list sits underneath it.
+          // Top is already handled by the AppBar.
+          top: false,
+          child: delivery == null
+              ? const Center(child: CircularProgressIndicator())
+              : TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildRouteTab(context, delivery, state),
+                    _buildScannerTab(context, delivery, state),
+                    _buildConfirmTab(context, delivery, state),
+                    _buildReturnsTab(context, delivery, state),
+                  ],
+                ),
+        ),
       ),
     );
   }
