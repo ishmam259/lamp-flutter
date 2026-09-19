@@ -224,26 +224,24 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                     // spaceBetween they claimed their natural widths and
                     // overflowed a 360dp phone by 62 pixels; LampStat scales
                     // its figure down rather than pushing its neighbours off.
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    //
+                    // The gutter is the other half of that, and it took a
+                    // real phone to see: the invoice id is long enough to be
+                    // scaled to exactly its column, so with the columns flush
+                    // it printed as `INV-002350/25`. See [LampStatRow].
+                    LampStatRow(
                       children: [
-                        Expanded(
-                          child: LampStat(
-                            label: 'Invoice',
-                            value: delivery.invoiceId,
-                          ),
+                        LampStat(
+                          label: 'Invoice',
+                          value: delivery.invoiceId,
                         ),
-                        Expanded(
-                          child: LampStat(
-                            label: 'Cartons',
-                            value: '$scannedCount/$totalCartons',
-                          ),
+                        LampStat(
+                          label: 'Cartons',
+                          value: '$scannedCount/$totalCartons',
                         ),
-                        Expanded(
-                          child: LampStat(
-                            label: 'Value',
-                            value: LaMPFormatters.formatBDT(182400),
-                          ),
+                        LampStat(
+                          label: 'Value',
+                          value: LaMPFormatters.formatBDT(182400),
                         ),
                       ],
                     ),

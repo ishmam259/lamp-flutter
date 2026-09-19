@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:lamp_flutter/core/constants/app_theme.dart';
+import 'package:lamp_flutter/core/constants/palette.dart';
 import 'package:lamp_flutter/core/design/luma_auto_grid.dart';
 import 'package:lamp_flutter/core/design/luma_container.dart';
+import 'package:lamp_flutter/widgets/ui/lamp_ui.dart';
 
 /// The two layout primitives this branch adds, tested at the level they make
 /// promises at.
@@ -235,5 +238,51 @@ void main() {
 
       expect(inner, 320);
     });
+  });
+
+  testWidgets('figures in a stat row do not touch', (tester) async {
+    // The defect this is for was found on a phone and is invisible to the
+    // overflow sweep: `LampStat` scales a long figure to fill its column
+    // exactly, so with the columns flush the invoice id and the carton count
+    // rendered as one string — `INV-002350/25`. Nothing overflowed, so
+    // nothing was reported.
+    //
+    // A real phone: 1080 / 2.625 = 411 logical pixels.
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: LaMPTheme.build(LampWorld.field, Brightness.dark),
+        home: Scaffold(
+          body: Padding(
+            padding: const EdgeInsets.all(16),
+            child: LampCard(
+              child: LampStatRow(
+                children: const [
+                  LampStat(label: 'Invoice', value: 'INV-00235'),
+                  LampStat(label: 'Cartons', value: '0/25'),
+                  LampStat(label: 'Value', value: '৳ 1,82,400'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    // Painted bounds, not layout size: a scaled-down FittedBox reports the
+    // figure's natural width from `getSize` and its real one from these.
+    final invoiceRight = tester.getBottomRight(find.text('INV-00235')).dx;
+    final cartonsLeft = tester.getTopLeft(find.text('0/25')).dx;
+
+    expect(
+      cartonsLeft - invoiceRight,
+      greaterThanOrEqualTo(8.0),
+      reason: 'two figures set at the same size and weight need a gutter '
+          'between them or they read as one number',
+    );
   });
 }

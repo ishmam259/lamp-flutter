@@ -203,27 +203,21 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
                 style: LaMPType.caption.copyWith(color: c.inkFaint),
               ),
               const SizedBox(height: Gap.lg),
-              Row(
+              LampStatRow(
                 children: [
-                  Expanded(
-                    child: LampStat(
-                      label: 'On time',
-                      value: '${credit.onTimeCount}',
-                      valueColor: c.verified,
-                    ),
+                  LampStat(
+                    label: 'On time',
+                    value: '${credit.onTimeCount}',
+                    valueColor: c.verified,
                   ),
-                  Expanded(
-                    child: LampStat(
-                      label: 'Late',
-                      value: '${credit.lateCount}',
-                      valueColor: credit.lateCount > 0 ? c.pending : c.ink,
-                    ),
+                  LampStat(
+                    label: 'Late',
+                    value: '${credit.lateCount}',
+                    valueColor: credit.lateCount > 0 ? c.pending : c.ink,
                   ),
-                  Expanded(
-                    child: LampStat(
-                      label: 'Defaults',
-                      value: '${credit.defaultCount}',
-                    ),
+                  LampStat(
+                    label: 'Defaults',
+                    value: '${credit.defaultCount}',
                   ),
                 ],
               ),

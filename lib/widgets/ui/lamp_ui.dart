@@ -267,6 +267,61 @@ class LampStat extends StatelessWidget {
   }
 }
 
+/// Two or three figures across the width of a card.
+///
+/// This exists because of a defect that only appeared on a real phone, and
+/// that no test in this repo could have caught.
+///
+/// Three `LampStat`s in `Expanded`s is the obvious way to write the row, and
+/// it is what the route card, the launcher strip and the pharmacy dashboard
+/// all did. It never overflows — `LampStat` scales its figure down rather
+/// than pushing its neighbours off — and that is exactly the problem. A
+/// figure long enough to need scaling is scaled to fill its column *exactly*,
+/// and the next column begins at that same pixel. On the delivery officer's
+/// route card, `INV-00235` and `0/25` came out as `INV-002350/25`: no
+/// overflow, no exception, nothing for the layout sweep to report, and
+/// completely unreadable.
+///
+/// A gutter is the whole fix. It is a component rather than a `SizedBox` at
+/// three call sites so that the next stat row gets it without anyone
+/// remembering.
+class LampStatRow extends StatelessWidget {
+  final List<Widget> children;
+
+  /// Column weights, when the figures are not the same length — the launcher
+  /// gives the invoice id twice the share of the block height. Must match
+  /// [children] in length; equal columns when omitted.
+  final List<int>? flex;
+
+  /// The gap between columns. `Gap.lg`, not `Gap.sm`: this is separating two
+  /// figures set in the same weight at the same size, and at 8dp the eye
+  /// still groups them into one number.
+  final double gutter;
+
+  const LampStatRow({
+    super.key,
+    required this.children,
+    this.flex,
+    this.gutter = Gap.lg,
+  }) : assert(
+          flex == null || flex.length == children.length,
+          'flex must give a weight for every column',
+        );
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var i = 0; i < children.length; i++) ...[
+          if (i > 0) SizedBox(width: gutter),
+          Expanded(flex: flex?[i] ?? 1, child: children[i]),
+        ],
+      ],
+    );
+  }
+}
+
 /* -------------------------------------------------------------------------- */
 /* Rows                                                                       */
 /* -------------------------------------------------------------------------- */

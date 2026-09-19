@@ -184,31 +184,22 @@ class _LedgerStrip extends StatelessWidget {
             ],
           ),
           const SizedBox(height: Gap.lg),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          // Short labels and a wider share for the invoice id, which is the
+          // longest value of the three. "Open invoices" did not fit its
+          // column and ran into the label beside it.
+          LampStatRow(
+            flex: const [2, 2, 4],
             children: [
-              // Short labels and a wider share for the invoice id, which is
-              // the longest value of the three. "Open invoices" did not fit its
-              // column and ran into the label beside it.
-              Expanded(
-                flex: 2,
-                child: LampStat(
-                  label: 'Block',
-                  value: '${state.blockHeight}',
-                  valueColor: c.verified,
-                ),
+              LampStat(
+                label: 'Block',
+                value: '${state.blockHeight}',
+                valueColor: c.verified,
               ),
-              Expanded(
-                flex: 2,
-                child: LampStat(label: 'Invoices', value: '1'),
-              ),
-              Expanded(
-                flex: 4,
-                child: LampStat(
-                  label: 'Demo invoice',
-                  value: state.demoInvoiceId,
-                  valueColor: c.brand,
-                ),
+              const LampStat(label: 'Invoices', value: '1'),
+              LampStat(
+                label: 'Demo invoice',
+                value: state.demoInvoiceId,
+                valueColor: c.brand,
               ),
             ],
           ),
