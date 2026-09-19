@@ -161,6 +161,10 @@ class LampPalette extends ThemeExtension<LampPalette> {
 
   /// Ported from the web design system's light portal scope, so the phone and
   /// the desktop portals agree.
+  ///
+  /// Brand is a deep teal so it never collides with `verified`, which is
+  /// emerald. The "mint is reserved" rule survives across both portals — a
+  /// tinted action button is visually distinct from a confirmation badge.
   static const LampPalette portalLight = LampPalette(
     bg: Color(0xFFFFFFFF),
     surface: Color(0xFFFFFFFF),
@@ -171,9 +175,9 @@ class LampPalette extends ThemeExtension<LampPalette> {
     inkFaint: Color(0xFF52675D),
     line: Color(0xFFE1EDE5),
     lineStrong: Color(0xFFC5DACF),
-    brand: Color(0xFF059669),
+    brand: Color(0xFF0F766E),
     onBrand: Color(0xFFFFFFFF),
-    brandSoft: Color(0x1F059669),
+    brandSoft: Color(0x1F0F766E),
     verified: Color(0xFF059669),
     verifiedSoft: Color(0x1F059669),
     pending: Color(0xFF925807),
@@ -186,6 +190,10 @@ class LampPalette extends ThemeExtension<LampPalette> {
   );
 
   /// The default for the institutional seats.
+  ///
+  /// Brand is a deeper sky so it sits beside the mint `verified` without
+  /// sharing the hue. The previous `brand == verified == #3DDC97` made every
+  /// primary action indistinguishable from a confirmation mark.
   static const LampPalette portalDark = LampPalette(
     bg: Color(0xFF090D0C),
     surface: Color(0xFF121A16),
@@ -196,9 +204,9 @@ class LampPalette extends ThemeExtension<LampPalette> {
     inkFaint: Color(0xFF7C8A85),
     line: Color(0xFF212C27),
     lineStrong: Color(0xFF2F3C35),
-    brand: Color(0xFF3DDC97),
+    brand: Color(0xFF38BDF8),
     onBrand: Color(0xFF04120C),
-    brandSoft: Color(0x1F3DDC97),
+    brandSoft: Color(0x1F38BDF8),
     verified: Color(0xFF3DDC97),
     verifiedSoft: Color(0x1F3DDC97),
     pending: Color(0xFFE8A33D),

@@ -3,8 +3,12 @@
 // and real-time ticking between clock jumps.
 
 class DemoClock {
-  // 24 Aug 2026, 03:00 UTC / 09:00 Dhaka
-  static const int demoEpoch = 1787454000000;
+  /// 24 Aug 2026, 03:00 UTC / 09:00 Dhaka.
+  ///
+  /// `Date.UTC(2026, 7, 24, 3, 0, 0)` in the TypeScript clock. The constant
+  /// here was 1787454000000, which is a day earlier than the comment beside
+  /// it claimed.
+  static const int demoEpoch = 1787540400000;
 
   int _offset = 0;
   int _anchor = DateTime.now().millisecondsSinceEpoch;

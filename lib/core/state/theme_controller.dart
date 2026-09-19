@@ -78,11 +78,19 @@ class ThemeController extends ChangeNotifier {
   /// A three-state cycle rather than a two-state switch, because "follow the
   /// phone" is a real choice and a plain toggle silently discards it the first
   /// time someone taps.
-  Future<void> cycle() => set(switch (_mode) {
-        ThemeMode.system => ThemeMode.light,
-        ThemeMode.light => ThemeMode.dark,
-        ThemeMode.dark => ThemeMode.system,
-      });
+  ///
+  /// The starting mode is captured before `set()` mutates it. Two rapid
+  /// `cycle()` calls in the same frame both used to read the just-written
+  /// mode and advance by two steps; capturing first keeps each tap at one
+  /// step regardless of how quickly they land.
+  Future<void> cycle() {
+    final start = _mode;
+    return set(switch (start) {
+      ThemeMode.system => ThemeMode.light,
+      ThemeMode.light => ThemeMode.dark,
+      ThemeMode.dark => ThemeMode.system,
+    });
+  }
 
   IconData get icon => switch (_mode) {
         ThemeMode.system => Icons.brightness_auto_outlined,

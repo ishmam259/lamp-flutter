@@ -8,6 +8,7 @@ import '../models/ledger_models.dart';
 import '../store/lamp_store.dart';
 import '../world/clock.dart';
 import '../world/gs1.dart';
+import '../world/queries.dart';
 import '../world/seed.dart';
 
 /// What the app is doing before the first screen appears.
@@ -65,8 +66,59 @@ class LaMPState extends ChangeNotifier {
   List<Invoice> invoices = [];
   List<Delivery> deliveries = [];
   CreditHistory? creditHistory;
+  /// The receivable the demo director's scenes point at.
+  ///
+  /// It used to be the spine of the whole app — every screen read exactly this
+  /// one token, which is why nothing could be filtered and a minted invoice
+  /// appeared nowhere. Screens read [tokenViews] now; this is only a bookmark.
   String demoTokenId = 'RCV-00235';
   String demoInvoiceId = 'INV-00235';
+
+  /// Joined views over every token on the ledger, rebuilt on demand.
+  ///
+  /// Invalidated by [notifyListeners], so it cannot go stale behind a screen:
+  /// every mutation already funnels through there.
+  List<TokenView>? _views;
+
+  List<TokenView> get tokenViews =>
+      _views ??= LaMPQueries.listTokenViews(ledger, invoices, deliveries);
+
+  TokenView? viewFor(String tokenId) {
+    for (final v in tokenViews) {
+      if (v.tokenId == tokenId) return v;
+    }
+    return null;
+  }
+
+  /// What one pharmacy owes, nearest due date first.
+  List<TokenView> openForPharmacy(String did) {
+    final out = tokenViews
+        .where((v) => v.token.buyerDid == did && v.token.isOpen)
+        .toList();
+    out.sort((a, b) => a.token.dueDate.compareTo(b.token.dueDate));
+    return out;
+  }
+
+  List<TokenView> forPharmacy(String did) =>
+      tokenViews.where((v) => v.token.buyerDid == did).toList();
+
+  /// Today's route for one officer.
+  ///
+  /// A stop drops off once the delivery is complete *and* the ledger has every
+  /// carton — the same two conditions as `app/mpo/page.tsx:28-36`. Checking
+  /// only the off-chain status would leave a signed-but-partial stop hidden.
+  List<TokenView> routeFor(String mpoId) {
+    final out = tokenViews.where((v) {
+      final d = v.delivery;
+      if (d == null || d.mpoId != mpoId) return false;
+      return d.status != DeliveryStatus.completed || !v.token.isFullyScanned;
+    }).toList();
+    out.sort((a, b) =>
+        (a.delivery?.sequence ?? 99).compareTo(b.delivery?.sequence ?? 99));
+    return out;
+  }
+
+  CreditHistory? creditFor(String did) => LaMPQueries.getCredit(ledger, did);
 
   int get blockHeight => ledger.height;
   List<Block> get blocks => ledger.blocks;
@@ -94,6 +146,12 @@ class LaMPState extends ChangeNotifier {
         _loadPhase = WorldLoad.ready;
         _initialized = true;
         notifyListeners();
+        // Flush immediately. `notifyListeners` only schedules a debounced
+        // save 400 ms out, which is enough time for a user to background the
+        // app and the OS to evict it before the write completes — leaving
+        // the restored world lost. saveNow() cancels the pending timer and
+        // writes synchronously (well, awaits a single Future).
+        await saveNow();
         return;
       }
     }
@@ -170,6 +228,10 @@ class LaMPState extends ChangeNotifier {
   /// be felt on a mid-range phone.
   @override
   void notifyListeners() {
+    // Drop the joined views before anyone can read them again. Every mutation
+    // already funnels through here, so a new action cannot be added that
+    // silently leaves a screen rendering the pre-transaction world.
+    _views = null;
     super.notifyListeners();
     if (!_initialized) return;
     _saveTimer?.cancel();
@@ -207,7 +269,11 @@ class LaMPState extends ChangeNotifier {
   void advanceDays(int days) => advanceClock(days * 86400 * 1000);
 
   ReceivableToken? getToken(String tokenId) {
-    return null;
+    // Synchronous read of the cached token. Returns null if the ledger hasn't
+    // seen it; callers that need a guaranteed-fresh copy should use fetchToken.
+    final raw = ledger.readWorldSync('token:$tokenId');
+    if (raw == null) return null;
+    return ReceivableToken.fromJson(Map<String, dynamic>.from(raw as Map));
   }
 
   Future<ReceivableToken?> fetchToken(String tokenId) async {
@@ -256,36 +322,60 @@ class LaMPState extends ChangeNotifier {
       nowTimestamp: clock.now,
     );
 
-    // Update off-chain delivery model
+    // Update the off-chain delivery model against the *real* row, not a
+    // synthetic placeholder. A previously-orphaned `orElse` would mutate a
+    // local copy and discard it, so a misrouted scan (e.g. the planted
+    // carton #14 in INV-00235) showed nothing in the per-carton list.
     final delivery = getDelivery(tokenId);
     if (delivery != null) {
-      final carton = delivery.cartons.firstWhere(
-        (c) => c.hash == cartonHash,
-        orElse: () => Carton(
-          cartonId: 'UNKNOWN',
-          gs1: gs1,
-          hash: cartonHash,
-          sku: 'UNKNOWN',
-          batch: 'UNKNOWN',
-          expiry: 'UNKNOWN',
-        ),
-      );
       if (res.ok) {
-        carton.scannedAt = clock.now;
-        carton.rejected = false;
-        if (delivery.cartons.every((c) => c.scannedAt != null)) {
-          delivery.status = DeliveryStatus.awaitingConfirmation;
-        } else {
-          delivery.status = DeliveryStatus.scanning;
+        // Find the actual row and clear any prior rejection — the chaincode
+        // accepted this scan, so any earlier refusal is moot.
+        for (final c in delivery.cartons) {
+          if (c.hash == cartonHash) {
+            c.scannedAt = clock.now;
+            c.rejected = false;
+            c.rejectReason = null;
+          }
         }
+        delivery.status = delivery.cartons.every((c) => c.scannedAt != null)
+            ? DeliveryStatus.awaitingConfirmation
+            : DeliveryStatus.scanning;
       } else {
-        carton.rejected = true;
-        carton.rejectReason = res.error;
+        // Refusal: only mark a row if it exists. If a foreign carton is
+        // scanned, the chaincode refused and the UI banner already explains
+        // why — there is no row to mark, and inventing one would drift from
+        // the seeded manifest.
+        for (final c in delivery.cartons) {
+          if (c.hash == cartonHash) {
+            c.rejected = true;
+            c.rejectReason = res.error;
+          }
+        }
       }
     }
 
     notifyListeners();
     return res;
+  }
+
+  /// Flag a carton the officer set aside after a refusal.
+  ///
+  /// The misrouted-carton beat submits a payload that belongs to no
+  /// consignment, so [scanCarton] finds no row to mark — the hash matches
+  /// nothing in this manifest. The MPO screen used to write the flag straight
+  /// onto the model from inside its own `setState`, which mutated an object
+  /// this class owns without telling anything else that listens to it.
+  void markCartonRejected(String tokenId, String cartonId, String reason) {
+    final delivery = getDelivery(tokenId);
+    if (delivery == null) return;
+    for (final carton in delivery.cartons) {
+      if (carton.cartonId == cartonId) {
+        carton.rejected = true;
+        carton.rejectReason = reason;
+      }
+    }
+    notifyListeners();
   }
 
   // Action: Drain Scan Queue (offline)
@@ -302,13 +392,18 @@ class LaMPState extends ChangeNotifier {
       nowTimestamp: clock.now,
     );
 
+    // Off-chain mutation must be gated on res.ok. Otherwise a chaincode
+    // refusal — unknown carton, duplicate — leaves the row in a state that
+    // says "scanned" when the ledger said "no".
     final delivery = getDelivery(tokenId);
-    if (delivery != null) {
+    if (delivery != null && res.ok) {
       for (final h in hashes) {
-        final c = delivery.cartons.where((item) => item.hash == h);
-        for (final item in c) {
-          item.scannedAt = clock.now;
-          item.rejected = false;
+        for (final c in delivery.cartons) {
+          if (c.hash == h) {
+            c.scannedAt = clock.now;
+            c.rejected = false;
+            c.rejectReason = null;
+          }
         }
       }
       if (delivery.cartons.every((c) => c.scannedAt != null)) {
@@ -321,14 +416,43 @@ class LaMPState extends ChangeNotifier {
   }
 
   // Action: Pharmacy Sign & Confirm Delivery
-  Future<void> confirmDelivery(String tokenId, String signatureBase64) async {
+  Future<SubmitResult> confirmDelivery(String tokenId, String signatureBase64) async {
+    // The signature must reach the ledger. The chaincode's `confirmReceipt`
+    // function persists `pharmacySignature` and `receivedAt` on the token,
+    // which is the demo's central claim — that the ledger, not the UI, is
+    // the system of record. Until this fired, the receipt lived only on
+    // the off-chain `Delivery` model.
+    final signatureRef =
+        'sig:${LaMPCrypto.sha256Hex(signatureBase64).substring(0, 16)}';
+    final res = await ledger.submit(
+      fn: 'confirmReceipt',
+      args: {
+        'tokenId': tokenId,
+        'pharmacySignature': signatureRef,
+      },
+      asMsp: Msp.manufacturerMSP,
+      nowTimestamp: clock.now,
+    );
+
     final delivery = getDelivery(tokenId);
-    if (delivery != null) {
-      delivery.signatureRef = 'sig:${LaMPCrypto.sha256Hex(signatureBase64).substring(0, 16)}';
+    if (delivery != null && res.ok) {
+      delivery.signatureRef = signatureRef;
       delivery.completedAt = clock.now;
       delivery.status = DeliveryStatus.completed;
+      // The scan flags stay. They were cleared here once, "so a re-run of the
+      // demo starts clean", which left the off-chain rows contradicting the
+      // ledger the instant a delivery was signed for — and the bank, which
+      // read those rows, saw 0/25 cartons on a consignment it had just been
+      // told was complete. Re-running the demo is what `resetWorld` is for.
     }
+
+    // Force the on-ledger token to be re-read so downstream screens (e.g.
+    // the manufacturer lifecycle rail) reflect the new state without a
+    // restart.
+    await fetchToken(tokenId);
+
     notifyListeners();
+    return res;
   }
 
   // Action: Bank Finance Receivable
@@ -339,6 +463,9 @@ class LaMPState extends ChangeNotifier {
       asMsp: asMsp,
       nowTimestamp: clock.now,
     );
+    // Refresh the cached token so the manufacturer lifecycle rail (and any
+    // other listener) sees the new `financing` field on next rebuild.
+    await fetchToken(tokenId);
     notifyListeners();
     return res;
   }
@@ -364,6 +491,10 @@ class LaMPState extends ChangeNotifier {
       creditHistory = updated;
     }
 
+    // Re-read the token so screens that filter on state (pharmacy "Due now",
+    // bank financing list) see the SETTLED state without a restart.
+    await fetchToken(tokenId);
+
     notifyListeners();
     return res;
   }
@@ -382,6 +513,7 @@ class LaMPState extends ChangeNotifier {
       delivery.status = DeliveryStatus.disputed;
     }
 
+    await fetchToken(tokenId);
     notifyListeners();
     return res;
   }
@@ -404,8 +536,25 @@ class LaMPState extends ChangeNotifier {
       delivery.status = DeliveryStatus.completed;
     }
 
+    await fetchToken(tokenId);
     notifyListeners();
     return res;
+  }
+
+  /// Next free invoice number, so ids stay monotonic across a session.
+  ///
+  /// Ported from `LaMP/lib/world/mint.ts:45-51`. The previous
+  /// `Random().nextInt(800) + 300` produced variable-width ids
+  /// (`INV-00300`…`INV-001099`) that broke the mono column alignment and could
+  /// land on the seeded `INV-00235`.
+  int _nextInvoiceNumber() {
+    var highest = 0;
+    for (final inv in invoices) {
+      final digits = inv.invoiceId.replaceAll(RegExp(r'\D'), '');
+      final n = int.tryParse(digits);
+      if (n != null && n > highest) highest = n;
+    }
+    return highest + 1;
   }
 
   // Action: Mint New Invoice
@@ -414,9 +563,10 @@ class LaMPState extends ChangeNotifier {
     required int termsDays,
     required List<LineItem> lineItems,
   }) async {
-    final invoiceNum = Random().nextInt(800) + 300;
-    final invoiceId = 'INV-00$invoiceNum';
-    final tokenId = 'RCV-00$invoiceNum';
+    final invoiceNum = _nextInvoiceNumber();
+    final numeric = invoiceNum.toString().padLeft(5, '0');
+    final invoiceId = 'INV-$numeric';
+    final tokenId = 'RCV-$numeric';
 
     final totalCartons = lineItems.fold<int>(0, (s, l) => s + l.cartons);
     final declaredValue = lineItems.fold<double>(0.0, (s, l) => s + l.lineValue);
@@ -424,24 +574,41 @@ class LaMPState extends ChangeNotifier {
     final cartonHashes = <String>[];
     final cartons = <Carton>[];
 
-    for (int i = 1; i <= totalCartons; i++) {
-      final gtin = GS1Barcode.makeGtin('890123400101');
-      final gs1 = GS1Barcode.encodeGs1(
-        gtin: gtin,
-        expiry: '280824',
-        batch: 'BCH-2026-MINT',
-        serial: 'SN-${i.toString().padLeft(4, '0')}',
-      );
-      final chash = LaMPCrypto.sha256Hex(gs1);
-      cartonHashes.add(chash);
-      cartons.add(Carton(
-        cartonId: 'CTN-$i',
-        gs1: gs1,
-        hash: chash,
-        sku: lineItems.first.sku,
-        batch: 'BCH-2026-MINT',
-        expiry: '2028-08-24',
-      ));
+    // One carton per carton, on the line item it actually belongs to — every
+    // minted carton used to be stamped with `lineItems.first.sku` regardless.
+    //
+    // Serials carry the invoice number because the carton hash is taken over
+    // the GS1 payload: two invoices minting an identical payload would let a
+    // carton from one satisfy the other's membership test, which is exactly
+    // the check the misrouted-carton beat exists to demonstrate.
+    int serial = 1;
+    for (final line in lineItems) {
+      final gtin = SeedData.products
+          .firstWhere(
+            (p) => p.sku == line.sku,
+            orElse: () => SeedData.products.first,
+          )
+          .gtin;
+      for (int c = 0; c < line.cartons; c++) {
+        final ser = '$numeric${serial.toString().padLeft(4, '0')}';
+        final gs1 = GS1Barcode.encodeGs1(
+          gtin: gtin,
+          expiry: '280824',
+          batch: 'BCH-2026-MINT',
+          serial: ser,
+        );
+        final chash = LaMPCrypto.sha256Hex(gs1);
+        cartonHashes.add(chash);
+        cartons.add(Carton(
+          cartonId: '$invoiceId-${line.sku}-$ser',
+          gs1: gs1,
+          hash: chash,
+          sku: line.sku,
+          batch: 'BCH-2026-MINT',
+          expiry: '2028-08-24',
+        ));
+        serial++;
+      }
     }
 
     final res = await ledger.submit(

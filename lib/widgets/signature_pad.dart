@@ -38,7 +38,11 @@ class _SignaturePadState extends State<SignaturePad> {
         Container(
           height: widget.height,
           decoration: BoxDecoration(
-            color: Colors.white,
+            // The pad follows the palette. It was hard-coded white while the
+            // stroke is painted with `c.ink`, so in the dark field theme the
+            // signature was near-white ink on a white pad — invisible as it
+            // was being drawn, on the one screen where seeing it is the point.
+            color: c.surfaceAlt,
             borderRadius: BorderRadius.circular(8),
             border: Border.all(color: c.lineStrong),
           ),

@@ -7,6 +7,8 @@ import '../../core/constants/palette.dart';
 import '../../core/constants/formatters.dart';
 import '../../core/models/domain_models.dart';
 import '../../core/state/lamp_state.dart';
+import '../../core/world/queries.dart';
+import '../../core/world/seed.dart';
 import '../../widgets/carton_code_view.dart';
 import '../../widgets/ui/lamp_skeleton.dart';
 import '../../widgets/ui/lamp_ui.dart';
@@ -45,6 +47,34 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
   String? _scanBannerError;
   bool _hasSignature = false;
 
+  /// The stop the Scan, Sign and Returns tabs are working on.
+  ///
+  /// The screen used to read one hard-coded consignment, which is why a
+  /// completed delivery stayed on the route with nothing behind it and a
+  /// newly minted one appeared nowhere.
+  String? _activeTokenId;
+
+  /// This device's officer. One seat, but read from the seed rather than
+  /// re-typed as a literal in five places.
+  Mpo get _me => SeedData.mpos[0];
+
+  /// Today's remaining stops, nearest in sequence first.
+  List<TokenView> _route(LaMPState state) => state.routeFor(_me.id);
+
+  /// The selected stop, or the first one still outstanding.
+  ///
+  /// Falling back to the head of the route is what makes a signed-for delivery
+  /// hand over to the next consignment instead of leaving the tabs pointed at
+  /// something that is no longer on the round.
+  TokenView? _activeStop(LaMPState state) {
+    final route = _route(state);
+    if (route.isEmpty) return null;
+    for (final v in route) {
+      if (v.tokenId == _activeTokenId) return v;
+    }
+    return route.first;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -69,7 +99,8 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
 
   Widget _buildScaffold(BuildContext context) {
     final state = context.watch<LaMPState>();
-    final delivery = state.getDelivery(state.demoTokenId);
+    final route = _route(state);
+    final active = _activeStop(state);
     final c = context.lamp;
 
     return Scaffold(
@@ -96,11 +127,18 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Icon(Icons.wifi, size: 14, color: c.brand),
+                  // Tracks the switch on the Scan tab. It was always the
+                  // connected glyph, including while the device was queuing
+                  // scans because it had no signal.
+                  Icon(
+                    _offlineMode ? Icons.wifi_off : Icons.wifi,
+                    size: 14,
+                    color: _offlineMode ? c.pending : c.brand,
+                  ),
                 ],
               ),
               Text(
-                'Kamrul Hasan · LMP-DEV-4471 · Bogura Sadar',
+                '${_me.name} · ${_me.deviceId} · ${_me.territory}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(fontSize: 11, color: c.inkFaint),
@@ -139,7 +177,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
           // Without this the last row of every list sits underneath it.
           // Top is already handled by the AppBar.
           top: false,
-          child: delivery == null
+          child: !state.isInitialized
               ? const LampShimmer(
                   child: Padding(
                     padding: EdgeInsets.all(Gap.lg),
@@ -155,21 +193,68 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
               : TabBarView(
                   controller: _tabController,
                   children: [
-                    _buildRouteTab(context, delivery, state),
-                    _buildScannerTab(context, delivery, state),
-                    _buildConfirmTab(context, delivery, state),
-                    _buildReturnsTab(context, delivery, state),
+                    _buildRouteTab(context, route, state),
+                    active == null
+                        ? _noStop(context, 'Nothing left to scan.')
+                        : _buildScannerTab(context, active, state),
+                    active == null
+                        ? _noStop(context, 'Nothing left to sign for.')
+                        : _buildConfirmTab(context, active, state),
+                    active == null
+                        ? _noStop(context, 'Nothing left to return.')
+                        : _buildReturnsTab(context, active, state),
                   ],
                 ),
         ),
     );
   }
 
-  Widget _buildRouteTab(BuildContext context, Delivery delivery, LaMPState state) {
+  /// What the working tabs show when the round is done.
+  Widget _noStop(BuildContext context, String message) {
     final c = context.lamp;
-    final scannedCount = delivery.cartons.where((c) => c.scannedAt != null).length;
-    final totalCartons = delivery.cartons.length;
-    final ratio = totalCartons > 0 ? scannedCount / totalCartons : 0.0;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.check_circle_outline, size: 40, color: c.verified),
+            const SizedBox(height: 12),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: c.inkMuted),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Every consignment assigned to this device has been handed over.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 11, color: c.inkFaint),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Today's round.
+  ///
+  /// A stop leaves this list once the ledger holds every carton and the
+  /// pharmacy has signed — the same two conditions as `app/mpo/page.tsx:28-36`.
+  /// Before this the tab drew one hard-coded stop, so a completed delivery sat
+  /// there permanently and a freshly minted consignment never appeared.
+  Widget _buildRouteTab(
+    BuildContext context,
+    List<TokenView> route,
+    LaMPState state,
+  ) {
+    final c = context.lamp;
+    final activeId = _activeStop(state)?.tokenId;
+    final cartonsLeft = route.fold<int>(
+      0,
+      (sum, TokenView v) =>
+          sum + (v.token.declaredCartons - v.token.scanned).clamp(0, 1 << 30),
+    );
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -177,9 +262,8 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 600),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Delivery Route Card
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -187,111 +271,19 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: c.line),
                 ),
-                child: Column(
+                child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: c.brandSoft,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            'Stop 1 of 1',
-                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: c.brand),
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: delivery.status == DeliveryStatus.completed
-                                ? c.verifiedSoft
-                                : c.pendingSoft,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            delivery.status.id,
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: delivery.status == DeliveryStatus.completed
-                                  ? c.verified
-                                  : c.pending,
-                            ),
-                          ),
-                        ),
-                      ],
+                    Expanded(
+                      child: LampStat(label: 'Stops', value: '${route.length}'),
                     ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Rahman Medical Hall',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: c.ink),
+                    Expanded(
+                      child: LampStat(label: 'Cartons', value: '$cartonsLeft'),
                     ),
-                    Text(
-                      'রহমান মেডিকেল হল · Sherpur Road, Bogura Sadar',
-                      style: TextStyle(fontSize: 12, color: c.inkMuted),
-                    ),
-                    const SizedBox(height: 12),
-                    Divider(color: c.line, height: 1),
-                    const SizedBox(height: 12),
-                    // Three figures sharing the width. Unflexed beside a
-                    // spaceBetween they claimed their natural widths and
-                    // overflowed a 360dp phone by 62 pixels; LampStat scales
-                    // its figure down rather than pushing its neighbours off.
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: LampStat(
-                            label: 'Invoice',
-                            value: delivery.invoiceId,
-                          ),
-                        ),
-                        Expanded(
-                          child: LampStat(
-                            label: 'Cartons',
-                            value: '$scannedCount/$totalCartons',
-                          ),
-                        ),
-                        Expanded(
-                          child: LampStat(
-                            label: 'Value',
-                            value: LaMPFormatters.formatBDT(182400),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: ratio,
-                        minHeight: 6,
-                        backgroundColor: c.line,
-                        valueColor: AlwaysStoppedAnimation<Color>(c.brand),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '${(ratio * 100).toInt()}% verified',
-                      style: TextStyle(fontSize: 11, color: c.inkFaint),
-                    ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () => _tabController.animateTo(1),
-                        icon: const Icon(Icons.qr_code_scanner, size: 18),
-                        label: Text(scannedCount >= totalCartons ? 'Review Scanned Cartons' : 'Start Carton Scan'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: c.brand,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
+                    Expanded(
+                      child: LampStat(
+                        label: 'Date',
+                        value: LaMPFormatters.formatDateShort(state.now),
                       ),
                     ),
                   ],
@@ -299,30 +291,251 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
               ),
               const SizedBox(height: 16),
 
-              // Items Manifest
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: c.surface,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: c.line),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Manifest',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: c.ink),
-                    ),
-                    const SizedBox(height: 8),
-                    _manifestRow(context, 'Paracetamol 500mg (SHM-PARA-500)', '10 cartons', '50,000 tabs'),
-                    _manifestRow(context, 'Esomeprazole 20mg (SHM-ESOM-20)', '8 cartons', '9,600 caps'),
-                    _manifestRow(context, 'Metformin HCl 500mg (SHM-METF-500)', '7 cartons', '21,000 tabs'),
-                  ],
-                ),
-              ),
+              if (route.isEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 32,
+                  ),
+                  decoration: BoxDecoration(
+                    color: c.surface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: c.line),
+                  ),
+                  child: Text(
+                    'No deliveries assigned today.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 13, color: c.inkFaint),
+                  ),
+                )
+              else
+                for (int i = 0; i < route.length; i++) ...[
+                  _stopCard(
+                    context,
+                    route[i],
+                    state,
+                    position: i + 1,
+                    total: route.length,
+                    selected: route[i].tokenId == activeId,
+                  ),
+                  const SizedBox(height: 12),
+                ],
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  /// One stop on the round. Tapping it selects it for the working tabs, and
+  /// the selected one opens to show its manifest.
+  Widget _stopCard(
+    BuildContext context,
+    TokenView view,
+    LaMPState state, {
+    required int position,
+    required int total,
+    required bool selected,
+  }) {
+    final c = context.lamp;
+    final token = view.token;
+    final pharmacy = view.pharmacy;
+    final scanned = token.scanned;
+    final declared = token.declaredCartons;
+    final ratio = declared == 0 ? 0.0 : scanned / declared;
+    final complete = token.isFullyScanned;
+
+    final status = switch (view.delivery?.status) {
+      DeliveryStatus.completed => ('DELIVERED', c.verified, c.verifiedSoft),
+      DeliveryStatus.awaitingConfirmation => (
+          'AWAITING SIGNATURE',
+          c.pending,
+          c.pendingSoft
+        ),
+      DeliveryStatus.scanning => ('SCANNING', c.pending, c.pendingSoft),
+      DeliveryStatus.disputed => ('DISPUTED', c.dispute, c.disputeSoft),
+      _ => ('PENDING', c.pending, c.pendingSoft),
+    };
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () => setState(() => _activeTokenId = token.tokenId),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: c.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: selected ? c.brand : c.line),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // A Wrap, not a Row. "Awaiting signature" beside the stop
+            // counter runs 35 pixels off a 360dp phone, and a status the
+            // officer needs to read is not something to ellipsise — so it
+            // drops to its own line instead.
+            SizedBox(
+              width: double.infinity,
+              child: Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 6,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: c.brandSoft,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      'Stop $position of $total',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: c.brand,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: status.$3,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      status.$1,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: status.$2,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              pharmacy?.name ?? token.buyerDid,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: c.ink,
+              ),
+            ),
+            if (pharmacy != null)
+              Text(
+                '${pharmacy.nameBn} · ${pharmacy.address}',
+                style: TextStyle(fontSize: 12, color: c.inkMuted),
+              ),
+            const SizedBox(height: 12),
+            Divider(color: c.line, height: 1),
+            const SizedBox(height: 12),
+            // Three figures sharing the width. Unflexed beside a
+            // spaceBetween they claimed their natural widths and
+            // overflowed a 360dp phone by 62 pixels; LampStat scales
+            // its figure down rather than pushing its neighbours off.
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: LampStat(label: 'Invoice', value: token.invoiceId),
+                ),
+                Expanded(
+                  child: LampStat(
+                    label: 'Cartons',
+                    value: '$scanned/$declared',
+                  ),
+                ),
+                Expanded(
+                  child: LampStat(
+                    label: 'Value',
+                    value: LaMPFormatters.formatBDT(token.declaredValue),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: ratio,
+                minHeight: 6,
+                backgroundColor: c.line,
+                valueColor: AlwaysStoppedAnimation<Color>(c.brand),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '${(ratio * 100).toInt()}% verified on the ledger',
+              style: TextStyle(fontSize: 11, color: c.inkFaint),
+            ),
+
+            if (selected) ...[
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    setState(() => _activeTokenId = token.tokenId);
+                    _tabController.animateTo(complete ? 2 : 1);
+                  },
+                  icon: Icon(
+                    complete ? Icons.draw_outlined : Icons.qr_code_scanner,
+                    size: 18,
+                  ),
+                  label: Text(
+                    complete
+                        ? 'Hand over and sign'
+                        : scanned == 0
+                            ? 'Start carton scan'
+                            : 'Continue scanning ($scanned/$declared)',
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: c.brand,
+                    foregroundColor: c.onBrand,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Manifest',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: c.ink,
+                ),
+              ),
+              const SizedBox(height: 4),
+              // Read off the invoice. These were three literal rows naming
+              // Paracetamol, Esomeprazole and Metformin whatever the
+              // consignment actually held.
+              if (view.invoice == null)
+                Text(
+                  'No line items recorded for this consignment.',
+                  style: TextStyle(fontSize: 11, color: c.inkFaint),
+                )
+              else
+                for (final line in view.invoice!.lineItems)
+                  _manifestRow(
+                    context,
+                    '${line.name} ${line.strength} (${line.sku})',
+                    '${line.cartons} cartons',
+                    '${LaMPFormatters.formatBDTPlain(line.quantity)} units',
+                  ),
+            ],
+          ],
         ),
       ),
     );
@@ -346,10 +559,14 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
     );
   }
 
-  Widget _buildScannerTab(BuildContext context, Delivery delivery, LaMPState state) {
+  Widget _buildScannerTab(BuildContext context, TokenView view, LaMPState state) {
     final c = context.lamp;
-    final scannedCount = delivery.cartons.where((c) => c.scannedAt != null).length;
-    final totalCartons = delivery.cartons.length;
+    final delivery = view.delivery!;
+    // Counts come off the token. The off-chain rows are what drive the
+    // per-carton ticks below, but the ledger is what decides whether this
+    // consignment has been delivered.
+    final scannedCount = view.token.scanned;
+    final totalCartons = view.token.declaredCartons;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -449,7 +666,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                     label: const Text('Scan with camera'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: c.brand,
-                      foregroundColor: Colors.white,
+                      foregroundColor: c.onBrand,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
@@ -498,7 +715,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                             label: const Text('Scan Next Carton'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: c.brand,
-                              foregroundColor: Colors.white,
+                              foregroundColor: c.onBrand,
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8),
@@ -595,11 +812,11 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                                       decoration: BoxDecoration(
-                                        color: Colors.purple.withValues(alpha: 0.1),
+                                        color: c.disputeSoft,
                                         borderRadius: BorderRadius.circular(3),
                                       ),
-                                      child: const Text('MISROUTED TEST',
-                                          style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.purple)),
+                                      child: Text('MISROUTED TEST',
+                                          style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: c.dispute)),
                                     ),
                                 ],
                               ),
@@ -615,7 +832,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                         else if (isScanned)
                           Icon(Icons.check_circle, color: c.verified, size: 18)
                         else
-                          const Icon(Icons.radio_button_unchecked, color: Colors.black26, size: 18),
+                          Icon(Icons.radio_button_unchecked, color: c.lineStrong, size: 18),
                       ],
                     ),
                   );
@@ -632,7 +849,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                     label: const Text('Proceed to Pharmacy Owner Signature →'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: c.brand,
-                      foregroundColor: Colors.white,
+                      foregroundColor: c.onBrand,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                   ),
@@ -664,7 +881,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
             final res = await state.scanCarton(
               delivery.tokenId,
               payload,
-              'LMP-DEV-4471',
+              _me.deviceId,
             );
 
             if (!res.ok) {
@@ -757,12 +974,26 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
     );
   }
 
+  /// The next carton still to be handed over on this consignment.
+  ///
+  /// A carton sitting in the offline queue counts as taken. Without that the
+  /// cascade re-queued the same carton every tick, because a queued scan is
+  /// deliberately not marked on the row until the chaincode accepts the batch.
+  int _nextCartonIndex(Delivery delivery) {
+    for (int i = 0; i < delivery.cartons.length; i++) {
+      final carton = delivery.cartons[i];
+      if (carton.scannedAt != null) continue;
+      if (_offlineQueue.contains(carton.gs1)) continue;
+      return i;
+    }
+    return -1;
+  }
+
   void _scanNextCarton(LaMPState state, Delivery delivery) async {
-    // Find next unscanned carton
-    final unscannedIndex = delivery.cartons.indexWhere((c) => c.scannedAt == null);
+    final unscannedIndex = _nextCartonIndex(delivery);
     if (unscannedIndex == -1) {
       _autoTimer?.cancel();
-      setState(() => _autoScanning = false);
+      if (mounted) setState(() => _autoScanning = false);
       return;
     }
 
@@ -772,19 +1003,34 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
     // On the real demo, Carton 14 is presented with a foreign payload
     if (unscannedIndex == 13 && targetCarton.rejected != true) {
       // Send foreign barcode to trigger genuine chaincode refusal!
-      await state.scanCarton(delivery.tokenId, _misroutedGs1, 'LMP-DEV-4471');
+      final res =
+          await state.scanCarton(delivery.tokenId, _misroutedGs1, _me.deviceId);
+      // The refused payload hashes to nothing in this manifest, so
+      // `scanCarton` has no row to mark. Flag the carton the officer was
+      // holding through LaMPState rather than mutating it from inside this
+      // widget's setState, which left every other seat unaware of it.
+      state.markCartonRejected(
+        delivery.tokenId,
+        targetCarton.cartonId,
+        res.error ?? 'Carton does not belong to this invoice.',
+      );
+      if (!mounted) return;
       setState(() {
-        _scanBannerError = 'CHAINCODE REFUSED: Carton does not belong to invoice ${delivery.invoiceId}. Product rejected!';
-        targetCarton.rejected = true;
+        _scanBannerError =
+            'CHAINCODE REFUSED: Carton does not belong to invoice '
+            '${delivery.invoiceId}. Product rejected!';
       });
       return;
     }
 
     if (_offlineMode) {
+      // Queued, not recorded. The row is deliberately left unscanned: the
+      // chaincode has not seen this carton yet, and `drainScanQueue` only
+      // marks rows once it accepts the batch. Marking it here made a refused
+      // batch leave every queued carton reading as verified.
       _offlineQueue.add(targetCarton.gs1);
-      setState(() {
-        targetCarton.scannedAt = state.now;
-      });
+      if (!mounted) return;
+      setState(() {});
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Queued · ${_offlineQueue.length} offline'),
@@ -792,7 +1038,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
         ),
       );
     } else {
-      await state.scanCarton(delivery.tokenId, targetCarton.gs1, 'LMP-DEV-4471');
+      await state.scanCarton(delivery.tokenId, targetCarton.gs1, _me.deviceId);
     }
   }
 
@@ -803,12 +1049,21 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
     } else {
       setState(() => _autoScanning = true);
       _autoTimer = Timer.periodic(const Duration(milliseconds: 650), (t) {
-        final unscanned = delivery.cartons.any((c) => c.scannedAt == null);
-        if (!unscanned) {
+        // Re-resolve the stop each tick. The timer used to close over the
+        // delivery captured when the tab was built, so a stop change — or a
+        // world reset — left it cascading through a detached object.
+        final active = _activeStop(state);
+        final current = active?.delivery;
+        if (!mounted || current == null || current.tokenId != delivery.tokenId) {
+          t.cancel();
+          if (mounted) setState(() => _autoScanning = false);
+          return;
+        }
+        if (_nextCartonIndex(current) == -1) {
           t.cancel();
           setState(() => _autoScanning = false);
         } else {
-          _scanNextCarton(state, delivery);
+          _scanNextCarton(state, current);
         }
       });
     }
@@ -817,7 +1072,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
   void _drainQueue(LaMPState state, String tokenId) async {
     if (_offlineQueue.isEmpty) return;
     final count = _offlineQueue.length;
-    await state.drainScanQueue(tokenId, List.from(_offlineQueue), 'LMP-DEV-4471');
+    await state.drainScanQueue(tokenId, List.from(_offlineQueue), _me.deviceId);
     setState(() {
       _offlineQueue.clear();
     });
@@ -828,8 +1083,28 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
     }
   }
 
-  Widget _buildConfirmTab(BuildContext context, Delivery delivery, LaMPState state) {
+  Widget _buildConfirmTab(BuildContext context, TokenView view, LaMPState state) {
     final c = context.lamp;
+    final token = view.token;
+
+    // The gate reads the ledger, not the off-chain carton rows.
+    //
+    // It used to count `Carton.scannedAt`, which `confirmDelivery` then reset
+    // to null on success — so the screen's idea of what had been handed over
+    // disagreed with the chain's the moment anything was signed for. A
+    // pharmacy can only sign for what the ledger says arrived.
+    final scannedCount = token.scanned;
+    final totalCartons = token.declaredCartons;
+    final allScanned = token.isFullyScanned;
+
+    // Build the caption that explains why the button is disabled, if it is.
+    String? gateCaption;
+    if (!allScanned) {
+      gateCaption = 'Scan all $totalCartons cartons before signing';
+    } else if (!_hasSignature) {
+      gateCaption = 'Sign above to enable submission';
+    }
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Center(
@@ -864,16 +1139,27 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                     // spaceBetween that overflowed once the sweep could
                     // actually reach this tab.
                     LampKeyValue(
+                      label: 'Invoice',
+                      value: token.invoiceId,
+                      mono: true,
+                    ),
+                    LampKeyValue(
                       label: 'Invoice total',
-                      value: LaMPFormatters.formatBDT(182400),
+                      value: LaMPFormatters.formatBDT(token.declaredValue),
                       mono: true,
                     ),
                     LampKeyValue(
                       label: 'Cartons received',
-                      value: '${delivery.cartons.length}',
+                      // Live count of scanned cartons, not just the manifest
+                      // total — a pharmacy can only confirm what actually
+                      // arrived.
+                      value: '$scannedCount of $totalCartons',
                       mono: true,
                     ),
-                    const LampKeyValue(label: 'Terms', value: '45 days'),
+                    LampKeyValue(
+                      label: 'Terms',
+                      value: '${token.termsDays} days',
+                    ),
                     const SizedBox(height: 20),
 
                     // Signature Pad
@@ -887,18 +1173,48 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
 
                     const SizedBox(height: 20),
 
+                    if (gateCaption != null) ...[
+                      Text(
+                        gateCaption,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: c.pending,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
-                        onPressed: _hasSignature
+                        // Both gates must be open: every carton scanned AND
+                        // the signature pad has ink. A blank signature alone
+                        // could previously submit; that is the user-reported
+                        // "sign without goods" bug.
+                        onPressed: (allScanned && _hasSignature)
                             ? () async {
-                                await state.confirmDelivery(delivery.tokenId, 'mock-signature-stroke');
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Delivered. Dispute window open 24h.'),
+                                final res = await state.confirmDelivery(
+                                  token.tokenId,
+                                  'mock-signature-stroke',
+                                );
+                                if (!context.mounted) return;
+                                final hours =
+                                    token.disputeWindowMs ~/ (3600 * 1000);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      res.ok
+                                          ? 'Delivered. Dispute window open ${hours}h.'
+                                          : (res.error ?? 'Refused'),
                                     ),
-                                  );
+                                  ),
+                                );
+                                if (res.ok) {
+                                  setState(() {
+                                    _hasSignature = false;
+                                    _activeTokenId = null;
+                                  });
                                   _tabController.animateTo(0);
                                 }
                               }
@@ -907,9 +1223,9 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                         label: const Text('Confirm Receipt & Submit PoD'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: c.brand,
-                          foregroundColor: Colors.white,
+                          foregroundColor: c.onBrand,
                           padding: const EdgeInsets.symmetric(vertical: 12),
-                          disabledBackgroundColor: Colors.black12,
+                          disabledBackgroundColor: c.surfaceSunken,
                         ),
                       ),
                     ),
@@ -923,8 +1239,9 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
     );
   }
 
-  Widget _buildReturnsTab(BuildContext context, Delivery delivery, LaMPState state) {
+  Widget _buildReturnsTab(BuildContext context, TokenView view, LaMPState state) {
     final c = context.lamp;
+    final delivery = view.delivery!;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Center(
@@ -967,7 +1284,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: c.pending,
-                          foregroundColor: Colors.white,
+                          foregroundColor: c.onBrand,
                         ),
                         child: const Text('Flag Carton'),
                       ),

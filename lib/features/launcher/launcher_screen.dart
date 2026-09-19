@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 
 import '../../core/constants/palette.dart';
 import '../../core/constants/typography.dart';
+import '../../core/constants/formatters.dart';
+import '../../core/world/queries.dart';
 import '../../core/state/lamp_state.dart';
 import '../../widgets/demo_director_sheet.dart';
 import '../../widgets/ledger_inspector_sheet.dart';
@@ -197,13 +199,22 @@ class _LedgerStrip extends StatelessWidget {
               ),
               Expanded(
                 flex: 2,
-                child: LampStat(label: 'Invoices', value: '1'),
+                // Was the literal '1'. Minting a second invoice left the
+                // launcher still claiming there was one.
+                child: LampStat(
+                  label: 'Receivables',
+                  value: '${state.tokenViews.length}',
+                ),
               ),
               Expanded(
                 flex: 4,
                 child: LampStat(
-                  label: 'Demo invoice',
-                  value: state.demoInvoiceId,
+                  label: 'Outstanding',
+                  value: LaMPFormatters.formatBDTCompact(
+                    state.tokenViews
+                        .where((v) => v.token.isOpen)
+                        .fold<double>(0.0, (sum, v) => sum + v.token.declaredValue),
+                  ),
                   valueColor: c.brand,
                 ),
               ),

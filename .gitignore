@@ -43,3 +43,21 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# In-project toolchain copies — see CLAUDE.md "Toolchain layout".
+# The bash sandbox blocked references to C:\Users\..., so the Flutter SDK,
+# JDK 21, and Android SDK were copied into the project. They must not go to
+# GitHub: combined size is ~6 GB and the canonical toolchain lives elsewhere.
+.flutter/
+.jdk/
+.android-sdk/
+
+# Local Android build output. Flutter writes here when running assemble*; it
+# is not source.
+/android/build/
+
+# Private bug reports and screenshots from the demo.
+/Bug report/
+
+# Private bug reports and screenshots from the demo.
+/Bug report/

@@ -3,9 +3,12 @@ import 'package:provider/provider.dart';
 
 import '../../core/constants/app_theme.dart';
 import '../../core/constants/palette.dart';
+import '../../core/constants/formatters.dart';
+import '../../core/models/domain_models.dart';
 import '../../core/constants/typography.dart';
 import '../../core/models/ledger_models.dart';
 import '../../core/state/lamp_state.dart';
+import '../../core/world/queries.dart';
 import '../../widgets/demo_director_sheet.dart';
 import '../../widgets/ledger_inspector_sheet.dart';
 import '../../widgets/lamp_mark.dart';
@@ -54,6 +57,22 @@ class RegulatorScreen extends StatelessWidget {
 
     final policyFailures =
         txs.where((t) => t.status == TxStatus.endorsementPolicyFailure).toList();
+
+    // What the network actually holds. The three metrics below counted
+    // refusals only, so a regulator opening this seat on a healthy channel saw
+    // three zeros and nothing else.
+    final views = state.tokenViews;
+    final financed = views.where((v) => v.token.isFinanced).toList();
+    final settled =
+        views.where((v) => v.token.state == TokenState.settled).length;
+    final financingVolume = financed.fold<double>(
+      0.0,
+      (sum, TokenView v) => sum + (v.token.financing?.advancedAmount ?? 0.0),
+    );
+    final cartonsTraced =
+        views.fold<int>(0, (sum, TokenView v) => sum + v.token.scanned);
+    final settlementRate =
+        views.isEmpty ? 0.0 : settled / views.length * 100.0;
 
     return Scaffold(
       appBar: AppBar(
@@ -129,6 +148,38 @@ class RegulatorScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: Gap.lg),
+
+            Row(
+              children: [
+                Expanded(
+                  child: _Metric(
+                    label: 'Receivables',
+                    value: '${views.length}',
+                    caption: '$cartonsTraced cartons traced',
+                    tone: LampTone.chain,
+                  ),
+                ),
+                const SizedBox(width: Gap.md),
+                Expanded(
+                  child: _Metric(
+                    label: 'Financing',
+                    value: LaMPFormatters.formatBDTCompact(financingVolume),
+                    caption: '${financed.length} advanced',
+                    tone: LampTone.chain,
+                  ),
+                ),
+                const SizedBox(width: Gap.md),
+                Expanded(
+                  child: _Metric(
+                    label: 'Settled',
+                    value: '${settlementRate.toStringAsFixed(0)}%',
+                    caption: '$settled of ${views.length}',
+                    tone: LampTone.verified,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: Gap.md),
 
             Row(
               children: [
@@ -240,6 +291,35 @@ class RegulatorScreen extends StatelessWidget {
                     ],
                   ),
                 ),
+                const SizedBox(height: Gap.sm),
+              ],
+
+            const SizedBox(height: Gap.xl),
+
+            // The third metric had a count and no section. A quorum failure is
+            // the one refusal a regulator most needs to read, so it now gets
+            // the same treatment as the other two.
+            LampSectionHeader(
+              title: 'Endorsement policy',
+              caption: 'Transactions that failed to reach quorum',
+              trailing: LampChip(
+                label: policyFailures.isEmpty ? 'Quorum held' : 'Failed',
+                tone: policyFailures.isEmpty
+                    ? LampTone.verified
+                    : LampTone.dispute,
+              ),
+            ),
+            if (policyFailures.isEmpty)
+              LampCard(
+                child: Text(
+                  'Every transaction on this channel carried the signatures '
+                  'its policy requires.',
+                  style: LaMPType.caption.copyWith(color: c.inkFaint),
+                ),
+              )
+            else
+              for (final pf in policyFailures) ...[
+                _RefusalCard(tx: pf),
                 const SizedBox(height: Gap.sm),
               ],
           ],

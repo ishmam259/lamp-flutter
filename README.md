@@ -53,16 +53,32 @@ authoritative where they disagree.
 
 ### Known divergences
 
-Token ids (`RCV-00235`) and both rate curves now match the TypeScript seed, so
+Token ids (`RCV-00235`) and both rate curves match the TypeScript seed, so
 Meghna wins the deterministic match at **80% advance / 8.8% fee** on a BUILDING
-counterparty with the same band values on both sides.
+counterparty with the same band values on both sides. The seeded world now also
+carries the TypeScript's seven pharmacies and its five in-flight consignments.
 
-One difference remains, deliberately: the GS1 payload here is written in the
-human-readable form `(01)…(17)…(10)…(21)…`, where the TypeScript emits the true
-element string with FNC1 separators. Both hash consistently within their own
-application, but a physically printed GS1 DataMatrix would decode to the
-TypeScript form and be refused by this app. Worth closing before anything is
-printed on a real carton.
+These remain open, and are documented rather than fixed:
+
+- **No invoice document anchoring.** `anchorInvoiceDocument` and the PDF it
+  commits to have no counterpart here, so the rule that no bank may advance
+  against an invoice it has not checked itself does not exist on this side. It
+  is the one eligibility check that is the financier's own job.
+- **Line items are disclosed to both banks at mint.** `contract.dart` writes the
+  private collection to `ManufacturerMSP`, `MeghnaMSP` and `PadmaMSP`; the
+  TypeScript writes it to the submitter alone.
+- **The competitive match is simulated.** `_LedgerCtx.getPrivate` gates on
+  collection membership, so `matchAndAdvance` sees only the submitting bank's
+  curve. The TypeScript leaves it ungated inside chaincode on purpose so the
+  contract can compare both. Here the Meghna/Padma seat switcher stands in.
+- **GS1.** The payload is the human-readable `(01)…(17)…(10)…(21)…` form rather
+  than the FNC1 element string, the expiry is passed pre-formatted rather than
+  converted, and the GTIN check digit is computed with the weights shifted one
+  position. Each hashes consistently within this application, but no carton hash
+  agrees with the TypeScript's, and a physically printed GS1 DataMatrix would be
+  refused. Worth closing before anything is printed on a real carton.
+- **The block hash does not cover the write set.** `canonicalJson` has no branch
+  for arbitrary objects, so every `WriteEntry` serialises as its `toString`.
 
 ## Carton scanning
 
@@ -94,14 +110,37 @@ cannot be added that silently fails to persist. A stored world that will not
 load is discarded and reseeded rather than blocking startup. **Reset world** in
 the demo director clears the store and rebuilds the seeded world.
 
+## The world, and what reads it
+
+The seeded world carries seven pharmacies with their own credit histories, five
+consignments in flight at demo start — some minted-but-undelivered, some
+delivered-but-unfinanced — and the hero invoice `INV-00235`. That is what makes
+the lists on each screen worth filtering: the MPO's route has several stops, the
+bank's queue has an eligible section and an awaiting-window section, and a
+receivable visibly moves between them.
+
+Screens do not reach into the world themselves. `core/world/queries.dart` joins
+each token on the ledger with its invoice, its pharmacy and its delivery, and
+answers the questions the chaincode is about to be asked — is this owed, is it
+payable, may it be financed yet, has every carton been recorded. A screen that
+asks those questions cannot offer an action the ledger will refuse, which is the
+class of defect that `Bug report/Report 01.md` collected.
+
 ## Status
 
-`flutter analyze` is clean and `flutter test` passes 11/11 — policy parsing
-(AND/OR/OutOf/nested), world seeding, carton-hash rejection, the
-Building→Established tier upgrade on the eighth settled cycle, and three
-persistence tests covering the snapshot round trip through `jsonEncode`,
-private-data membership surviving a restore, and a restored ledger continuing
-its hash chain from the stored tip rather than from genesis.
+`flutter analyze` is clean and `flutter test` passes 133:
+
+- **`chaincode_test.dart`** (24) — policy parsing, world seeding, carton-hash
+  rejection, the Building→Established upgrade on the eighth settled cycle, the
+  settle/dispute/finance state guards, and persistence round trips.
+- **`world_test.dart`** (20) — the seeded world's shape, and the predicates the
+  screens filter on: what is open, what is payable, what is financeable, what
+  the 90% confirmation threshold means, and that a signed-for stop leaves the
+  route.
+- **`flows_test.dart`** (11) — the five defects in `Bug report/Report 01.md`,
+  asserted on screen at 360x800 rather than in the model.
+- **`layout_test.dart`** (78) — every screen and tab at three device sizes in
+  both themes, guarding against overflow.
 
 ## Notes
 

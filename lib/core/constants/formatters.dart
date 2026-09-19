@@ -33,25 +33,25 @@ class LaMPFormatters {
     return '${value.toStringAsFixed(dp)}%';
   }
 
-  static String formatDate(int ms) {
-    final dt = DateTime.fromMillisecondsSinceEpoch(ms, isUtc: true);
-    return DateFormat('dd MMM yyyy').format(dt);
-  }
+  /// Bangladesh Standard Time, UTC+6. No DST to account for.
+  ///
+  /// Ledger time is an absolute instant; where it is *read* is Dhaka. These
+  /// formatters rendered in UTC, so every date and time on every screen ran
+  /// six hours early — and anything after 18:00 local showed the day before.
+  /// The TypeScript pins `Asia/Dhaka` for the same reason (`format.ts:46-53`).
+  static const Duration _dhakaOffset = Duration(hours: 6);
 
-  static String formatDateShort(int ms) {
-    final dt = DateTime.fromMillisecondsSinceEpoch(ms, isUtc: true);
-    return DateFormat('dd MMM').format(dt);
-  }
+  static DateTime _dhaka(int ms) =>
+      DateTime.fromMillisecondsSinceEpoch(ms, isUtc: true).add(_dhakaOffset);
 
-  static String formatTime(int ms) {
-    final dt = DateTime.fromMillisecondsSinceEpoch(ms, isUtc: true);
-    return DateFormat('HH:mm:ss').format(dt);
-  }
+  static String formatDate(int ms) => DateFormat('dd MMM yyyy').format(_dhaka(ms));
 
-  static String formatDateTime(int ms) {
-    final dt = DateTime.fromMillisecondsSinceEpoch(ms, isUtc: true);
-    return DateFormat('dd MMM yyyy HH:mm:ss').format(dt);
-  }
+  static String formatDateShort(int ms) => DateFormat('dd MMM').format(_dhaka(ms));
+
+  static String formatTime(int ms) => DateFormat('HH:mm:ss').format(_dhaka(ms));
+
+  static String formatDateTime(int ms) =>
+      DateFormat('dd MMM yyyy HH:mm:ss').format(_dhaka(ms));
 
   static String formatDaysUntil(int targetMs, int fromMs) {
     final days = ((targetMs - fromMs) / 86400000).ceil();

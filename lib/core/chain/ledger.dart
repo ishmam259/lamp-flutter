@@ -60,6 +60,11 @@ class LocalLedger {
   List<ChainTx> get txs => List.unmodifiable(_txs);
   int get height => _blocks.length;
 
+  /// Synchronous peek at world state for callers (e.g. the UI) that cannot
+  /// await. Reads the live map — no defensive clone — so the caller must not
+  /// mutate what it gets back.
+  dynamic readWorldSync(String key) => _world[key];
+
   static const String genesisHash =
       '0000000000000000000000000000000000000000000000000000000000000000';
 
@@ -72,6 +77,10 @@ class LocalLedger {
     'settle': "AND('ManufacturerMSP.peer', OR('MeghnaMSP.peer', 'PadmaMSP.peer'))",
     'raiseDispute': "'ManufacturerMSP.peer'",
     'resolveDispute': "AND('ManufacturerMSP.peer', OR('MeghnaMSP.peer', 'PadmaMSP.peer'))",
+    // Pharmacy signs to acknowledge receipt. ManufacturerMSP is on the policy
+    // because the MPO device's scan stream has already committed to the
+    // ledger by this point — the signature only closes the loop.
+    'confirmReceipt': "AND('ManufacturerMSP.peer')",
   };
 
   void clear() {
@@ -132,9 +141,16 @@ class LocalLedger {
 
   Future<dynamic> readWorld(String key) async => _world[key];
 
-  Future<List<String>> listKeys(String prefix) async {
-    return _world.keys.where((k) => k.startsWith(prefix)).toList();
-  }
+  Future<List<String>> listKeys(String prefix) async => listKeysSync(prefix);
+
+  /// Synchronous key scan, the companion to [readWorldSync].
+  ///
+  /// The world is an in-memory map, so there was never anything to await here.
+  /// The query layer runs inside `build()`, which cannot, and a future would
+  /// have forced every list on every screen through a `FutureBuilder` for no
+  /// gain.
+  List<String> listKeysSync(String prefix) =>
+      _world.keys.where((k) => k.startsWith(prefix)).toList();
 
   Future<dynamic> readPrivate(String collection, String key, String readerMsp) async {
     final entry = _collections[collection]?[key];
@@ -286,6 +302,14 @@ class LocalLedger {
           );
           break;
 
+        case 'confirmReceipt':
+          result = await LaMPContract.confirmReceipt(
+            ctx,
+            tokenId: args['tokenId'] as String,
+            pharmacySignature: args['pharmacySignature'] as String,
+          );
+          break;
+
         default:
           throw ChaincodeException('Unknown chaincode function $fn');
       }
@@ -383,29 +407,60 @@ class _LedgerCtx implements ChainCtx {
   @override
   int get now => ledgerTime;
 
+  /// Defensive copy of a value read from world state.
+  ///
+  /// Without this, a chaincode can mutate the live world through the read
+  /// reference — `final token = await ctx.get(...); token.state = ...;` would
+  /// change the next read before the chaincode writes it back.
+  static dynamic _clone(dynamic v) {
+    if (v is Map) return Map<String, dynamic>.from(v);
+    if (v is List) return List<dynamic>.from(v);
+    return v;
+  }
+
   @override
   Future<dynamic> get(String key) async {
     for (final w in pendingWrites.reversed) {
       if (w.key == key) return w.value;
     }
-    return worldState[key];
+    return _clone(worldState[key]);
   }
 
   @override
   Future<void> put(String key, dynamic value) async {
+    // Replace any earlier pending write for this key. `pendingWrites` is
+    // scanned in reverse in `get`, so an appending put would leave a stale
+    // value visible to the next read until the writes are applied.
+    final existing = pendingWrites.indexWhere((w) => w.key == key);
+    if (existing >= 0) {
+      pendingWrites[existing] = WriteEntry(key: key, value: value);
+      return;
+    }
     pendingWrites.add(WriteEntry(key: key, value: value));
   }
 
   @override
   Future<List<String>> keys(String prefix) async {
-    final allKeys = {...worldState.keys, ...pendingWrites.map((w) => w.key)};
+    final allKeys = <String>{...worldState.keys, ...pendingWrites.map((w) => w.key)};
     return allKeys.where((k) => k.startsWith(prefix)).toList();
+  }
+
+  @override
+  Future<List<String>> privateKeys(String collection) async {
+    return (collections[collection]?.keys ?? const <String>{}).toList();
   }
 
   @override
   Future<dynamic> getPrivate(String collection, String key) async {
     final entry = collections[collection]?[key];
-    return entry?.value;
+    if (entry == null) return null;
+    // Membership gate. The submitter of this transaction is the one reading;
+    // an outsider transaction gets nothing, even though the world state holds
+    // the sealed entry. Mirrors Fabric's implicit collection ACL.
+    if (!entry.members.contains(submitterId)) {
+      return null;
+    }
+    return _clone(entry.value);
   }
 
   @override

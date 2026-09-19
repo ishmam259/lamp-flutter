@@ -18,6 +18,7 @@ abstract class ChainCtx {
   Future<List<String>> keys(String prefix);
 
   Future<dynamic> getPrivate(String collection, String key);
+  Future<List<String>> privateKeys(String collection);
   Future<void> putPrivate(String collection, String key, List<String> members, dynamic value);
 
   void emit(String eventName, Map<String, dynamic> payload);
@@ -49,6 +50,25 @@ class LaMPContract {
     required List<String> cartonHashes,
     required List<LineItem> lineItems,
   }) async {
+    // Data-level guards. The endorsement policy already restricts the submitter
+    // to ManufacturerMSP's peer; these checks make the body of the transaction
+    // refuse to mint nonsense on top of that.
+    if (cartonHashes.isEmpty) {
+      throw ChaincodeException(
+        'Mint $tokenId refused: a receivable must anchor at least one carton.',
+      );
+    }
+    if (declaredValue <= 0) {
+      throw ChaincodeException(
+        'Mint $tokenId refused: declaredValue must be positive (got $declaredValue).',
+      );
+    }
+    if (dueDate <= issuedAt) {
+      throw ChaincodeException(
+        'Mint $tokenId refused: dueDate ($dueDate) must be after issuedAt ($issuedAt).',
+      );
+    }
+
     final existingTokenId = await ctx.get(ChainKeys.invoiceIndex(invoiceId));
     if (existingTokenId != null) {
       throw ChaincodeException(
@@ -115,28 +135,41 @@ class LaMPContract {
       );
     }
 
-    if (!token.scannedHashes.contains(cartonHash)) {
-      token.scannedHashes.add(cartonHash);
-      token.deliveryRatio = token.cartonHashes.isNotEmpty
-          ? token.scannedHashes.length / token.cartonHashes.length
-          : 1.0;
-
-      if (token.deliveryRatio >= 1.0) {
-        token.state = TokenState.delivered;
-        token.podAt ??= ctx.now;
-        token.disputeWindowClosesAt ??= ctx.now + token.disputeWindowMs;
-      } else {
-        token.state = TokenState.partiallyFulfilled;
-      }
-
-      await ctx.put(ChainKeys.token(tokenId), token.toJson());
-      ctx.emit('PoDRecorded', {
-        'tokenId': tokenId,
-        'scanned': token.scannedHashes.length,
-        'total': token.cartonHashes.length,
-        'ratio': token.deliveryRatio,
-      });
+    // Reject double-scans. The Fabric TS port throws here; the Dart version
+    // used to silently no-op, which let a buggy scanner pad the deliveryRatio.
+    if (token.scannedHashes.contains(cartonHash)) {
+      throw ChaincodeException(
+        'Carton has already been scanned for invoice ${token.invoiceId}.',
+      );
     }
+
+    token.scannedHashes.add(cartonHash);
+    token.deliveryRatio = token.cartonHashes.isNotEmpty
+        ? token.scannedHashes.length / token.cartonHashes.length
+        : 1.0;
+
+    // Whitepaper 4.2: a consignment is delivered at 90% of its manifest, not
+    // at every last carton. Requiring 1.0 here made `confirmationThreshold`
+    // dead on this path, and put the chaincode at odds with the number the
+    // bank's eligibility checklist prints.
+    if (token.deliveryRatio >= confirmationThreshold) {
+      token.state = TokenState.delivered;
+      token.podAt ??= ctx.now;
+      // Anchored to ctx.now (block time) rather than scan time, mirroring the
+      // TS Fabric port's `businessTime()` default. A live deployment that
+      // wants scan-time would thread it through as an asserted business time.
+      token.disputeWindowClosesAt ??= ctx.now + token.disputeWindowMs;
+    } else {
+      token.state = TokenState.partiallyFulfilled;
+    }
+
+    await ctx.put(ChainKeys.token(tokenId), token.toJson());
+    ctx.emit('PoDRecorded', {
+      'tokenId': tokenId,
+      'scanned': token.scannedHashes.length,
+      'total': token.cartonHashes.length,
+      'ratio': token.deliveryRatio,
+    });
 
     return token;
   }
@@ -155,16 +188,29 @@ class LaMPContract {
     final token = ReceivableToken.fromJson(Map<String, dynamic>.from(raw as Map));
 
     for (final h in cartonHashes) {
-      if (token.cartonHashes.contains(h) && !token.scannedHashes.contains(h)) {
-        token.scannedHashes.add(h);
+      // Membership test per hash — the TS port throws here rather than
+      // silently dropping unknowns, which would let a misrouted scanner slip
+      // a partial count past the chaincode.
+      if (!token.cartonHashes.contains(h)) {
+        throw ChaincodeException(
+          'Carton with hash ${h.substring(0, h.length < 10 ? h.length : 10)}… does not belong to invoice ${token.invoiceId}.',
+        );
       }
+      // Reject duplicates inside the batch too, so a scanner retrying after a
+      // crash cannot re-count a carton it already wrote to the ledger.
+      if (token.scannedHashes.contains(h)) {
+        throw ChaincodeException(
+          'Carton has already been scanned for invoice ${token.invoiceId}.',
+        );
+      }
+      token.scannedHashes.add(h);
     }
 
     token.deliveryRatio = token.cartonHashes.isNotEmpty
         ? token.scannedHashes.length / token.cartonHashes.length
         : 1.0;
 
-    if (token.deliveryRatio >= 1.0) {
+    if (token.deliveryRatio >= confirmationThreshold) {
       token.state = TokenState.delivered;
       token.podAt ??= ctx.now;
       token.disputeWindowClosesAt ??= ctx.now + token.disputeWindowMs;
@@ -223,7 +269,19 @@ class LaMPContract {
       );
     }
 
-    // Delivery confirmation check (>= 90%)
+    // An advance fires only against a fully delivered receivable. Checked
+    // first so a CREATED or PARTIALLY_FULFILLED token surfaces the lifecycle
+    // reason for the rejection — a token with no scans yet would also fail
+    // the ratio check, but the chaincode's caller is better served by the
+    // exact state mismatch. Mirrors the ordering in the TS Fabric port.
+    if (token.state != TokenState.delivered) {
+      throw ChaincodeException(
+        'Receivable $tokenId is in state ${token.state.id}; financing requires DELIVERED.',
+      );
+    }
+
+    // Delivery confirmation check (>= 90%). Belongs after the state guard so
+    // it does not out-shout the lifecycle reason on a freshly-minted token.
     if (token.deliveryRatio < confirmationThreshold) {
       throw ChaincodeException(
         'Delivery ratio ${(token.deliveryRatio * 100).toStringAsFixed(1)}% is below the required 90% threshold.',
@@ -246,52 +304,64 @@ class LaMPContract {
       );
     }
 
-    // Determine counterparty recourse tier
+    // Counterparty recourse tier comes from the credit history. A buyer with
+    // no on-chain history is treated as NEW for matching purposes.
     final rawCredit = await ctx.get(ChainKeys.credit(token.buyerDid));
-    RecourseTier tier = RecourseTier.building;
+    RecourseTier tier = RecourseTier.newTier;
     if (rawCredit != null) {
       final credit = CreditHistory.fromJson(Map<String, dynamic>.from(rawCredit as Map));
       tier = credit.tier;
     }
 
-    // Default curve pricing parameters based on tier
-    double advanceRate;
-    double feeRate;
-    double mfrRecourse;
+    // Deterministic selection across every registered curve. The bank's own
+    // curve is read through `getPrivate`, which enforces membership; outsiders
+    // see nothing and the endorsement policy refuses them at submit time, so
+    // there is no chance of leaking a competitor's pricing.
+    RateCurveBand? bestBand;
+    RateCurve? bestCurve;
+    for (final curveId in await ctx.privateKeys('rateCurves')) {
+      final curveRaw = await ctx.getPrivate('rateCurves', curveId);
+      if (curveRaw == null) continue;
+      final curve = RateCurve.fromJson(Map<String, dynamic>.from(curveRaw as Map));
 
-    switch (tier) {
-      case RecourseTier.newTier:
-        advanceRate = 70.0;
-        feeRate = 10.5;
-        mfrRecourse = 60.0;
-        break;
-      case RecourseTier.building:
-        advanceRate = 80.0;
-        feeRate = 8.8;
-        mfrRecourse = 30.0;
-        break;
-      case RecourseTier.established:
-        advanceRate = 85.0;
-        feeRate = 7.5;
-        mfrRecourse = 10.0;
-        break;
-      case RecourseTier.prime:
-        advanceRate = 90.0;
-        feeRate = 6.2;
-        mfrRecourse = 0.0;
-        break;
+      final band = curve.bands.firstWhere(
+        (b) => b.tier == tier && token.declaredValue <= b.maxInvoiceValue,
+        orElse: () => const RateCurveBand(
+          tier: RecourseTier.newTier,
+          advanceRatePct: 0,
+          feePct: 0,
+          manufacturerRecoursePct: 0,
+          maxInvoiceValue: 0,
+        ),
+      );
+      if (band.maxInvoiceValue <= 0) continue;
+
+      if (bestBand == null ||
+          band.advanceRatePct > bestBand.advanceRatePct ||
+          (band.advanceRatePct == bestBand.advanceRatePct &&
+              band.feePct < bestBand.feePct)) {
+        bestBand = band;
+        bestCurve = curve;
+      }
     }
 
-    final advancedAmount = (token.declaredValue * (advanceRate / 100.0)).roundToDouble();
+    if (bestBand == null || bestCurve == null) {
+      throw ChaincodeException(
+        'No registered rate curve covers a ${tier.label} counterparty at BDT ${token.declaredValue.toStringAsFixed(2)}.',
+      );
+    }
+
+    final advancedAmount =
+        (token.declaredValue * (bestBand.advanceRatePct / 100.0)).roundToDouble();
 
     token.financing = Financing(
-      bankMsp: Msp.fromId(ctx.submitter),
-      curveId: 'curve-${ctx.submitter.toLowerCase()}',
-      advanceRatePct: advanceRate,
-      feePct: feeRate,
+      bankMsp: bestCurve.bankMsp,
+      curveId: bestCurve.curveId,
+      advanceRatePct: bestBand.advanceRatePct,
+      feePct: bestBand.feePct,
       advancedAmount: advancedAmount,
       financedAt: ctx.now,
-      manufacturerRecoursePct: mfrRecourse,
+      manufacturerRecoursePct: bestBand.manufacturerRecoursePct,
     );
 
     token.state = TokenState.financed;
@@ -300,9 +370,9 @@ class LaMPContract {
 
     ctx.emit('ReceivableFinanced', {
       'tokenId': tokenId,
-      'bank': ctx.submitter,
+      'bank': bestCurve.bankMsp.id,
       'advancedAmount': advancedAmount,
-      'advanceRate': advanceRate,
+      'advanceRate': bestBand.advanceRatePct,
     });
 
     return token;
@@ -321,6 +391,16 @@ class LaMPContract {
       throw ChaincodeException('Token $tokenId not found.');
     }
     final token = ReceivableToken.fromJson(Map<String, dynamic>.from(raw as Map));
+
+    // State guard. A receivable must have been financed (or, in the rare
+    // self-settle path, fully delivered) before the chaincode accepts the
+    // repayment. Settling a CREATED token silently short-circuits the
+    // chaincode's "did this advance?" logic in the demo.
+    if (token.state != TokenState.financed && token.state != TokenState.delivered) {
+      throw ChaincodeException(
+        'Receivable $tokenId is in state ${token.state.id}; settlement requires FINANCED or DELIVERED.',
+      );
+    }
 
     final isOnTime = ctx.now <= token.dueDate;
     final daysLate = isOnTime ? 0 : ((ctx.now - token.dueDate) / 86400000).ceil();
@@ -370,17 +450,15 @@ class LaMPContract {
       credit.lateCount++;
     }
 
-    // Recalculate Recourse Tier based on settled cycles
+    // Recalculate Recourse Tier based on settled cycles, then apply the
+    // late-cycle penalty. A counterparty with >= 2 late settlements drops one
+    // tier from what its cycle count alone would have earned; mirrors the
+    // TS Fabric port's `tierFor()` and means a chronically-late buyer never
+    // gets the cheaper prime-tier advance.
     final totalSettled = credit.cycles.length;
-    if (totalSettled >= 16 && credit.defaultCount == 0) {
-      credit.tier = RecourseTier.prime;
-    } else if (totalSettled >= 8) {
-      credit.tier = RecourseTier.established;
-    } else if (totalSettled >= 3) {
-      credit.tier = RecourseTier.building;
-    } else {
-      credit.tier = RecourseTier.newTier;
-    }
+    final earnedTier = _earnedTier(totalSettled, credit.defaultCount);
+    final penalized = credit.lateCount >= 2;
+    credit.tier = penalized ? _dropOneTier(earnedTier) : earnedTier;
 
     await ctx.put(ChainKeys.credit(token.buyerDid), credit.toJson());
 
@@ -411,6 +489,21 @@ class LaMPContract {
     }
     final token = ReceivableToken.fromJson(Map<String, dynamic>.from(raw as Map));
 
+    // Disputes are only valid against a receivable that has not yet been
+    // financed, settled, or written off. Once a bank has advanced against the
+    // invoice, recourse follows the rate curve and the financing contract —
+    // not a dispute record.
+    const disputable = <TokenState>{
+      TokenState.created,
+      TokenState.partiallyFulfilled,
+      TokenState.delivered,
+    };
+    if (!disputable.contains(token.state)) {
+      throw ChaincodeException(
+        'Receivable $tokenId is in state ${token.state.id}; disputes are only valid in CREATED, PARTIALLY_FULFILLED, or DELIVERED.',
+      );
+    }
+
     token.preDisputeState = token.state;
     token.state = TokenState.disputed;
     token.disputeReason = reason;
@@ -434,20 +527,127 @@ class LaMPContract {
     }
     final token = ReceivableToken.fromJson(Map<String, dynamic>.from(raw as Map));
 
-    final activeDispute = token.disputes.lastWhere(
+    // Refuse to resolve nothing. The old `lastWhere + orElse` fabricated a
+    // synthetic dispute record, mutated the local copy, and then never wrote
+    // it back — so subsequent calls would invent another synthetic one. Throw
+    // instead.
+    final activeDispute = token.disputes.firstWhere(
       (d) => d.resolvedAt == null,
-      orElse: () => DisputeRecord(reason: 'General dispute', raisedAt: ctx.now),
+      orElse: () => throw ChaincodeException(
+        'Token $tokenId has no active dispute to resolve.',
+      ),
     );
+
+    // The restore target is one of the pre-dispute lifecycle states. The TS
+    // port refuses to restore straight to FINANCED/SETTLED — those have their
+    // own dedicated transactions and a dispute should never land on them.
+    final validRestores = <TokenState>{
+      TokenState.created,
+      TokenState.partiallyFulfilled,
+      TokenState.delivered,
+    };
+    final target = restoreTo ?? token.preDisputeState ?? TokenState.delivered;
+    if (!validRestores.contains(target)) {
+      throw ChaincodeException(
+        'resolveDispute $tokenId: restoreTo must be one of CREATED, PARTIALLY_FULFILLED, DELIVERED (got ${target.id}).',
+      );
+    }
+
     activeDispute.resolution = resolution;
     activeDispute.resolvedAt = ctx.now;
-    activeDispute.restoredTo = restoreTo ?? token.preDisputeState ?? TokenState.delivered;
+    activeDispute.restoredTo = target;
 
-    token.state = activeDispute.restoredTo!;
+    token.state = target;
     token.disputeReason = null;
     token.preDisputeState = null;
 
+    // Re-arm the dispute window only when returning to DELIVERED. Anything
+    // less than DELIVERED has no live PoD to anchor a window against, and a
+    // resolved dispute must not be re-financeable on the same day it was
+    // raised.
+    if (target == TokenState.delivered) {
+      token.disputeWindowClosesAt = ctx.now + token.disputeWindowMs;
+      token.podAt ??= ctx.now;
+    } else {
+      token.disputeWindowClosesAt = null;
+    }
+
     await ctx.put(ChainKeys.token(tokenId), token.toJson());
     ctx.emit('DisputeResolved', {'tokenId': tokenId, 'restoredTo': token.state.id});
+    return token;
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Tier helpers                                                            */
+  /* ---------------------------------------------------------------------- */
+
+  /// The tier a clean settlement history would earn. Lates are handled
+  /// separately by [_dropOneTier] so the two rules read independently.
+  static RecourseTier _earnedTier(int totalSettled, int defaultCount) {
+    if (totalSettled >= 16 && defaultCount == 0) return RecourseTier.prime;
+    if (totalSettled >= 8) return RecourseTier.established;
+    if (totalSettled >= 3) return RecourseTier.building;
+    return RecourseTier.newTier;
+  }
+
+  /// Demote one tier — the penalty for two or more late settlements.
+  static RecourseTier _dropOneTier(RecourseTier t) {
+    switch (t) {
+      case RecourseTier.prime:
+        return RecourseTier.established;
+      case RecourseTier.established:
+        return RecourseTier.building;
+      case RecourseTier.building:
+        return RecourseTier.newTier;
+      case RecourseTier.newTier:
+        return RecourseTier.newTier;
+    }
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* 9. confirmReceipt (pharmacy signs to acknowledge delivery)              */
+  /* ---------------------------------------------------------------------- */
+
+  /// The pharmacy's signature on a delivered consignment.
+  ///
+  /// Distinct from `recordPoD` because the actor is different: the chaincode
+  /// endorsement policy for `confirmReceipt` is manufacturer-only (the MPO
+  /// device has already committed the scans; this transaction only persists
+  /// the pharmacy's ink against the ledger). Until this fires, the receipt
+  /// exists only on the off-chain `Delivery` model.
+  static Future<ReceivableToken> confirmReceipt(
+    ChainCtx ctx, {
+    required String tokenId,
+    required String pharmacySignature,
+  }) async {
+    final raw = await ctx.get(ChainKeys.token(tokenId));
+    if (raw == null) {
+      throw ChaincodeException('Token $tokenId not found.');
+    }
+    final token = ReceivableToken.fromJson(Map<String, dynamic>.from(raw as Map));
+
+    if (token.state == TokenState.settled || token.state == TokenState.defaulted) {
+      throw ChaincodeException(
+        'Token $tokenId is already settled or closed; a receipt cannot be confirmed.',
+      );
+    }
+
+    // Receipt only makes sense once every carton on the manifest has been
+    // scanned. The threshold guard here matches `matchAndAdvance`'s 90% bar.
+    if (token.deliveryRatio < confirmationThreshold) {
+      throw ChaincodeException(
+        'Receipt $tokenId refused: only ${(token.deliveryRatio * 100).toStringAsFixed(1)}% of cartons delivered (need 90%+).',
+      );
+    }
+
+    token.pharmacySignature = pharmacySignature;
+    token.receivedAt = ctx.now;
+
+    await ctx.put(ChainKeys.token(tokenId), token.toJson());
+    ctx.emit('ReceiptConfirmed', {
+      'tokenId': tokenId,
+      'receivedAt': ctx.now,
+    });
     return token;
   }
 }

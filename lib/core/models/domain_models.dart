@@ -481,6 +481,8 @@ class ReceivableToken {
   List<DisputeRecord> disputes;
   Financing? financing;
   Settlement? settlement;
+  String? pharmacySignature;
+  int? receivedAt;
   final String lineItemsHash;
 
   ReceivableToken({
@@ -508,6 +510,8 @@ class ReceivableToken {
     List<DisputeRecord>? disputes,
     this.financing,
     this.settlement,
+    this.pharmacySignature,
+    this.receivedAt,
     required this.lineItemsHash,
   }) : disputes = disputes ?? [];
 
@@ -536,6 +540,8 @@ class ReceivableToken {
     'disputes': disputes.map((d) => d.toJson()).toList(),
     if (financing != null) 'financing': financing!.toJson(),
     if (settlement != null) 'settlement': settlement!.toJson(),
+    if (pharmacySignature != null) 'pharmacySignature': pharmacySignature,
+    if (receivedAt != null) 'receivedAt': receivedAt,
     'lineItemsHash': lineItemsHash,
   };
 
@@ -564,6 +570,8 @@ class ReceivableToken {
     disputes: (json['disputes'] as List<dynamic>?)?.map((e) => DisputeRecord.fromJson(e as Map<String, dynamic>)).toList(),
     financing: json['financing'] != null ? Financing.fromJson(json['financing'] as Map<String, dynamic>) : null,
     settlement: json['settlement'] != null ? Settlement.fromJson(json['settlement'] as Map<String, dynamic>) : null,
+    pharmacySignature: json['pharmacySignature'] as String?,
+    receivedAt: json['receivedAt'] as int?,
     lineItemsHash: json['lineItemsHash'] as String,
   );
 }

@@ -21,7 +21,13 @@ class AndNode extends PolicyNode {
   AndNode(this.children);
 
   @override
-  bool evaluate(Set<String> signers) => children.every((c) => c.evaluate(signers));
+  bool evaluate(Set<String> signers) {
+    // AND of an empty conjunction is vacuously true in pure logic, but in an
+    // endorsement policy that means "anyone can write" — never the intent.
+    // Treat empty children as a malformed policy and refuse.
+    if (children.isEmpty) return false;
+    return children.every((c) => c.evaluate(signers));
+  }
 }
 
 class OrNode extends PolicyNode {
@@ -70,6 +76,8 @@ class PolicyParser {
 
   static PolicyNode parse(String src) {
     final s = src.trim();
+    if (s.isEmpty) throw const FormatException('Empty policy expression.');
+
     final open = s.indexOf('(');
 
     if (open > 0 && s.endsWith(')')) {
@@ -77,26 +85,36 @@ class PolicyParser {
       final body = s.substring(open + 1, s.length - 1);
 
       if (head == 'AND') {
-        return AndNode(_splitArgs(body).map(parse).toList());
+        final kids = _splitArgs(body).map(parse).toList();
+        if (kids.isEmpty) throw FormatException('AND() requires at least one principal: $src');
+        return AndNode(kids);
       }
       if (head == 'OR') {
-        return OrNode(_splitArgs(body).map(parse).toList());
+        final kids = _splitArgs(body).map(parse).toList();
+        if (kids.isEmpty) throw FormatException('OR() requires at least one principal: $src');
+        return OrNode(kids);
       }
       if (head == 'OUTOF') {
         final parts = _splitArgs(body);
-        if (parts.isEmpty) throw FormatException('OutOf requires arguments: $src');
+        if (parts.length < 2) {
+          throw FormatException('OutOf requires a count and at least one principal: $src');
+        }
         final n = int.tryParse(parts[0]);
         if (n == null) throw FormatException('OutOf needs numeric count: $src');
-        final childNodes = parts.sublist(1).map(parse).toList();
-        return OutOfNode(n, childNodes);
+        if (n < 1 || n > parts.length - 1) {
+          throw FormatException('OutOf count $n is out of range for ${parts.length - 1} principals: $src');
+        }
+        return OutOfNode(n, parts.sublist(1).map(parse).toList());
       }
       throw FormatException('Unknown policy operator "$head" in $src');
     }
 
+    // A leaf must look like 'MSP.role'. Without the dot we cannot tell a
+    // misconfigured principal apart from a valid one, so refuse.
     final leaf = s.replaceAll("'", '');
     final dot = leaf.lastIndexOf('.');
-    if (dot < 0) {
-      return LeafNode(leaf, 'member');
+    if (dot <= 0 || dot == leaf.length - 1) {
+      throw FormatException('Policy leaf must be "MSP.role", got "$leaf"');
     }
     return LeafNode(leaf.substring(0, dot), leaf.substring(dot + 1));
   }
@@ -107,6 +125,8 @@ class PolicyParser {
       final ast = parse(policyExpr);
       return ast.evaluate(endorserMsps.toSet());
     } catch (_) {
+      // Malformed policy → deny. Fabric would refuse to instantiate such a
+      // chaincode at deploy time, so this is the right default at runtime.
       return false;
     }
   }

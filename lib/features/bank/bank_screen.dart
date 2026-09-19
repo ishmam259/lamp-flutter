@@ -3,8 +3,10 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_theme.dart';
 import '../../core/constants/palette.dart';
 import '../../core/constants/formatters.dart';
+import '../../core/chain/contract.dart';
 import '../../core/models/domain_models.dart';
 import '../../core/state/lamp_state.dart';
+import '../../core/world/queries.dart';
 import '../../core/world/seed.dart';
 import '../../widgets/demo_director_sheet.dart';
 import '../../widgets/ledger_inspector_sheet.dart';
@@ -27,6 +29,7 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
   Msp _activeBank = Msp.meghnaMSP;
   String? _executionBanner;
   bool _isSuccessBanner = false;
+  bool _isAdvancing = false;
 
   @override
   void initState() {
@@ -38,6 +41,41 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
   void dispose() {
     _tabController.dispose();
     super.dispose();
+  }
+
+  /// The curve the active bank has registered with the consortium. Used to
+  /// drive the rate dial and to derive the per-tier advance rate and fee that
+  /// the financing card displays — so switching Meghna → Padma actually
+  /// changes the pricing.
+  RateCurve _activeCurve() {
+    return _activeBank == Msp.meghnaMSP
+        ? SeedData.meghnaCurve
+        : SeedData.padmaCurve;
+  }
+
+  /// The tier this counterparty has earned, read from its own credit key.
+  ///
+  /// Was `state.creditHistory?.tier` — the one cached history, which belongs
+  /// to the demo pharmacy. Every other counterparty was priced as though it
+  /// had Rahman Medical Hall's record.
+  RecourseTier _tierFor(LaMPState state, String buyerDid) =>
+      state.creditFor(buyerDid)?.tier ?? RecourseTier.newTier;
+
+  /// The band on the active bank's curve that covers this receivable, or null
+  /// when none does.
+  ///
+  /// Null is the honest answer and the card says so: `matchAndAdvance` walks
+  /// the same bands and refuses when no band covers the counterparty at this
+  /// invoice size. The previous version ended in a `firstWhere` with no
+  /// `orElse`, which threw a `StateError` inside `build` instead.
+  RateCurveBand? _bandFor(LaMPState state, ReceivableToken token) {
+    final tier = _tierFor(state, token.buyerDid);
+    for (final band in _activeCurve().bands) {
+      if (band.tier == tier && token.declaredValue <= band.maxInvoiceValue) {
+        return band;
+      }
+    }
+    return null;
   }
 
   @override
@@ -53,7 +91,6 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
 
   Widget _buildScaffold(BuildContext context) {
     final state = context.watch<LaMPState>();
-    final delivery = state.getDelivery(state.demoTokenId);
     final c = context.lamp;
 
     return Scaffold(
@@ -148,7 +185,7 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
           child: TabBarView(
             controller: _tabController,
             children: [
-              _buildOpportunitiesTab(context, state, delivery),
+              _buildOpportunitiesTab(context, state),
               _buildRateCurveTab(context, state),
               _buildPortfolioTab(context, state),
             ],
@@ -157,15 +194,30 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
     );
   }
 
-  Widget _buildOpportunitiesTab(BuildContext context, LaMPState state, Delivery? delivery) {
-    final c = context.lamp;
-    final scannedCount = delivery?.cartons.where((c) => c.scannedAt != null).length ?? 0;
-    final totalCartons = delivery?.cartons.length ?? 25;
-    final deliveryRatio = totalCartons > 0 ? scannedCount / totalCartons : 0.0;
-    final isDeliveryConfirmed = deliveryRatio >= 0.90;
+  /// The financing queue, partitioned the way the chaincode partitions it.
+  ///
+  /// Three sections, mirroring `app/bank/opportunities/page.tsx:35-47`:
+  /// what can be financed now, what is still inside its objection period, and
+  /// what has already been advanced against. A financed receivable used to
+  /// stay in the queue with a live Finance button, so the only way to discover
+  /// it had moved on was to press it and read the refusal.
+  Widget _buildOpportunitiesTab(BuildContext context, LaMPState state) {
+    final now = state.now;
+    final views = state.tokenViews;
 
-    // Check dispute window
-    final disputeWindowClosed = (delivery?.status == DeliveryStatus.completed);
+    final eligible = <TokenView>[];
+    final waiting = <TokenView>[];
+    for (final v in views) {
+      if (v.token.isFinanceable(now)) {
+        eligible.add(v);
+      } else if (v.token.isAwaitingWindow(now)) {
+        waiting.add(v);
+      }
+    }
+    final financed = views
+        .where((v) => v.token.state == TokenState.financed)
+        .take(4)
+        .toList();
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -173,167 +225,476 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 800),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Result Banner
-              if (_executionBanner != null)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: _isSuccessBanner ? c.verifiedSoft : c.disputeSoft,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: _isSuccessBanner ? c.verified : c.dispute),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        _isSuccessBanner ? Icons.check_circle : Icons.warning_rounded,
-                        color: _isSuccessBanner ? c.verified : c.dispute,
-                        size: 22,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          _executionBanner!,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: _isSuccessBanner ? c.verified : c.dispute,
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close, size: 16),
-                        onPressed: () => setState(() => _executionBanner = null),
-                      ),
-                    ],
+              if (_executionBanner != null) _buildExecutionBanner(context),
+
+              _sectionHead(
+                context,
+                'Eligible for financing',
+                eligible.length,
+                'Delivery confirmed, dispute window closed, no dispute raised',
+              ),
+              if (eligible.isEmpty)
+                _emptyCard(
+                  context,
+                  'Nothing eligible yet. A delivered receivable becomes '
+                  'financeable once its 24-hour dispute window closes — '
+                  'advance the clock from the demo director.',
+                )
+              else
+                for (final v in eligible) ...[
+                  _opportunityCard(context, state, v, eligible: true),
+                  const SizedBox(height: 12),
+                ],
+
+              if (waiting.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                _sectionHead(
+                  context,
+                  'Awaiting dispute window',
+                  waiting.length,
+                  'Cash is never released against a delivery that has not '
+                  'achieved finality',
+                ),
+                for (final v in waiting) ...[
+                  _opportunityCard(context, state, v, eligible: false),
+                  const SizedBox(height: 12),
+                ],
+              ],
+
+              if (financed.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                _sectionHead(
+                  context,
+                  'Recently financed',
+                  financed.length,
+                  'One invoice carries one token — a second advance cannot be '
+                  'drawn',
+                ),
+                for (final v in financed) ...[
+                  _financedCard(context, v),
+                  const SizedBox(height: 12),
+                ],
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _sectionHead(
+    BuildContext context,
+    String title,
+    int count,
+    String hint,
+  ) {
+    final c = context.lamp;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              // Flexible, not fixed: "Awaiting dispute window" and its count
+              // ran 5.8 pixels off a 360dp phone. A section heading that wraps
+              // beats one that is clipped.
+              Flexible(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: c.ink,
                   ),
                 ),
-
-              // Opportunity Card
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: c.surface,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: c.line),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Id and amount share the row; the eligibility chip takes
-                    // the line beneath. All three abreast needed about 200dp
-                    // of the 180dp available and overflowed by 210.
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            state.demoInvoiceId,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              fontFamily: LaMPType.mono,
-                              fontFamilyFallback: LaMPType.fallback,
-                              color: c.ink,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          LaMPFormatters.formatBDT(182400),
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: c.brand),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    const LampChip(label: 'SCF eligible', tone: LampTone.verified),
-                    const SizedBox(height: 8),
-                    // "Buyer: X · Seller: Y · Z" was sixty-six characters
-                    // restating a relationship the portal never varies.
-                    Text(
-                      'Rahman Medical Hall · Bogura Sadar',
-                      style: TextStyle(fontSize: 12, color: c.inkMuted),
-                    ),
-                    const SizedBox(height: 16),
-                    Divider(color: c.line),
-                    const SizedBox(height: 12),
-
-                    // Smart Contract Verification Checklist
-                    Text(
-                      'Before financing',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: c.inkFaint),
-                    ),
-                    const SizedBox(height: 8),
-
-                    _checkItem(context,
-                      label: 'Delivery confirmed',
-                      detail: '$scannedCount/$totalCartons cartons (${(deliveryRatio * 100).toInt()}%)',
-                      isPassed: isDeliveryConfirmed,
-                    ),
-                    _checkItem(context,
-                      label: 'Dispute window closed',
-                      detail: disputeWindowClosed ? 'Window closed · No objections filed' : 'Counting down',
-                      isPassed: disputeWindowClosed,
-                    ),
-                    _checkItem(context,
-                      label: 'Not already financed',
-                      detail: 'No prior advance',
-                      isPassed: true,
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // Pricing breakdown based on tier
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: c.surfaceAlt,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Wrap(
-                        spacing: 16,
-                        runSpacing: 10,
-                        alignment: WrapAlignment.spaceBetween,
-                        children: [
-                          _statItem(context, 'Tier', state.creditHistory?.tier.label ?? 'BUILDING', c.brand),
-                          _statItem(context, 'Advance', '80.0%', c.ink),
-                          _statItem(context, 'Fee', '8.8%', c.pending),
-                          _statItem(context, 'You receive', LaMPFormatters.formatBDT(182400 * 0.8), c.verified),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // Execution button
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () => _executeSmartContractAdvance(state),
-                        icon: const Icon(Icons.flash_on),
-                        label: Text(
-                          'Finance ${LaMPFormatters.formatBDT(145920)}',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _activeBank == Msp.meghnaMSP ? c.brand : c.pending,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                      ),
-                    ),
-                  ],
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '$count',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontFamily: LaMPType.mono,
+                  fontFamilyFallback: LaMPType.fallback,
+                  color: c.inkFaint,
                 ),
               ),
             ],
           ),
-        ),
+          const SizedBox(height: 2),
+          Text(hint, style: TextStyle(fontSize: 11, color: c.inkFaint)),
+        ],
+      ),
+    );
+  }
+
+  Widget _emptyCard(BuildContext context, String message) {
+    final c = context.lamp;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
+      decoration: BoxDecoration(
+        color: c.surface,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: c.line),
+      ),
+      child: Text(
+        message,
+        textAlign: TextAlign.center,
+        style: TextStyle(fontSize: 12, height: 1.5, color: c.inkFaint),
+      ),
+    );
+  }
+
+  /// One receivable, with the preconditions the chaincode will check.
+  ///
+  /// Every row is computed. They were not: "Not already financed" was written
+  /// `isPassed: true` regardless, and "Dispute window closed" compared the
+  /// off-chain delivery status instead of the clock, so the card could claim
+  /// finality it had not checked. The button is disabled when any of them
+  /// fails, rather than submitting and reporting the refusal afterwards.
+  Widget _opportunityCard(
+    BuildContext context,
+    LaMPState state,
+    TokenView view, {
+    required bool eligible,
+  }) {
+    final c = context.lamp;
+    final token = view.token;
+    final now = state.now;
+    final tier = _tierFor(state, token.buyerDid);
+    final band = _bandFor(state, token);
+
+    final ratio = token.deliveryRatio;
+    final confirmed = ratio >= LaMPContract.confirmationThreshold;
+    final windowClosed = token.disputeWindowClosed(now);
+    final notFinanced = token.financing == null;
+    final remaining = token.millisUntilWindowCloses(now);
+
+    final advanceAmount = band == null
+        ? 0.0
+        : (token.declaredValue * band.advanceRatePct / 100.0).roundToDouble();
+
+    final canFinance = eligible && band != null && !_isAdvancing;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: c.surface,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: c.line),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Text(
+                  token.invoiceId,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: LaMPType.mono,
+                    fontFamilyFallback: LaMPType.fallback,
+                    color: c.ink,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                LaMPFormatters.formatBDT(token.declaredValue),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: c.brand,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          LampChip(
+            label: eligible ? 'SCF eligible' : 'In objection period',
+            tone: eligible ? LampTone.verified : LampTone.pending,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '${view.pharmacy?.name ?? token.buyerDid} · '
+            '${view.pharmacy?.territory ?? ''}',
+            style: TextStyle(fontSize: 12, color: c.inkMuted),
+          ),
+          const SizedBox(height: 16),
+          Divider(color: c.line, height: 1),
+          const SizedBox(height: 16),
+
+          Text(
+            'Before financing',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: c.inkFaint,
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          _checkItem(
+            context,
+            label: 'Delivery confirmed',
+            detail: '${token.scanned} of ${token.declaredCartons} cartons · '
+                '${(ratio * 100).toInt()}% against a '
+                '${(LaMPContract.confirmationThreshold * 100).toInt()}% threshold',
+            isPassed: confirmed,
+          ),
+          _checkItem(
+            context,
+            label: 'No dispute raised',
+            detail: token.state == TokenState.disputed
+                ? token.disputeReason ?? 'Dispute open'
+                : 'No objections filed',
+            isPassed: token.state != TokenState.disputed,
+          ),
+          _checkItem(
+            context,
+            label: 'Not already financed',
+            detail: notFinanced
+                ? 'No prior advance'
+                : 'Advanced by '
+                    '${token.financing!.bankMsp.shortName}',
+            isPassed: notFinanced,
+          ),
+          _checkItem(
+            context,
+            label: 'Dispute window closed',
+            detail: windowClosed
+                ? 'Window closed'
+                : 'Closes in ${LaMPFormatters.formatDuration(remaining)}',
+            isPassed: windowClosed,
+          ),
+
+          const SizedBox(height: 20),
+
+          if (band == null)
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: c.pendingSoft,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                'No band on your curve covers a '
+                '${tier.label.toLowerCase()} counterparty at this invoice '
+                'size.',
+                style: TextStyle(fontSize: 11, color: c.pending),
+              ),
+            )
+          else
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: c.surfaceAlt,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Wrap(
+                spacing: 16,
+                runSpacing: 10,
+                alignment: WrapAlignment.spaceBetween,
+                children: [
+                  _statItem(context, 'Tier', tier.label, c.brand),
+                  _statItem(context, 'Advance',
+                      '${band.advanceRatePct.toStringAsFixed(1)}%', c.ink),
+                  _statItem(context, 'Fee',
+                      '${band.feePct.toStringAsFixed(1)}%', c.pending),
+                  _statItem(
+                    context,
+                    'They receive',
+                    LaMPFormatters.formatBDT(advanceAmount),
+                    c.verified,
+                  ),
+                ],
+              ),
+            ),
+
+          const SizedBox(height: 20),
+
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: canFinance
+                  ? () => _executeSmartContractAdvance(
+                        state,
+                        token.tokenId,
+                        advanceAmount,
+                      )
+                  : null,
+              icon: _isAdvancing
+                  ? SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(c.onBrand),
+                      ),
+                    )
+                  : const Icon(Icons.flash_on),
+              label: Text(
+                _isAdvancing
+                    ? 'Submitting...'
+                    : band == null
+                        ? 'No band covers this receivable'
+                        : 'Finance ${LaMPFormatters.formatBDT(advanceAmount)}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: c.brand,
+                foregroundColor: c.onBrand,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ),
+
+          if (!eligible && band != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              'The chaincode refuses until the window closes.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 11, color: c.inkFaint),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// A receivable this consortium has already advanced against.
+  ///
+  /// It carries no Finance button: one invoice carries one token, and a second
+  /// advance cannot be drawn.
+  Widget _financedCard(BuildContext context, TokenView view) {
+    final c = context.lamp;
+    final token = view.token;
+    final f = token.financing;
+    if (f == null) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: c.surface,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: c.line),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  token.invoiceId,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: LaMPType.mono,
+                    fontFamilyFallback: LaMPType.fallback,
+                    color: c.ink,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              LampChip(
+                label: f.bankMsp == _activeBank
+                    ? 'financed by you'
+                    : f.bankMsp.shortName,
+                tone: f.bankMsp == _activeBank
+                    ? LampTone.verified
+                    : LampTone.neutral,
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            view.pharmacy?.name ?? token.buyerDid,
+            style: TextStyle(fontSize: 12, color: c.inkMuted),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 16,
+            runSpacing: 10,
+            alignment: WrapAlignment.spaceBetween,
+            children: [
+              _statItem(context, 'Advance',
+                  '${f.advanceRatePct.toStringAsFixed(1)}%', c.verified),
+              _statItem(
+                  context, 'Fee', '${f.feePct.toStringAsFixed(1)}%', c.pending),
+              _statItem(
+                context,
+                'Advanced',
+                LaMPFormatters.formatBDTCompact(f.advancedAmount),
+                c.ink,
+              ),
+              _statItem(
+                context,
+                'Invoice',
+                LaMPFormatters.formatBDTCompact(token.declaredValue),
+                c.ink,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Transient banner that surfaces the most recent chaincode result on the
+  /// financing tab. Extracted so both the active opportunity card and the
+  /// closed-state empty-state can show the same banner.
+  Widget _buildExecutionBanner(BuildContext context) {
+    final c = context.lamp;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _isSuccessBanner ? c.verifiedSoft : c.disputeSoft,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: _isSuccessBanner ? c.verified : c.dispute),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            _isSuccessBanner ? Icons.check_circle : Icons.warning_rounded,
+            color: _isSuccessBanner ? c.verified : c.dispute,
+            size: 22,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              _executionBanner!,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: _isSuccessBanner ? c.verified : c.dispute,
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close, size: 16),
+            onPressed: () => setState(() => _executionBanner = null),
+          ),
+        ],
       ),
     );
   }
@@ -405,18 +766,29 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
     );
   }
 
-  void _executeSmartContractAdvance(LaMPState state) async {
-    final res = await state.financeReceivable(state.demoTokenId, _activeBank);
-    setState(() {
-      if (res.ok) {
-        _isSuccessBanner = true;
-        _executionBanner =
-            'SMART CONTRACT FINANCING EXECUTED: Advance of ${LaMPFormatters.formatBDT(145920)} committed on block #${res.tx.blockNumber} by ${_activeBank.shortName}!';
-      } else {
-        _isSuccessBanner = false;
-        _executionBanner = 'CHAINCODE REFUSAL: ${res.error} (Recorded in block #${res.tx.blockNumber} for audit)';
-      }
-    });
+  void _executeSmartContractAdvance(
+    LaMPState state,
+    String tokenId,
+    double advanceAmount,
+  ) async {
+    if (_isAdvancing) return;
+    setState(() => _isAdvancing = true);
+    try {
+      final res = await state.financeReceivable(tokenId, _activeBank);
+      if (!mounted) return;
+      setState(() {
+        if (res.ok) {
+          _isSuccessBanner = true;
+          _executionBanner =
+              'SMART CONTRACT FINANCING EXECUTED: Advance of ${LaMPFormatters.formatBDT(advanceAmount)} committed on block #${res.tx.blockNumber} by ${_activeBank.shortName}!';
+        } else {
+          _isSuccessBanner = false;
+          _executionBanner = 'CHAINCODE REFUSAL: ${res.error} (Recorded in block #${res.tx.blockNumber} for audit)';
+        }
+      });
+    } finally {
+      if (mounted) setState(() => _isAdvancing = false);
+    }
   }
 
   Widget _buildRateCurveTab(BuildContext context, LaMPState state) {
@@ -448,7 +820,7 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
                     ),
                     const SizedBox(height: 16),
                     RecourseDial(
-                      bands: SeedData.meghnaCurve.bands,
+                      bands: _activeCurve().bands,
                       currentTier: state.creditHistory?.tier ?? RecourseTier.building,
                     ),
                   ],
@@ -461,35 +833,126 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
     );
   }
 
+  /// The book, computed from the ledger.
+  ///
+  /// Was two string literals — "45,00,000 across 18 pharmacies" and a 0.0%
+  /// default rate — on a tab that took `state` and never read it.
   Widget _buildPortfolioTab(BuildContext context, LaMPState state) {
     final c = context.lamp;
+    final views = state.tokenViews;
+
+    final financed = views.where((v) => v.token.isFinanced).toList();
+    final outstanding = financed
+        .where((v) => v.token.state != TokenState.settled)
+        .toList();
+
+    final advanced = financed.fold<double>(
+      0.0,
+      (sum, TokenView v) => sum + (v.token.financing?.advancedAmount ?? 0.0),
+    );
+    final atRisk = outstanding.fold<double>(
+      0.0,
+      (sum, TokenView v) => sum + (v.token.financing?.advancedAmount ?? 0.0),
+    );
+    final counterparties =
+        financed.map((v) => v.token.buyerDid).toSet().length;
+    final settled = financed.length - outstanding.length;
+    final defaults =
+        views.where((v) => v.token.state == TokenState.defaulted).length;
+    final defaultRate = financed.isEmpty
+        ? 0.0
+        : defaults / financed.length * 100.0;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 800),
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: c.surface,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: c.line),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Portfolio',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: c.ink)),
-                SizedBox(height: 8),
-                Text('Exposure across financed receivables.',
-                    style: TextStyle(fontSize: 12, color: c.inkMuted)),
-                SizedBox(height: 20),
-                Text('৳ 45,00,000 across 18 pharmacies',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: c.brand)),
-                Text('Historical Default Rate: 0.0%',
-                    style: TextStyle(fontSize: 12, color: c.verified)),
-              ],
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: c.surface,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: c.line),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Portfolio',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: c.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Exposure across financed receivables.',
+                      style: TextStyle(fontSize: 12, color: c.inkMuted),
+                    ),
+                    const SizedBox(height: 20),
+                    Wrap(
+                      spacing: 24,
+                      runSpacing: 16,
+                      children: [
+                        _statItem(
+                          context,
+                          'Advanced to date',
+                          LaMPFormatters.formatBDTCompact(advanced),
+                          c.brand,
+                        ),
+                        _statItem(
+                          context,
+                          'Outstanding',
+                          LaMPFormatters.formatBDTCompact(atRisk),
+                          c.ink,
+                        ),
+                        _statItem(
+                          context,
+                          'Counterparties',
+                          '$counterparties',
+                          c.ink,
+                        ),
+                        _statItem(
+                          context,
+                          'Repaid',
+                          '$settled of ${financed.length}',
+                          c.verified,
+                        ),
+                        _statItem(
+                          context,
+                          'Default rate',
+                          '${defaultRate.toStringAsFixed(1)}%',
+                          defaults == 0 ? c.verified : c.dispute,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              _sectionHead(
+                context,
+                'Outstanding advances',
+                outstanding.length,
+                'Cash out against a receivable the pharmacy has yet to settle',
+              ),
+              if (outstanding.isEmpty)
+                _emptyCard(
+                  context,
+                  'Nothing outstanding. Every receivable this consortium has '
+                  'financed has been repaid.',
+                )
+              else
+                for (final v in outstanding) ...[
+                  _financedCard(context, v),
+                  const SizedBox(height: 12),
+                ],
+            ],
           ),
         ),
       ),

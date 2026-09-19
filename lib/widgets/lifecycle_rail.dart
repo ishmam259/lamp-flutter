@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../core/constants/palette.dart';
-import '../core/constants/colors.dart';
 import '../core/constants/typography.dart';
 import '../core/models/domain_models.dart';
 
@@ -60,22 +59,22 @@ class LifecycleRail extends StatelessWidget {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: i <= activeIndex
-                          ? (isDisputed && i == activeIndex ? LaMPColors.dispute : LaMPColors.verified)
+                          ? (isDisputed && i == activeIndex ? surface.dispute : surface.verified)
                           : surface.surfaceSunken,
                       border: Border.all(
-                        color: i == activeIndex ? LaMPColors.brand : Colors.transparent,
+                        color: i == activeIndex ? surface.brand : Colors.transparent,
                         width: 2,
                       ),
                     ),
                     child: Center(
                       child: i < activeIndex
-                          ? const Icon(Icons.check, size: 14, color: Colors.white)
+                          ? Icon(Icons.check, size: 14, color: surface.onBrand)
                           : Text(
                               '${i + 1}',
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
-                                color: i <= activeIndex ? Colors.white : surface.inkFaint,
+                                color: i <= activeIndex ? surface.onBrand : surface.inkFaint,
                               ),
                             ),
                     ),
@@ -96,7 +95,7 @@ class LifecycleRail extends StatelessWidget {
                   width: 24,
                   height: 2,
                   margin: const EdgeInsets.symmetric(horizontal: 8),
-                  color: i < activeIndex ? LaMPColors.verified : surface.surfaceSunken,
+                  color: i < activeIndex ? surface.verified : surface.surfaceSunken,
                 ),
             ],
           ],

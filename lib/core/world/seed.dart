@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import '../chain/crypto.dart';
 import '../chain/ledger.dart';
 import '../models/domain_models.dart';
@@ -153,6 +155,39 @@ class SeedData {
       licenceNo: 'DGDA-JS-0501338',
       since: DemoClock.demoEpoch - 220 * day,
     ),
+    Pharmacy(
+      did: 'did:lamp:pharmacy:alif-medicine',
+      name: 'Alif Medicine Corner',
+      ownerName: 'Rokeya Begum',
+      nameBn: 'আলিফ মেডিসিন কর্নার',
+      phone: '+8801534229087',
+      territory: 'Bogura Sadar',
+      address: 'Thanthania, Bogura',
+      licenceNo: 'DGDA-RB-0447012',
+      since: DemoClock.demoEpoch - 150 * day,
+    ),
+    Pharmacy(
+      did: 'did:lamp:pharmacy:janata-pharma',
+      name: 'Janata Pharma',
+      ownerName: 'Sohel Mahmud',
+      nameBn: 'জনতা ফার্মা',
+      phone: '+8801755690012',
+      territory: 'Rangpur',
+      address: 'Jahaj Company More, Rangpur',
+      licenceNo: 'DGDA-RP-0341882',
+      since: DemoClock.demoEpoch - 1100 * day,
+    ),
+    Pharmacy(
+      did: 'did:lamp:pharmacy:hilful-fujul',
+      name: 'Hilful Fujul Medical Store',
+      ownerName: 'Anwar Hossain',
+      nameBn: 'হিলফুল ফুজুল মেডিকেল স্টোর',
+      phone: '+8801399471250',
+      territory: 'Cumilla',
+      address: 'Chawkbazar, Cumilla',
+      licenceNo: 'DGDA-CM-0224419',
+      since: DemoClock.demoEpoch - 300 * day,
+    ),
   ];
 
   static final List<Mpo> mpos = [
@@ -250,11 +285,166 @@ class SeedData {
     ],
   );
 
+  /// Fixed so the world is the same on every run.
+  ///
+  /// The TypeScript seeder uses a mulberry32 keyed on 0x1a3f for the same
+  /// reason (`seed.ts:30-52`): a demo that reshuffles itself between takes
+  /// cannot be rehearsed against.
+  static const int _rngSeed = 0x1a3f;
+
+  /// A settled history for one of the pharmacies that is not the demo
+  /// counterparty, with the tier the chaincode would have earned it.
+  ///
+  /// The tier is derived rather than asserted, so this cannot drift away from
+  /// `LaMPContract._earnedTier`: 3 cycles is Building, 8 is Established, and
+  /// two or more late settlements cost a tier.
+  static CreditHistory _historyFor(String did, int now, Random rng) {
+    final cycleCount = 2 + rng.nextInt(8); // 2..9, as `seed.ts:495`
+    final cycles = <CreditCycle>[];
+    var onTime = 0;
+    var late = 0;
+
+    for (int i = 0; i < cycleCount; i++) {
+      final termsDays = const [30, 45, 60][rng.nextInt(3)];
+      final gap = 50 + rng.nextInt(21);
+      // Every settled cycle has to land wholly in the past: the chaincode
+      // refuses a settlement dated after the transaction recording it, and a
+      // seeded world is not exempt from that rule.
+      final issued = now - ((cycleCount - i) * gap + termsDays + 20) * day;
+      final due = issued + termsDays * day;
+      final isLate = rng.nextDouble() < 0.18;
+      final daysLate = isLate ? 3 + rng.nextInt(14) : 0;
+      final settled = isLate ? due + daysLate * day : due - (1 + rng.nextInt(4)) * day;
+
+      isLate ? late++ : onTime++;
+      cycles.add(CreditCycle(
+        tokenId: 'RCV-HIST-${did.hashCode.abs() % 1000}-$i',
+        invoiceId: 'INV-HIST-${did.hashCode.abs() % 1000}-$i',
+        value: (60000 + rng.nextInt(240000)).toDouble(),
+        dueDate: due,
+        settledAt: settled,
+        observedAt: settled,
+        onTime: !isLate,
+        daysLate: daysLate,
+      ));
+    }
+
+    var tier = cycleCount >= 16
+        ? RecourseTier.prime
+        : cycleCount >= 8
+            ? RecourseTier.established
+            : cycleCount >= 3
+                ? RecourseTier.building
+                : RecourseTier.newTier;
+    if (late >= 2 && tier != RecourseTier.newTier) {
+      tier = RecourseTier.values[tier.index - 1];
+    }
+
+    return CreditHistory(
+      pharmacyDid: did,
+      cycles: cycles,
+      tier: tier,
+      onTimeCount: onTime,
+      lateCount: late,
+      defaultCount: 0,
+    );
+  }
+
+  /// Build one consignment's invoice and its cartons.
+  ///
+  /// Serials carry the invoice number. The carton hash is taken over the GS1
+  /// payload, so two invoices minting an identical payload would let a carton
+  /// from one satisfy the other's membership test — which is the very check
+  /// the misrouted-carton beat exists to demonstrate (`seed.ts:149-153`).
+  static ({Invoice invoice, List<Carton> cartons}) _materialise({
+    required String invoiceId,
+    required String tokenId,
+    required String pharmacyDid,
+    required int cartonCount,
+    required int termsDays,
+    required int issuedAt,
+    required Random rng,
+  }) {
+    final kinds = 2 + rng.nextInt(2); // 2 or 3 SKUs
+    final chosen = <Product>[];
+    while (chosen.length < kinds) {
+      final candidate = products[rng.nextInt(products.length)];
+      if (!chosen.contains(candidate)) chosen.add(candidate);
+    }
+
+    // Spread the cartons across the chosen SKUs, remainder onto the first.
+    final per = cartonCount ~/ kinds;
+    final counts = List<int>.generate(
+      kinds,
+      (i) => i == 0 ? per + (cartonCount - per * kinds) : per,
+    );
+
+    final numeric = invoiceId.replaceAll(RegExp(r'\D'), '');
+    final lineItems = <LineItem>[];
+    final cartons = <Carton>[];
+    var serial = 1;
+
+    for (int i = 0; i < kinds; i++) {
+      final product = chosen[i];
+      final cartonsForSku = counts[i];
+      final quantity = cartonsForSku * product.unitsPerCarton;
+
+      lineItems.add(LineItem(
+        sku: product.sku,
+        name: product.name,
+        strength: product.strength,
+        quantity: quantity,
+        cartons: cartonsForSku,
+        unitPrice: product.unitPrice,
+        lineValue: (quantity * product.unitPrice).roundToDouble(),
+      ));
+
+      for (int c = 0; c < cartonsForSku; c++) {
+        final ser = '$numeric${serial.toString().padLeft(4, '0')}';
+        final batch = 'BCH-2026-${(1 + rng.nextInt(9)).toString().padLeft(2, '0')}';
+        final gs1 = GS1Barcode.encodeGs1(
+          gtin: product.gtin,
+          expiry: '280824',
+          batch: batch,
+          serial: ser,
+        );
+        cartons.add(Carton(
+          cartonId: '$invoiceId-${product.sku}-$ser',
+          gs1: gs1,
+          hash: LaMPCrypto.sha256Hex(gs1),
+          sku: product.sku,
+          batch: batch,
+          expiry: '2028-08-24',
+        ));
+        serial++;
+      }
+    }
+
+    final value = lineItems.fold<double>(0.0, (sum, l) => sum + l.lineValue);
+
+    return (
+      invoice: Invoice(
+        invoiceId: invoiceId,
+        tokenId: tokenId,
+        manufacturerId: manufacturer.id,
+        pharmacyDid: pharmacyDid,
+        lineItems: lineItems,
+        value: value,
+        termsDays: termsDays,
+        issuedAt: issuedAt,
+        dueDate: issuedAt + termsDays * day,
+        cartonCount: cartonCount,
+      ),
+      cartons: cartons,
+    );
+  }
+
   static Future<Map<String, dynamic>> buildWorld(LocalLedger ledger, DemoClock clock) async {
     ledger.clear();
     clock.reset();
 
     final now = clock.now;
+    final rng = Random(_rngSeed);
 
     // 1. Register Bank Curves
     await ledger.submit(
@@ -311,7 +501,25 @@ class SeedData {
       defaultCount: 0,
     );
 
-    // Write credit history directly into world state
+    // One historical cycle replayed through the chaincode, so the ledger opens
+    // with a completed lifecycle on it rather than only with mints.
+    //
+    // It is carried all the way to SETTLED. Left DELIVERED — as it was — it
+    // would now surface in every list that the screens derive: a year-old
+    // receivable sitting in the bank's financing queue and on the pharmacy's
+    // "what do I owe".
+    final histLineItems = [
+      LineItem(
+        sku: products[0].sku,
+        name: products[0].name,
+        strength: products[0].strength,
+        quantity: 5000,
+        cartons: 1,
+        unitPrice: products[0].unitPrice,
+        lineValue: 100000.0,
+      ),
+    ];
+
     await ledger.submit(
       fn: 'mintReceivable',
       args: {
@@ -324,24 +532,12 @@ class SeedData {
         'issuedAt': now - 350 * day,
         'dueDate': now - 305 * day,
         'cartonHashes': ['seed-hash-01'],
-        'lineItems': [
-          LineItem(
-            sku: products[0].sku,
-            name: products[0].name,
-            strength: products[0].strength,
-            quantity: 5000,
-            cartons: 1,
-            unitPrice: products[0].unitPrice,
-            lineValue: 6000.0,
-          ).toJson()
-        ],
+        'lineItems': histLineItems.map((l) => l.toJson()).toList(),
       },
       asMsp: Msp.manufacturerMSP,
       nowTimestamp: now - 350 * day,
     );
 
-    // Write the credit history with the full 7-cycle history directly
-    ledger.setWorldDirect('credit:$rahmanDid', creditHistory.toJson());
     await ledger.submit(
       fn: 'recordPoD',
       args: {
@@ -352,6 +548,153 @@ class SeedData {
       asMsp: Msp.manufacturerMSP,
       nowTimestamp: now - 349 * day,
     );
+
+    await ledger.submit(
+      fn: 'settle',
+      args: {
+        'tokenId': 'RCV-SEED-HIST',
+        'amount': 100000.0,
+        'method': 'Bank Transfer',
+        'paymentRef': 'BANKTRANSFER-100235',
+      },
+      asMsp: Msp.manufacturerMSP,
+      nowTimestamp: now - 307 * day,
+    );
+
+    seededInvoices.add(Invoice(
+      invoiceId: 'INV-SEED-HIST',
+      tokenId: 'RCV-SEED-HIST',
+      manufacturerId: manufacturer.id,
+      pharmacyDid: rahmanDid,
+      lineItems: histLineItems,
+      value: 100000.0,
+      termsDays: 45,
+      issuedAt: now - 350 * day,
+      dueDate: now - 305 * day,
+      cartonCount: 1,
+    ));
+
+    // The authoritative credit history goes in last.
+    //
+    // `settle` above appended its own cycle and recomputed the tier; the
+    // hand-written seven-cycle history is what the demo is built around, so it
+    // overwrites that rather than racing it.
+    ledger.setWorldDirect('credit:$rahmanDid', creditHistory.toJson());
+
+    // Everyone else, so the bank's tier bands and the regulator's distribution
+    // have something to render. Ported from `seed.ts:493-508`, but written
+    // straight to world state the way Rahman's is, rather than replayed.
+    for (int i = 1; i < pharmacies.length; i++) {
+      ledger.setWorldDirect(
+        'credit:${pharmacies[i].did}',
+        _historyFor(pharmacies[i].did, now, rng).toJson(),
+      );
+    }
+
+    // Invoices in flight at demo start.
+    //
+    // A few minted-but-undelivered and a few delivered-but-unfinanced, so the
+    // MPO's route, the bank's opportunity queue and the manufacturer's board
+    // each hold more than one row. Without these the screens have nothing to
+    // filter, which is what made a completed stop look "stuck" on the route
+    // and a financed invoice look like it never left the queue.
+    //
+    // Ported from `seed.ts:516-595`.
+    const inFlight = <({int pharmacyIndex, bool delivered})>[
+      (pharmacyIndex: 1, delivered: true),
+      (pharmacyIndex: 2, delivered: false),
+      (pharmacyIndex: 3, delivered: true),
+      (pharmacyIndex: 4, delivered: false),
+      (pharmacyIndex: 5, delivered: true),
+    ];
+
+    var invoiceNo = 200;
+    // The hero consignment is stop 1; these follow it on the route.
+    var sequence = 1;
+
+    for (final f in inFlight) {
+      invoiceNo += 1;
+      final invoiceId = 'INV-${invoiceNo.toString().padLeft(5, '0')}';
+      final tokenId = 'RCV-${invoiceNo.toString().padLeft(5, '0')}';
+      final pharmacy = pharmacies[f.pharmacyIndex];
+      final issuedAt = now - (3 + rng.nextInt(7)) * day;
+      final termsDays = rng.nextBool() ? 30 : 45;
+
+      final built = _materialise(
+        invoiceId: invoiceId,
+        tokenId: tokenId,
+        pharmacyDid: pharmacy.did,
+        cartonCount: 10 + rng.nextInt(15),
+        termsDays: termsDays,
+        issuedAt: issuedAt,
+        rng: rng,
+      );
+
+      await ledger.submit(
+        fn: 'mintReceivable',
+        args: {
+          'tokenId': tokenId,
+          'invoiceId': invoiceId,
+          'manufacturerId': manufacturer.id,
+          'buyerDid': pharmacy.did,
+          'declaredValue': built.invoice.value,
+          'termsDays': termsDays,
+          'issuedAt': issuedAt,
+          'dueDate': built.invoice.dueDate,
+          'cartonHashes': built.cartons.map((c) => c.hash).toList(),
+          'lineItems': built.invoice.lineItems.map((l) => l.toJson()).toList(),
+        },
+        asMsp: Msp.manufacturerMSP,
+        nowTimestamp: issuedAt,
+      );
+
+      seededInvoices.add(built.invoice);
+      sequence += 1;
+
+      if (f.delivered) {
+        final deliveredAt = issuedAt + day;
+        await ledger.submit(
+          fn: 'recordPoDBatch',
+          args: {
+            'tokenId': tokenId,
+            'cartonHashes': built.cartons.map((c) => c.hash).toList(),
+            'mpoSignature': 'sig:${mpos[0].deviceId}',
+          },
+          asMsp: Msp.manufacturerMSP,
+          nowTimestamp: deliveredAt,
+        );
+
+        for (final carton in built.cartons) {
+          carton.scannedAt = deliveredAt;
+        }
+
+        seededDeliveries.add(Delivery(
+          id: 'del-$tokenId',
+          invoiceId: invoiceId,
+          tokenId: tokenId,
+          mpoId: mpos[0].id,
+          pharmacyDid: pharmacy.did,
+          status: DeliveryStatus.completed,
+          sequence: sequence,
+          cartons: built.cartons,
+          startedAt: deliveredAt,
+          completedAt: deliveredAt + 38 * 60 * 1000,
+          signatureRef: 'offchain://signatures/$tokenId.png',
+        ));
+      } else {
+        seededDeliveries.add(Delivery(
+          id: 'del-$tokenId',
+          invoiceId: invoiceId,
+          tokenId: tokenId,
+          mpoId: mpos[0].id,
+          pharmacyDid: pharmacy.did,
+          status: DeliveryStatus.pending,
+          sequence: sequence,
+          cartons: built.cartons,
+          startedAt: issuedAt,
+        ));
+      }
+    }
 
     // 3. Create the Main Demo Consignment: INV-00235
     // 25 cartons for Rahman Medical Hall

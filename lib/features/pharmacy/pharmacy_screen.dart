@@ -8,6 +8,7 @@ import '../../core/constants/palette.dart';
 import '../../core/constants/typography.dart';
 import '../../core/models/domain_models.dart';
 import '../../core/state/lamp_state.dart';
+import '../../core/world/queries.dart';
 import '../../core/world/seed.dart';
 import '../../widgets/credit_ring.dart';
 import '../../widgets/demo_director_sheet.dart';
@@ -40,9 +41,36 @@ class PharmacyScreen extends StatefulWidget {
 class _PharmacyScreenState extends State<PharmacyScreen> {
   int _tab = 0;
   String _payMethod = 'bKash';
-  bool _justUpgraded = false;
 
-  static const _invoiceAmount = 182400.0;
+  /// Set after a settlement that moved the counterparty up a tier.
+  ///
+  /// Was a `bool` behind the literal line "Now Established · 85% advance",
+  /// which is what the banner said whatever tier you were actually on — and
+  /// it never cleared, so it stayed up for the rest of the session.
+  String? _upgradeCaption;
+
+  /// Which receivable the Pay tab is settling.
+  ///
+  /// Null means "whichever is due first". The screen used to settle
+  /// `state.demoTokenId` no matter what was on screen.
+  String? _payTokenId;
+
+  /// The receivables this pharmacy still owes, nearest due date first.
+  List<TokenView> _open(LaMPState state) =>
+      state.openForPharmacy(SeedData.pharmacies[0].did);
+
+  /// The one the Pay tab acts on: the chosen invoice if it is still payable,
+  /// otherwise the first that is.
+  TokenView? _payable(LaMPState state) {
+    final open = _open(state);
+    for (final v in open) {
+      if (v.tokenId == _payTokenId && v.token.isPayable) return v;
+    }
+    for (final v in open) {
+      if (v.token.isPayable) return v;
+    }
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -56,7 +84,9 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
     final state = context.watch<LaMPState>();
     final c = context.lamp;
     final pharmacy = SeedData.pharmacies[0];
-    final credit = state.creditHistory;
+    // Read the pharmacy's own key off the ledger rather than the single
+    // cached history, which only ever held the demo counterparty's.
+    final credit = state.creditFor(pharmacy.did) ?? state.creditHistory;
 
     if (credit == null) {
       // The world is still seeding. A skeleton in the shape of this screen
@@ -160,11 +190,17 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
 
   Widget _dashboard(BuildContext context, LaMPState state, CreditHistory credit) {
     final c = context.lamp;
+    final open = _open(state);
+    final owed = open.fold<double>(
+      0.0,
+      (sum, TokenView v) => sum + v.token.declaredValue,
+    );
+    final recent = state.forPharmacy(SeedData.pharmacies[0].did).take(5).toList();
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.lg, Gap.lg, Gap.xxl),
       children: [
-        if (_justUpgraded) ...[
+        if (_upgradeCaption != null) ...[
           LampCard(
             background: c.verifiedSoft,
             border: c.verified,
@@ -184,7 +220,7 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
                         ),
                       ),
                       Text(
-                        'Now Established · 85% advance',
+                        _upgradeCaption!,
                         style: LaMPType.caption.copyWith(color: c.inkMuted),
                       ),
                     ],
@@ -257,47 +293,195 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
         const SizedBox(height: Gap.xl),
 
         const LampSectionHeader(title: 'Due now'),
-        LampCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      state.demoInvoiceId,
-                      style: LaMPType.monoBody.copyWith(
-                        color: c.ink,
-                        fontWeight: FontWeight.w600,
+        _dueNowCard(context, open.isEmpty ? null : open.first),
+
+        if (open.isNotEmpty) ...[
+          const SizedBox(height: Gap.md),
+          LampKeyValue(
+            label: 'Total outstanding',
+            value: LaMPFormatters.formatBDT(owed),
+            mono: true,
+          ),
+        ],
+
+        const SizedBox(height: Gap.xl),
+        const LampSectionHeader(title: 'Recent deliveries'),
+        if (recent.isEmpty)
+          Text(
+            'Nothing delivered yet.',
+            style: LaMPType.small.copyWith(color: c.inkFaint),
+          )
+        else
+          for (final v in recent) ...[
+            _recentRow(context, v),
+            const SizedBox(height: Gap.sm),
+          ],
+      ],
+    );
+  }
+
+  /// One past or in-flight consignment.
+  ///
+  /// This is where a settled invoice goes when it leaves "Due now" — without
+  /// it, paying makes the invoice vanish with nothing to show it landed.
+  Widget _recentRow(BuildContext context, TokenView v) {
+    final c = context.lamp;
+    final token = v.token;
+    final tone = switch (token.state) {
+      TokenState.settled => LampTone.verified,
+      TokenState.disputed => LampTone.dispute,
+      TokenState.financed => LampTone.chain,
+      TokenState.delivered => LampTone.verified,
+      _ => LampTone.neutral,
+    };
+
+    return LampCard(
+      padding: const EdgeInsets.all(Gap.md),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        token.invoiceId,
+                        style: LaMPType.monoCaption.copyWith(
+                          color: c.ink,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                    const SizedBox(width: Gap.sm),
+                    LampChip(label: token.state.label, tone: tone),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${LaMPFormatters.formatDate(token.issuedAt)} · '
+                  '${token.declaredCartons} cartons',
+                  style: LaMPType.micro.copyWith(color: c.inkFaint),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: Gap.sm),
+          Text(
+            LaMPFormatters.formatBDTCompact(token.declaredValue),
+            style: LaMPType.monoCaption.copyWith(color: c.ink),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// "Due now" — the next receivable this pharmacy owes, or the empty state.
+  ///
+  /// Two rules, both the chaincode's rather than this screen's:
+  ///
+  ///   * a settled receivable is not owed, so it is not in [open] at all; and
+  ///   * `settle` accepts DELIVERED or FINANCED and nothing else, so the
+  ///     payment CTA only appears once the goods have actually been recorded
+  ///     as delivered on the ledger.
+  ///
+  /// The screen used to show **Pay now** against a CREATED receivable — a bill
+  /// for goods nobody had delivered — and to treat FINANCED as "nothing to
+  /// pay", which it is not: the bank advances against the receivable to the
+  /// manufacturer, and the pharmacy still owes the full amount.
+  Widget _dueNowCard(BuildContext context, TokenView? next) {
+    final c = context.lamp;
+
+    if (next == null) {
+      return LampCard(
+        background: c.verifiedSoft,
+        border: c.verified,
+        child: Row(
+          children: [
+            Icon(Icons.check_circle_outline, size: IconSize.lg, color: c.verified),
+            const SizedBox(width: Gap.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Nothing outstanding',
+                    style: LaMPType.sub.copyWith(
+                      color: c.ink,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                  const LampChip(label: 'Due in 45 days', tone: LampTone.pending),
+                  Text(
+                    'Every invoice on this counter has settled',
+                    style: LaMPType.caption.copyWith(color: c.inkMuted),
+                  ),
                 ],
               ),
-              const SizedBox(height: Gap.md),
-              LampKeyValue(
-                label: 'Amount',
-                value: LaMPFormatters.formatBDT(_invoiceAmount),
-                valueColor: c.brand,
-                mono: true,
-              ),
-              LampKeyValue(
-                label: 'Supplier',
-                value: 'Shomota Pharmaceuticals',
-              ),
-              const SizedBox(height: Gap.md),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => setState(() => _tab = 2),
-                  child: const Text('Pay now'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final state = context.read<LaMPState>();
+    final token = next.token;
+    final overdue = token.dueDate < state.now;
+
+    return LampCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  token.invoiceId,
+                  style: LaMPType.monoBody.copyWith(
+                    color: c.ink,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
+              ),
+              LampChip(
+                label: LaMPFormatters.formatDaysUntil(token.dueDate, state.now),
+                tone: overdue ? LampTone.dispute : LampTone.pending,
               ),
             ],
           ),
-        ),
-      ],
+          const SizedBox(height: Gap.md),
+          LampKeyValue(
+            label: 'Amount',
+            value: LaMPFormatters.formatBDT(token.declaredValue),
+            valueColor: c.brand,
+            mono: true,
+          ),
+          LampKeyValue(
+            label: 'Supplier',
+            value: SeedData.manufacturer.name,
+          ),
+          const SizedBox(height: Gap.md),
+          if (token.isPayable)
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => setState(() {
+                  _payTokenId = token.tokenId;
+                  _tab = 2;
+                }),
+                child: const Text('Pay now'),
+              ),
+            )
+          else
+            Text(
+              token.state == TokenState.disputed
+                  ? 'Resolve the dispute before settling.'
+                  : 'Payable once the delivery is confirmed on the ledger.',
+              style: LaMPType.caption.copyWith(color: c.inkMuted),
+            ),
+        ],
+      ),
     );
   }
 
@@ -390,6 +574,57 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
 
   Widget _pay(BuildContext context, LaMPState state) {
     final c = context.lamp;
+    final target = _payable(state);
+    final open = _open(state);
+
+    if (target == null) {
+      // Nothing the chaincode would accept. Say which of the two reasons it
+      // is, rather than offering a button that will be refused.
+      final waiting = open.isNotEmpty;
+      return ListView(
+        padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.lg, Gap.lg, Gap.xxl),
+        children: [
+          LampCard(
+            background: waiting ? c.pendingSoft : c.verifiedSoft,
+            border: waiting ? c.pending : c.verified,
+            child: Row(
+              children: [
+                Icon(
+                  waiting ? Icons.schedule : Icons.check_circle_outline,
+                  size: IconSize.lg,
+                  color: waiting ? c.pending : c.verified,
+                ),
+                const SizedBox(width: Gap.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        waiting ? 'Not payable yet' : 'Nothing to settle',
+                        style: LaMPType.sub.copyWith(
+                          color: c.ink,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(
+                        waiting
+                            ? '${open.first.token.invoiceId} is '
+                                '${open.first.token.state.label.toLowerCase()}. '
+                                'Payable once the delivery is confirmed.'
+                            : 'Every invoice on this counter has settled',
+                        style: LaMPType.caption.copyWith(color: c.inkMuted),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    final token = target.token;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.lg, Gap.lg, Gap.xxl),
@@ -402,15 +637,29 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
               const SizedBox(height: Gap.md),
               LampKeyValue(
                 label: 'Invoice',
-                value: state.demoInvoiceId,
+                value: token.invoiceId,
                 mono: true,
               ),
               LampKeyValue(
                 label: 'Amount',
-                value: LaMPFormatters.formatBDT(_invoiceAmount),
+                value: LaMPFormatters.formatBDT(token.declaredValue),
                 valueColor: c.brand,
                 mono: true,
               ),
+              LampKeyValue(
+                label: 'Due',
+                value: LaMPFormatters.formatDate(token.dueDate),
+              ),
+              // A financed receivable is still the pharmacy's to pay. Saying so
+              // here stops the advance from reading as a discharge.
+              if (token.state == TokenState.financed) ...[
+                const SizedBox(height: Gap.sm),
+                Text(
+                  'A bank has advanced against this receivable. The amount '
+                  'owed is unchanged.',
+                  style: LaMPType.caption.copyWith(color: c.inkMuted),
+                ),
+              ],
             ],
           ),
         ),
@@ -427,11 +676,11 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
-            onPressed: () => _executePayment(state, _invoiceAmount),
-            // The button said "Confirm & Pay ৳1,82,400 via bKash" — seventy-
-            // seven characters wrapping onto two lines. The amount and the
-            // method are both on the card directly above it.
-            child: Text('Pay ${LaMPFormatters.formatBDT(_invoiceAmount)}'),
+            onPressed: () => _executePayment(state, target),
+            // The button carried the amount and the method as well, at
+            // seventy-seven characters over two lines. Both are on the card
+            // directly above it.
+            child: Text('Pay ${LaMPFormatters.formatBDT(token.declaredValue)}'),
           ),
         ),
       ],
@@ -480,7 +729,7 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
     );
   }
 
-  Future<void> _executePayment(LaMPState state, double amount) async {
+  Future<void> _executePayment(LaMPState state, TokenView target) async {
     showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -495,20 +744,48 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
       ),
     );
 
-    final res = await state.settleReceivable(state.demoTokenId, amount, _payMethod);
+    final res = await state.settleReceivable(
+      target.tokenId,
+      target.token.declaredValue,
+      _payMethod,
+    );
 
     if (!mounted) return;
     Navigator.of(context).pop();
 
-    setState(() => _justUpgraded = res.ok);
+    setState(() {
+      _payTokenId = null;
+      _upgradeCaption = res.ok ? _upgradeFrom(res.result) : null;
+      if (res.ok) _tab = 0;
+    });
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(res.ok ? 'Settled. Cycle recorded.' : (res.error ?? 'Refused')),
       ),
     );
+  }
 
-    if (res.ok) setState(() => _tab = 0);
+  /// The banner line for a settlement, or null when the tier did not move.
+  ///
+  /// `settle` returns the tier either side of the cycle it just recorded, so
+  /// the banner states what actually happened rather than one fixed sentence.
+  /// The advance figure is Meghna's band for the new tier, which is the curve
+  /// the recourse dial on the Credit tab draws.
+  String? _upgradeFrom(dynamic result) {
+    if (result is! Map) return null;
+    final before = result['tierBefore'];
+    final after = result['tierAfter'];
+    if (before is! RecourseTier || after is! RecourseTier) return null;
+    if (before == after) return null;
+
+    for (final band in SeedData.meghnaCurve.bands) {
+      if (band.tier == after) {
+        return 'Now ${after.label} - '
+            '${band.advanceRatePct.toStringAsFixed(0)}% advance';
+      }
+    }
+    return 'Now ${after.label}';
   }
 
   /* ---------------------------------------------------------------------- */
@@ -540,9 +817,11 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
                     foregroundColor: Colors.white,
                   ),
                   onPressed: () async {
+                    final open = _open(state);
+                    if (open.isEmpty) return;
                     await state.raiseDispute(
-                      state.demoTokenId,
-                      'Damaged seals reported by Rahman Medical Hall',
+                      open.first.tokenId,
+                      'Damaged seals reported by ${SeedData.pharmacies[0].name}',
                     );
                     if (!context.mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
