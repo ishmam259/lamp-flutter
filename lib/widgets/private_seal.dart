@@ -42,26 +42,36 @@ class PrivateSeal extends StatelessWidget {
                 ),
               ),
             ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: c.verified.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.lock_open, size: 12, color: c.verified),
-                  const SizedBox(width: 4),
-                  Text(
-                    'visible to $memberName',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: c.verified,
+            const SizedBox(width: Gap.sm),
+            // Flexible, because the member name is data: 'Bangladesh Bank ·
+            // DGDA' is twice the width of 'Meghna' and this badge had no way
+            // to give any of it back.
+            Flexible(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: c.verified.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(LaMPRadius.control),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.lock_open, size: 12, color: c.verified),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        'visible to $memberName',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: c.verified,
+                        ),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../core/constants/palette.dart';
 import '../../core/constants/typography.dart';
+import '../../core/design/luma_elevation.dart';
+import '../../core/design/luma_press.dart';
 
 /// The shared component set.
 ///
@@ -17,13 +19,31 @@ import '../../core/constants/typography.dart';
 /* -------------------------------------------------------------------------- */
 
 /// The standard content surface.
+///
+/// Two things changed here on this branch, and both are Luma's.
+///
+/// The press is a transform now, not a ripple. A ripple on a card 340dp wide
+/// takes most of a second to cross it, so the acknowledgement lands well after
+/// the finger has already lifted; a 2.5% squeeze lands on contact. See
+/// [LumaPress] for the rest of that argument.
+///
+/// The shadow is layered rather than single — see [LumaElevation]. A card at
+/// rest now casts something, which is what separates it from the page when the
+/// hairline border is the same value as the background in dark mode.
 class LampCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry? padding;
   final VoidCallback? onTap;
   final Color? background;
   final Color? border;
+
+  /// The card that is the point of the screen. One per view, or the word
+  /// stops meaning anything.
   final bool raised;
+
+  /// Drops the shadow entirely, for a card nested inside another card where a
+  /// cast would read as a rendering mistake.
+  final bool flat;
 
   const LampCard({
     super.key,
@@ -33,6 +53,7 @@ class LampCard extends StatelessWidget {
     this.background,
     this.border,
     this.raised = false,
+    this.flat = false,
   });
 
   @override
@@ -46,25 +67,21 @@ class LampCard extends StatelessWidget {
         color: background ?? c.surface,
         borderRadius: radius,
         border: Border.all(color: border ?? c.line),
-        // Tinted to the ground rather than neutral black, so a card lifts off
-        // the page instead of looking like it is sitting in a puddle.
-        boxShadow: raised
-            ? [BoxShadow(color: c.shadow, blurRadius: 24, offset: const Offset(0, 8))]
-            : null,
+        boxShadow: flat
+            ? LumaElevation.none
+            : raised
+                ? LumaElevation.raised(context)
+                : LumaElevation.rest(context),
       ),
       child: child,
     );
 
     if (onTap == null) return content;
 
-    return Material(
-      color: Colors.transparent,
+    return LumaPress(
+      onTap: onTap,
       borderRadius: radius,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: radius,
-        child: content,
-      ),
+      child: content,
     );
   }
 }
@@ -164,8 +181,11 @@ class LampChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: Gap.sm, vertical: 4),
       decoration: BoxDecoration(
+        // Pill, not a rounded rectangle. A badge that shares its corner radius
+        // with the buttons around it invites a tap it will not answer; the
+        // shape is doing the affordance work here.
         color: tone.bg(context),
-        borderRadius: BorderRadius.circular(LaMPRadius.control),
+        borderRadius: BorderRadius.circular(LaMPRadius.pill),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -461,7 +481,7 @@ class LampProgress extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.lamp;
     return ClipRRect(
-      borderRadius: BorderRadius.circular(999),
+      borderRadius: BorderRadius.circular(LaMPRadius.pill),
       child: LinearProgressIndicator(
         value: value.clamp(0.0, 1.0),
         minHeight: 6,

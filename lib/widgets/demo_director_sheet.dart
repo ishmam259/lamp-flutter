@@ -4,6 +4,9 @@ import 'package:provider/provider.dart';
 import '../core/constants/formatters.dart';
 import '../core/constants/palette.dart';
 import '../core/constants/typography.dart';
+import '../core/design/luma_press.dart';
+import '../core/design/luma_toast.dart';
+import '../core/design/luma_sheet.dart';
 import '../core/state/lamp_state.dart';
 
 /// The controls that drive a demo: move the clock, jump to a seat, start over.
@@ -17,10 +20,8 @@ class DemoDirectorSheet extends StatelessWidget {
   const DemoDirectorSheet({super.key});
 
   static void show(BuildContext context) {
-    showModalBottomSheet<void>(
+    LumaSheet.showOwnShell<void>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (_) => const DemoDirectorSheet(),
     );
   }
@@ -30,126 +31,85 @@ class DemoDirectorSheet extends StatelessWidget {
     final state = context.watch<LaMPState>();
     final c = context.lamp;
 
-    return Container(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.85,
-      ),
-      decoration: BoxDecoration(
-        color: c.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(LaMPRadius.surface)),
-        border: Border(top: BorderSide(color: c.lineStrong)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+    // Grabber, header and height ceiling all come from the shell now. What
+    // this sheet had instead: its own 36x4 handle, its own title Row, and its
+    // own `0.85 * size.height` cap — which measured the *window* rather than
+    // the visible area, so the reset button went under the keyboard the
+    // moment anything in here took focus.
+    return LumaSheetShell(
+      title: 'Demo controls',
+      subtitle: LaMPFormatters.formatDateTime(state.now),
+      child: ListView(
+        shrinkWrap: true,
+        padding: const EdgeInsets.fromLTRB(Gap.xl, Gap.lg, Gap.xl, Gap.xl),
         children: [
-          // The handle and the title stay put; everything under them scrolls.
-          Padding(
-            padding: const EdgeInsets.fromLTRB(Gap.xl, Gap.md, Gap.xl, 0),
-            child: Column(
-              children: [
-                Container(
-                  width: 36,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: c.lineStrong,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(height: Gap.lg),
-                Row(
-                  children: [
-                    Icon(Icons.tune, color: c.brand, size: IconSize.md),
-                    const SizedBox(width: Gap.sm),
-                    Expanded(
-                      child: Text(
-                        'Demo controls',
-                        style: LaMPType.head.copyWith(color: c.ink),
-                      ),
-                    ),
-                    Text(
-                      LaMPFormatters.formatDateTime(state.now),
-                      style: LaMPType.monoCaption.copyWith(color: c.inkFaint),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: Gap.md),
-                Divider(color: c.line, height: 1),
-              ],
+          Text(
+            'Move the clock',
+            style: LaMPType.caption.copyWith(
+              color: c.inkFaint,
+              fontWeight: FontWeight.w600,
             ),
           ),
-
-          Flexible(
-            child: ListView(
-              shrinkWrap: true,
-              padding: const EdgeInsets.fromLTRB(Gap.xl, Gap.lg, Gap.xl, Gap.xl),
-              children: [
-                Text(
-                  'Move the clock',
-                  style: LaMPType.caption.copyWith(
-                    color: c.inkFaint,
-                    fontWeight: FontWeight.w600,
-                  ),
+          const SizedBox(height: Gap.sm),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => _advance(context, state, hours: 24),
+                  child: const Text('+24 hours'),
                 ),
-                const SizedBox(height: Gap.sm),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => _advance(context, state, hours: 24),
-                        child: const Text('+24 hours'),
-                      ),
-                    ),
-                    const SizedBox(width: Gap.md),
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => _advance(context, state, days: 30),
-                        child: const Text('+30 days'),
-                      ),
-                    ),
-                  ],
+              ),
+              const SizedBox(width: Gap.md),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => _advance(context, state, days: 30),
+                  child: const Text('+30 days'),
                 ),
+              ),
+            ],
+          ),
 
-                const SizedBox(height: Gap.xl),
-                Text(
-                  'Jump to a seat',
-                  style: LaMPType.caption.copyWith(
-                    color: c.inkFaint,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: Gap.sm),
+          const SizedBox(height: Gap.xl),
+          Text(
+            'Jump to a seat',
+            style: LaMPType.caption.copyWith(
+              color: c.inkFaint,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: Gap.sm),
 
-                // The subtitles used to narrate the whole beat — "Execute
-                // Meghna financing & reject Padma duplicate attempt" was
-                // fifty-six characters. The person reading this wrote the
-                // shot list.
-                _Scene(n: '1', title: 'Manufacturer', note: 'Mint', persona: PersonaId.manufacturer),
-                _Scene(n: '2', title: 'Delivery officer', note: 'Scan', persona: PersonaId.mpo),
-                _Scene(n: '3', title: 'Bank', note: 'Finance', persona: PersonaId.bank),
-                _Scene(n: '4', title: 'Pharmacy', note: 'Settle', persona: PersonaId.pharmacy),
-                _Scene(n: '5', title: 'Regulator', note: 'Audit', persona: PersonaId.regulator),
+          // The subtitles used to narrate the whole beat — "Execute
+          // Meghna financing & reject Padma duplicate attempt" was
+          // fifty-six characters. The person reading this wrote the
+          // shot list.
+          _Scene(n: '1', title: 'Manufacturer', note: 'Mint', persona: PersonaId.manufacturer),
+          _Scene(n: '2', title: 'Delivery officer', note: 'Scan', persona: PersonaId.mpo),
+          _Scene(n: '3', title: 'Bank', note: 'Finance', persona: PersonaId.bank),
+          _Scene(n: '4', title: 'Pharmacy', note: 'Settle', persona: PersonaId.pharmacy),
+          _Scene(n: '5', title: 'Regulator', note: 'Audit', persona: PersonaId.regulator),
 
-                const SizedBox(height: Gap.lg),
-                Divider(color: c.line, height: 1),
-                const SizedBox(height: Gap.sm),
+          const SizedBox(height: Gap.lg),
+          Divider(color: c.line, height: 1),
+          const SizedBox(height: Gap.sm),
 
-                SizedBox(
-                  width: double.infinity,
-                  child: TextButton.icon(
-                    style: TextButton.styleFrom(foregroundColor: c.dispute),
-                    onPressed: () async {
-                      await state.resetWorld();
-                      if (!context.mounted) return;
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('World reset')),
-                      );
-                    },
-                    icon: const Icon(Icons.refresh, size: IconSize.sm),
-                    label: const Text('Reset world'),
-                  ),
-                ),
-              ],
+          SizedBox(
+            width: double.infinity,
+            child: TextButton.icon(
+              style: TextButton.styleFrom(foregroundColor: c.dispute),
+              onPressed: () async {
+                await state.resetWorld();
+                if (!context.mounted) return;
+                Navigator.pop(context);
+                LumaHaptics.confirm();
+                LumaToast.show(
+                  context,
+                  'World reset',
+                  icon: Icons.restart_alt,
+                );
+              },
+              icon: const Icon(Icons.refresh, size: IconSize.sm),
+              label: const Text('Reset world'),
             ),
           ),
         ],
@@ -161,8 +121,12 @@ class DemoDirectorSheet extends StatelessWidget {
     if (hours > 0) state.advanceHours(hours);
     if (days > 0) state.advanceDays(days);
     Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(days > 0 ? 'Clock +${days}d' : 'Clock +${hours}h')),
+    LumaHaptics.select();
+    LumaToast.show(
+      context,
+      days > 0 ? 'Clock +${days}d' : 'Clock +${hours}h',
+      icon: Icons.schedule,
+      tone: LumaToastTone.pending,
     );
   }
 }

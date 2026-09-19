@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_theme.dart';
 import '../../core/constants/palette.dart';
+import '../../core/design/luma_frost.dart';
 import '../../core/constants/formatters.dart';
 import '../../core/models/domain_models.dart';
 import '../../core/state/lamp_state.dart';
@@ -9,8 +10,8 @@ import '../../core/world/seed.dart';
 import '../../widgets/demo_director_sheet.dart';
 import '../../widgets/ledger_inspector_sheet.dart';
 import '../../widgets/recourse_dial.dart';
+import '../../widgets/theme_toggle.dart';
 import '../../widgets/ui/lamp_ui.dart';
-import '../../widgets/lamp_mark.dart';
 import '../../core/constants/typography.dart';
 
 class BankScreen extends StatefulWidget {
@@ -57,95 +58,59 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
     final c = context.lamp;
 
     return Scaffold(
-        appBar: AppBar(
-          backgroundColor: c.surface,
-          elevation: 1,
-          leading: IconButton(
-            icon: Icon(Icons.arrow_back, color: c.ink),
-            onPressed: widget.onBackToLauncher,
-            tooltip: 'All Personas',
-          ),
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const LampMark(size: 20),
-                  const SizedBox(width: 8),
-                  // The seat switcher in `actions` already names the bank, and
-                  // naming it here too left neither with room — the title, the
-                  // MSP chip and the dropdown were overlapping each other.
-                  // Expanded, not Flexible: loose fit lets the text keep its
-                  // natural width and overflow by 13, where tight fit makes it
-                  // take exactly what is left.
-                  Expanded(
-                    child: Text(
-                      'Financing',
-                      maxLines: 1,
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: c.ink),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  // The MSP chip lived here too, and between it, the title and
-                  // the seat switcher there was no room left — Flexible gave
-                  // the title zero width and it vanished entirely. The switcher
-                  // names the bank; one identifier in the bar is enough.
-                ],
-              ),
-              Text(
-                'Consortium endorser',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 11, color: c.inkFaint),
-              ),
+      extendBodyBehindAppBar: true,
+      // One bar for all five seats — see `LumaAppBar`. This one used to set
+      // `elevation: 1`, which gave it a drop shadow no other screen had; the
+      // separation is now a hairline under glass, and the content scrolls
+      // visibly beneath it.
+      appBar: LumaAppBar(
+        title: 'Financing',
+        subtitle: 'Consortium endorser',
+        onBack: widget.onBackToLauncher,
+        actions: [
+          const ThemeToggle(),
+          // Which bank's seat this is. An inline dropdown spelled the name
+          // out in the bar and took about 140dp of a 360dp phone, leaving
+          // the title less room than its own leading mark needed. A menu
+          // costs one tap and holds the same two choices.
+          PopupMenuButton<Msp>(
+            tooltip: 'Switch seat',
+            initialValue: _activeBank,
+            onSelected: (v) => setState(() => _activeBank = v),
+            icon: const Icon(Icons.swap_horiz),
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: Msp.meghnaMSP, child: Text('Meghna Bank')),
+              PopupMenuItem(value: Msp.padmaMSP, child: Text('Padma Bank')),
             ],
           ),
-          actions: [
-            // Which bank's seat this is. An inline dropdown spelled the name
-            // out in the bar and took about 140dp of a 360dp phone, leaving
-            // the title less room than its own leading mark needed. A menu
-            // costs one tap and holds the same two choices.
-            PopupMenuButton<Msp>(
-              tooltip: 'Switch seat',
-              initialValue: _activeBank,
-              onSelected: (v) => setState(() => _activeBank = v),
-              icon: const Icon(Icons.swap_horiz),
-              itemBuilder: (_) => const [
-                PopupMenuItem(value: Msp.meghnaMSP, child: Text('Meghna Bank')),
-                PopupMenuItem(value: Msp.padmaMSP, child: Text('Padma Bank')),
-              ],
-            ),
-            IconButton(
-              tooltip: 'Ledger Inspector',
-              icon: Icon(Icons.account_tree_outlined, color: c.verified),
-              onPressed: () => LedgerInspectorSheet.show(context),
-            ),
-            IconButton(
-              tooltip: 'Demo Director',
-              icon: Icon(Icons.movie_filter_outlined, color: c.brand),
-              onPressed: () => DemoDirectorSheet.show(context),
-            ),
-            const SizedBox(width: 8),
+          IconButton(
+            tooltip: 'Ledger',
+            icon: Icon(Icons.account_tree_outlined, color: c.inkMuted),
+            onPressed: () => LedgerInspectorSheet.show(context),
+          ),
+          IconButton(
+            tooltip: 'Demo controls',
+            icon: Icon(Icons.tune, color: c.inkMuted),
+            onPressed: () => DemoDirectorSheet.show(context),
+          ),
+        ],
+        // Colours come from `tabBarTheme` now; the three screens that had a
+        // TabBar were each setting the same three by hand.
+        bottom: TabBar(
+          controller: _tabController,
+          isScrollable: true,
+          tabs: const [
+            Tab(text: 'Financing'),
+            Tab(text: 'Rate curve'),
+            Tab(text: 'Portfolio'),
           ],
-          bottom: TabBar(
-            controller: _tabController,
-            isScrollable: true,
-            labelColor: c.brand,
-            unselectedLabelColor: c.inkFaint,
-            indicatorColor: c.brand,
-            tabs: const [
-              Tab(text: "Financing Opportunities"),
-              Tab(text: "Rate Curve & Tiers"),
-              Tab(text: "Portfolio Overview"),
-            ],
-          ),
         ),
-        body: SafeArea(
-          // Android draws its gesture bar over the bottom of the window.
-          // Without this the last row of every list sits underneath it.
-          // Top is already handled by the AppBar.
-          top: false,
-          child: TabBarView(
+      ),
+        // The Builder is load-bearing: under it, `MediaQuery.padding.top`
+        // carries the height of the bar and its tab strip, which is what
+        // `lumaScrollPadding` reads in each tab below.
+        body: Builder(
+          builder: (context) => TabBarView(
             controller: _tabController,
             children: [
               _buildOpportunitiesTab(context, state, delivery),
@@ -168,7 +133,7 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
     final disputeWindowClosed = (delivery?.status == DeliveryStatus.completed);
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: lumaScrollPadding(context, top: Gap.lg),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 800),
@@ -422,7 +387,7 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
   Widget _buildRateCurveTab(BuildContext context, LaMPState state) {
     final c = context.lamp;
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: lumaScrollPadding(context, top: Gap.lg),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 800),
@@ -464,7 +429,7 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
   Widget _buildPortfolioTab(BuildContext context, LaMPState state) {
     final c = context.lamp;
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: lumaScrollPadding(context, top: Gap.lg),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 800),

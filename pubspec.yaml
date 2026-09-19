@@ -66,17 +66,16 @@ flutter:
   assets:
     - assets/images/
 
+  # IBM Plex Sans is deliberately no longer registered. The interface face is
+  # now the platform's own — San Francisco, Segoe UI, Roboto — which is what
+  # Luma does and why their text matches the OS chrome around it. The .ttf
+  # files are still in assets/fonts so reverting is a four-line change; they
+  # are simply not bundled, which takes ~330 KB off the shipped app.
+  #
+  # Mono stays bundled: a ledger's money and hashes have to line up in a
+  # column, and the system monospace is Courier on one platform and absent on
+  # another. Bengali stays for the same reason as before — the taka sign.
   fonts:
-    - family: IBMPlexSans
-      fonts:
-        - asset: assets/fonts/IBMPlexSans-Regular.ttf
-          weight: 400
-        - asset: assets/fonts/IBMPlexSans-Medium.ttf
-          weight: 500
-        - asset: assets/fonts/IBMPlexSans-SemiBold.ttf
-          weight: 600
-        - asset: assets/fonts/IBMPlexSans-Bold.ttf
-          weight: 700
     - family: IBMPlexMono
       fonts:
         - asset: assets/fonts/IBMPlexMono-Regular.ttf

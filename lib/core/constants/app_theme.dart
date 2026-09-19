@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../design/luma_motion.dart';
 import 'palette.dart';
 import 'typography.dart';
 
@@ -28,6 +29,21 @@ class LaMPTheme {
       dividerColor: p.line,
       splashFactory: InkSparkle.splashFactory,
 
+      // Every route change in the app is the same rise-and-fade, on every
+      // platform, because a seat swap should read as the same surface
+      // continuing rather than as Android's zoom on one device and iOS's
+      // horizontal push on another.
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: <TargetPlatform, PageTransitionsBuilder>{
+          TargetPlatform.android: LumaPageTransitions(),
+          TargetPlatform.iOS: LumaPageTransitions(),
+          TargetPlatform.macOS: LumaPageTransitions(),
+          TargetPlatform.windows: LumaPageTransitions(),
+          TargetPlatform.linux: LumaPageTransitions(),
+          TargetPlatform.fuchsia: LumaPageTransitions(),
+        },
+      ),
+
       colorScheme: (brightness == Brightness.dark
               ? const ColorScheme.dark()
               : const ColorScheme.light())
@@ -49,7 +65,10 @@ class LaMPTheme {
       textTheme: LaMPType.textTheme(p.ink, p.inkMuted),
 
       appBarTheme: AppBarTheme(
-        backgroundColor: p.surface,
+        // Transparent by default now: `LumaAppBar` paints a blurred pane in
+        // `flexibleSpace`, and a solid background here would sit in front of
+        // it and there would be nothing to see through.
+        backgroundColor: Colors.transparent,
         foregroundColor: p.ink,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
@@ -62,12 +81,12 @@ class LaMPTheme {
         systemOverlayStyle: brightness == Brightness.dark
             ? SystemUiOverlayStyle.light.copyWith(
                 statusBarColor: Colors.transparent,
-                systemNavigationBarColor: p.surface,
+                systemNavigationBarColor: p.bg,
                 systemNavigationBarIconBrightness: Brightness.light,
               )
             : SystemUiOverlayStyle.dark.copyWith(
                 statusBarColor: Colors.transparent,
-                systemNavigationBarColor: p.surface,
+                systemNavigationBarColor: p.bg,
                 systemNavigationBarIconBrightness: Brightness.dark,
               ),
       ),
@@ -135,7 +154,10 @@ class LaMPTheme {
       ),
 
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: p.surface,
+        // Transparent, because the pharmacy's bar is wrapped in `LumaFrost`
+        // and the list scrolls underneath it. A solid colour here would put
+        // an opaque plate in front of the glass.
+        backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
         indicatorColor: p.brandSoft,
         elevation: 0,
@@ -191,9 +213,10 @@ class LaMPTheme {
         backgroundColor: p.surfaceAlt,
         side: BorderSide(color: p.line),
         labelStyle: LaMPType.caption.copyWith(color: p.inkMuted),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(LaMPRadius.control),
-        ),
+        // A status badge is a word, never a container, so it takes the pill
+        // rather than the control radius — the shape itself says "this is a
+        // state, not something you press".
+        shape: const StadiumBorder(),
       ),
 
       progressIndicatorTheme: ProgressIndicatorThemeData(
@@ -211,10 +234,20 @@ class LaMPTheme {
         ),
       ),
 
+      // Form state, declared once.
+      //
+      // The CSS version of this idea is `:focus-within`, `:invalid` and
+      // `:out-of-range` — the browser tracks the state and the stylesheet
+      // reacts, with no listener anywhere. Flutter's equivalent is that the
+      // framework already knows whether a field is focused or has an error,
+      // and `InputDecorationTheme` is where that knowledge is spent. Every
+      // field in the app gets a focus ring and an error state from here, so
+      // no screen writes a FocusNode listener to colour a border.
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: p.surfaceAlt,
         hintStyle: LaMPType.body.copyWith(color: p.inkFaint),
+        errorStyle: LaMPType.caption.copyWith(color: p.dispute),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: Gap.lg,
           vertical: Gap.md,
@@ -230,6 +263,18 @@ class LaMPTheme {
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(LaMPRadius.control),
           borderSide: BorderSide(color: p.brand, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(LaMPRadius.control),
+          borderSide: BorderSide(color: p.dispute),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(LaMPRadius.control),
+          borderSide: BorderSide(color: p.dispute, width: 2),
+        ),
+        disabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(LaMPRadius.control),
+          borderSide: BorderSide(color: p.line.withValues(alpha: 0.5)),
         ),
       ),
     );

@@ -2,100 +2,57 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/constants/formatters.dart';
 import '../core/constants/palette.dart';
+import '../core/design/luma_sheet.dart';
 import '../core/models/ledger_models.dart';
 import '../core/state/lamp_state.dart';
 import '../core/constants/typography.dart';
+import 'ui/lamp_ui.dart';
 
 class LedgerInspectorSheet extends StatelessWidget {
   const LedgerInspectorSheet({super.key});
 
   static void show(BuildContext context) {
-    showModalBottomSheet(
+    LumaSheet.showOwnShell<void>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => const LedgerInspectorSheet(),
+      builder: (_) => const LedgerInspectorSheet(),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final c = context.lamp;
     final state = context.watch<LaMPState>();
     final txs = state.txs.reversed.toList();
 
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.88,
-      decoration: BoxDecoration(
-        color: c.bg,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-        border: Border(top: BorderSide(color: c.lineStrong, width: 1.5)),
-      ),
+    // The block height moves as blocks are written, so it rides in the
+    // shell's `actions` slot rather than being baked into the title — and it
+    // is a chip now, which is the shape the rest of the app uses for a value
+    // that is a state rather than a control.
+    return LumaSheetShell(
+      title: 'Ledger',
+      subtitle: 'lamp-channel · ${txs.length} transactions',
+      actions: [
+        Padding(
+          padding: const EdgeInsets.only(right: Gap.sm),
+          child: LampChip(
+            label: 'Block ${state.blockHeight}',
+            tone: LampTone.verified,
+          ),
+        ),
+      ],
       child: Column(
         children: [
-          // Drag handle
-          Container(
-            margin: const EdgeInsets.only(top: 12),
-            width: 36,
-            height: 4,
-            decoration: BoxDecoration(
-              color: c.lineStrong,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
-            child: Wrap(
-              alignment: WrapAlignment.spaceBetween,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                // Title and "live" badge. The badge was a third item on this
-                // row and pushed it 124 pixels past the sheet; the block count
-                // beside it already says the feed is live.
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.account_tree_outlined, color: c.verified, size: IconSize.md),
-                    const SizedBox(width: Gap.sm),
-                    Text('Ledger', style: LaMPType.head.copyWith(color: c.ink)),
-                  ],
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: c.surfaceAlt,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: c.line),
-                  ),
-                  child: Text(
-                    'Block Height: ${state.blockHeight}',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback,
-                      fontWeight: FontWeight.bold,
-                      color: c.ink,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Divider(color: c.line, height: 1),
-
           Expanded(
             child: txs.isEmpty
-                ? Center(
-                    child: Text(
-                      'No transactions yet on ledger',
-                      style: TextStyle(color: c.inkFaint),
-                    ),
+                ? const LampEmpty(
+                    icon: Icons.account_tree_outlined,
+                    title: 'Nothing on the ledger yet',
+                    message:
+                        'Transactions appear here the moment a seat writes one.',
                   )
                 : ListView.separated(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(Gap.lg),
                     itemCount: txs.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    separatorBuilder: (_, __) => const SizedBox(height: Gap.sm),
                     itemBuilder: (ctx, i) => _buildTxTile(context, txs[i]),
                   ),
           ),
