@@ -133,14 +133,19 @@ class LampPalette extends ThemeExtension<LampPalette> {
   /// dark ground is unreadable.
   static const LampPalette fieldDark = LampPalette(
     bg: Color(0xFF0B100E),
-    surface: Color(0xFF151C18),
-    surfaceAlt: Color(0xFF1D2621),
-    surfaceSunken: Color(0xFF26312B),
+    // Lifted. A shadow cannot separate anything in dark mode — there is
+    // nothing darker than the ground to cast onto — so the only thing that
+    // makes a card read as a card is being lighter than the page. These were
+    // within six points of the background and the interface looked like one
+    // flat sheet with hairlines drawn on it.
+    surface: Color(0xFF1A231E),
+    surfaceAlt: Color(0xFF232E28),
+    surfaceSunken: Color(0xFF2C3830),
     ink: Color(0xFFEAF1EC),
     inkMuted: Color(0xFFAEBDB5),
     inkFaint: Color(0xFF7D8E85),
-    line: Color(0xFF243029),
-    lineStrong: Color(0xFF334037),
+    line: Color(0xFF2C3931),
+    lineStrong: Color(0xFF3D4C43),
     brand: Color(0xFF3DDC97),
     onBrand: Color(0xFF05130D),
     brandSoft: Color(0x1F3DDC97),
@@ -162,7 +167,12 @@ class LampPalette extends ThemeExtension<LampPalette> {
   /// Ported from the web design system's light portal scope, so the phone and
   /// the desktop portals agree.
   static const LampPalette portalLight = LampPalette(
-    bg: Color(0xFFFFFFFF),
+    // The page is no longer white. A white card on a white page is not a
+    // card — it is a rectangle of border, and the whole light portal read as
+    // a wireframe because of it. Luma's light mode is a faintly tinted
+    // ground with white cards lifted off it, which is what makes elevation
+    // do any work at all in light.
+    bg: Color(0xFFF5F8F6),
     surface: Color(0xFFFFFFFF),
     surfaceAlt: Color(0xFFF4F8F5),
     surfaceSunken: Color(0xFFE5EFE8),
@@ -188,14 +198,14 @@ class LampPalette extends ThemeExtension<LampPalette> {
   /// The default for the institutional seats.
   static const LampPalette portalDark = LampPalette(
     bg: Color(0xFF090D0C),
-    surface: Color(0xFF121A16),
-    surfaceAlt: Color(0xFF1A241F),
-    surfaceSunken: Color(0xFF232F29),
+    surface: Color(0xFF17211C),
+    surfaceAlt: Color(0xFF202B25),
+    surfaceSunken: Color(0xFF2A3730),
     ink: Color(0xFFE9F0EB),
     inkMuted: Color(0xFFAFBEB6),
     inkFaint: Color(0xFF7C8A85),
-    line: Color(0xFF212C27),
-    lineStrong: Color(0xFF2F3C35),
+    line: Color(0xFF2A3630),
+    lineStrong: Color(0xFF3A4941),
     brand: Color(0xFF3DDC97),
     onBrand: Color(0xFF04120C),
     brandSoft: Color(0x1F3DDC97),
@@ -314,6 +324,20 @@ class Gap {
   static const double xl = 24;
   static const double xxl = 32;
   static const double section = 40;
+
+  /// Inside a card.
+  ///
+  /// Its own token rather than a reuse of [lg], because card padding is the
+  /// single number that decides whether an interface feels considered or
+  /// cramped, and it should be changeable without moving every other gap in
+  /// the app with it. 16 was the old value and it put the text hard against
+  /// the border; Luma's cards sit nearer 20-24.
+  static const double card = 20;
+
+  /// Between one group of content and the next. Sections separated by the
+  /// same gap that separates two cards inside a section do not read as
+  /// sections at all.
+  static const double group = 36;
 }
 
 /// Icon sizes as tokens. There were ten arbitrary values before this, with

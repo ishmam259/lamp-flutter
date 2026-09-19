@@ -82,7 +82,7 @@ class LauncherScreen extends StatelessWidget {
               padding: lumaScrollPadding(context),
               children: [
                 _LedgerStrip(state: context.watch<LaMPState>()),
-                const SizedBox(height: Gap.xl),
+                const SizedBox(height: Gap.group),
 
                 const LampSectionHeader(
                   title: 'In the field',
@@ -90,7 +90,7 @@ class LauncherScreen extends StatelessWidget {
                 ),
                 LumaAutoGrid(
                   minColumnWidth: 240,
-                  gap: Gap.md,
+                  gap: Gap.lg,
                   children: [
                     _SeatCard(
                       icon: Icons.qr_code_scanner,
@@ -109,14 +109,14 @@ class LauncherScreen extends StatelessWidget {
                   ],
                 ),
 
-                const SizedBox(height: Gap.xl),
+                const SizedBox(height: Gap.group),
                 const LampSectionHeader(
                   title: 'At the desk',
                   caption: 'Institutional portals on one channel',
                 ),
                 LumaAutoGrid(
                   minColumnWidth: 240,
-                  gap: Gap.md,
+                  gap: Gap.lg,
                   children: [
                     _SeatCard(
                       icon: Icons.business_outlined,
@@ -279,7 +279,7 @@ class _SeatCard extends StatelessWidget {
           final stacked = context.lumaContainerWidth < 300;
           return LampCard(
             onTap: onTap,
-            padding: const EdgeInsets.all(Gap.md),
+            padding: const EdgeInsets.all(Gap.lg),
             child: stacked ? _tile(context) : _row(context),
           );
         },
@@ -288,8 +288,8 @@ class _SeatCard extends StatelessWidget {
   }
 
   Widget _glyph(BuildContext context) => Container(
-        width: 44,
-        height: 44,
+        width: 48,
+        height: 48,
         decoration: BoxDecoration(
           color: tone.bg(context),
           borderRadius: BorderRadius.circular(LaMPRadius.card),
@@ -309,7 +309,7 @@ class _SeatCard extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        const SizedBox(height: 2),
+        const SizedBox(height: Gap.xs),
         Text(
           org,
           style: LaMPType.caption.copyWith(color: c.inkFaint),
@@ -323,7 +323,7 @@ class _SeatCard extends StatelessWidget {
   Widget _row(BuildContext context) => Row(
         children: [
           _glyph(context),
-          const SizedBox(width: Gap.md),
+          const SizedBox(width: Gap.lg),
           Expanded(child: _title(context)),
           const SizedBox(width: Gap.sm),
           Icon(Icons.chevron_right, size: IconSize.md, color: context.lamp.inkFaint),

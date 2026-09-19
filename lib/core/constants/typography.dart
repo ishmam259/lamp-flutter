@@ -2,9 +2,16 @@ import 'package:flutter/material.dart';
 
 /// The LaMP type scale.
 ///
-/// Ported from `app/globals.css` in the Next.js application, which is the
-/// system of record — the sizes, line heights and tracking here are the same
-/// numbers, so the phone and the web portals set type identically.
+/// Ported from `app/globals.css` in the Next.js application, and then moved
+/// up one step on this branch. The web numbers were set for a desktop portal
+/// read at 60cm on a 1440px display; carried to a phone unchanged they gave a
+/// 14px body and a 17px section head, which is a spreadsheet, not an
+/// interface. Luma sets a phone at roughly 15/16 for body and list primaries
+/// and 19-24 for anything that heads a section, with the leading to match.
+///
+/// One step, not three: this is still a ledger, and the figures still have to
+/// fit three across a 360dp card. The layout sweep in `test/layout_test.dart`
+/// is what holds that line.
 ///
 /// Two families, each with a job. The interface face carries prose and
 /// headings. IBM Plex Mono carries anything a person compares down a column:
@@ -95,37 +102,43 @@ class LaMPType {
     fontWeight: FontWeight.w600,
   );
 
-  /// 22 — screen and card titles.
+  /// 24 — screen titles.
+  ///
+  /// Negative tracking grows with size, as it must: letter-spacing that reads
+  /// as normal at 14 reads as loose at 24, which is why large type set at
+  /// default tracking always looks slightly amateur.
   static final TextStyle title = _base.copyWith(
-    fontSize: 22,
-    height: 1.22,
-    letterSpacing: -0.022 * 22,
+    fontSize: 24,
+    height: 1.18,
+    letterSpacing: -0.024 * 24,
     fontWeight: FontWeight.w600,
   );
 
-  /// 17 — section heads.
+  /// 19 — section heads and card titles.
   static final TextStyle head = _base.copyWith(
-    fontSize: 17,
-    height: 1.32,
-    letterSpacing: -0.016 * 17,
+    fontSize: 19,
+    height: 1.28,
+    letterSpacing: -0.018 * 19,
     fontWeight: FontWeight.w600,
   );
 
-  /// 15 — lead paragraphs and list primaries.
+  /// 16 — list primaries. The line a person is actually reading down.
   static final TextStyle sub = _base.copyWith(
-    fontSize: 15,
-    height: 1.45,
-    letterSpacing: -0.008 * 15,
+    fontSize: 16,
+    height: 1.4,
+    letterSpacing: -0.01 * 16,
   );
 
-  /// 14 — body copy.
-  static final TextStyle body = _base.copyWith(fontSize: 14, height: 1.55);
+  /// 15 — body copy, at the leading prose wants rather than the leading a
+  /// table wants.
+  static final TextStyle body = _base.copyWith(fontSize: 15, height: 1.55);
 
   /// 13 — dense rows.
   static final TextStyle small = _base.copyWith(fontSize: 13, height: 1.5);
 
-  /// 12 — captions and secondary metadata.
-  static final TextStyle caption = _base.copyWith(fontSize: 12, height: 1.5);
+  /// 13 — captions and secondary metadata. Twelve was under the floor at
+  /// which a subtitle is read rather than skipped.
+  static final TextStyle caption = _base.copyWith(fontSize: 13, height: 1.45);
 
   /// 11 — the smallest readable step.
   static final TextStyle micro = _base.copyWith(fontSize: 11, height: 1.45);
@@ -149,8 +162,8 @@ class LaMPType {
 
   static final TextStyle monoCaption = _base.copyWith(
     fontFamily: mono,
-    fontSize: 11.5,
-    height: 1.45,
+    fontSize: 12,
+    height: 1.4,
   );
 
   /// Material's slots, filled from the scale above so anything that does not
@@ -191,7 +204,7 @@ class LaMPRadius {
   static const double control = 10;
 
   /// Panels and cards — things that hold content.
-  static const double card = 14;
+  static const double card = 16;
 
   /// Drawers, sheets, modals — things that arrive.
   static const double surface = 20;

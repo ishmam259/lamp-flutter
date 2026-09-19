@@ -62,7 +62,7 @@ class LampCard extends StatelessWidget {
     final radius = BorderRadius.circular(LaMPRadius.card);
 
     final content = Container(
-      padding: padding ?? const EdgeInsets.all(Gap.lg),
+      padding: padding ?? const EdgeInsets.all(Gap.card),
       decoration: BoxDecoration(
         color: background ?? c.surface,
         borderRadius: radius,
@@ -107,7 +107,7 @@ class LampSectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.lamp;
     return Padding(
-      padding: const EdgeInsets.only(bottom: Gap.md),
+      padding: const EdgeInsets.only(bottom: Gap.lg),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -117,7 +117,7 @@ class LampSectionHeader extends StatelessWidget {
               children: [
                 Text(title, style: LaMPType.head.copyWith(color: c.ink)),
                 if (caption != null) ...[
-                  const SizedBox(height: 2),
+                  const SizedBox(height: Gap.xs),
                   Text(caption!, style: LaMPType.caption.copyWith(color: c.inkFaint)),
                 ],
               ],
@@ -179,7 +179,7 @@ class LampChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final fg = tone.fg(context);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: Gap.sm, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: 5),
       decoration: BoxDecoration(
         // Pill, not a rounded rectangle. A badge that shares its corner radius
         // with the buttons around it invites a tap it will not answer; the
@@ -242,7 +242,7 @@ class LampStat extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        const SizedBox(height: Gap.xs),
+        const SizedBox(height: Gap.sm),
         FittedBox(
           fit: BoxFit.scaleDown,
           alignment: align == CrossAxisAlignment.end
@@ -354,24 +354,27 @@ class LampRow extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(LaMPRadius.control),
         child: Container(
-          constraints: const BoxConstraints(minHeight: 56),
+          // 64, not 56. The floor for a touch target is 48 and this has never
+          // been near it; the number that matters here is the one that keeps
+          // two lines of 16/13 text off each other's leading.
+          constraints: const BoxConstraints(minHeight: 64),
           padding: const EdgeInsets.symmetric(
-            horizontal: Gap.md,
+            horizontal: Gap.lg,
             vertical: Gap.md,
           ),
           child: Row(
             children: [
               if (icon != null) ...[
                 Container(
-                  width: 36,
-                  height: 36,
+                  width: 40,
+                  height: 40,
                   decoration: BoxDecoration(
                     color: (iconColor ?? c.brand).withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(LaMPRadius.control),
                   ),
                   child: Icon(icon, size: IconSize.md, color: iconColor ?? c.brand),
                 ),
-                const SizedBox(width: Gap.md),
+                const SizedBox(width: Gap.lg),
               ],
               Expanded(
                 child: Column(
@@ -434,7 +437,7 @@ class LampKeyValue extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.lamp;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: Gap.xs),
+      padding: const EdgeInsets.symmetric(vertical: Gap.sm),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -492,15 +495,15 @@ class LampEmpty extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 56,
-              height: 56,
+              width: 64,
+              height: 64,
               decoration: BoxDecoration(
                 color: c.surfaceAlt,
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, size: IconSize.lg, color: c.inkFaint),
+              child: Icon(icon, size: IconSize.xl, color: c.inkFaint),
             ),
-            const SizedBox(height: Gap.lg),
+            const SizedBox(height: Gap.xl),
             Text(
               title,
               textAlign: TextAlign.center,
@@ -539,7 +542,7 @@ class LampProgress extends StatelessWidget {
       borderRadius: BorderRadius.circular(LaMPRadius.pill),
       child: LinearProgressIndicator(
         value: value.clamp(0.0, 1.0),
-        minHeight: 6,
+        minHeight: 8,
         backgroundColor: c.surfaceSunken,
         valueColor: AlwaysStoppedAnimation(color ?? c.verified),
       ),
