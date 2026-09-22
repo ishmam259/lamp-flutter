@@ -5,6 +5,9 @@ import '../../core/constants/app_theme.dart';
 import '../../core/constants/colors.dart';
 import '../../core/constants/formatters.dart';
 import '../../core/constants/palette.dart';
+import '../../core/design/luma_press.dart';
+import '../../core/design/luma_toast.dart';
+import '../../core/design/luma_frost.dart';
 import '../../core/constants/typography.dart';
 import '../../core/models/domain_models.dart';
 import '../../core/state/lamp_state.dart';
@@ -13,7 +16,6 @@ import '../../core/world/seed.dart';
 import '../../widgets/credit_ring.dart';
 import '../../widgets/demo_director_sheet.dart';
 import '../../widgets/ledger_inspector_sheet.dart';
-import '../../widgets/lamp_mark.dart';
 import '../../widgets/theme_toggle.dart';
 import '../../widgets/ui/lamp_skeleton.dart';
 import '../../widgets/ui/lamp_ui.dart';
@@ -95,39 +97,15 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        titleSpacing: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: widget.onBackToLauncher,
-          tooltip: 'All seats',
-        ),
-        title: Row(
-          children: [
-            const LampMark(size: 22),
-            const SizedBox(width: Gap.sm),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    pharmacy.name,
-                    style: LaMPType.head.copyWith(color: c.ink),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  Text(
-                    pharmacy.territory,
-                    style: LaMPType.caption.copyWith(color: c.inkFaint),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+      // Both ends of the screen are glass, so the list has to run underneath
+      // both of them — `extendBody` is the bottom half of what
+      // `extendBodyBehindAppBar` does at the top.
+      extendBodyBehindAppBar: true,
+      extendBody: true,
+      appBar: LumaAppBar(
+        title: pharmacy.name,
+        subtitle: pharmacy.territory,
+        onBack: widget.onBackToLauncher,
         actions: [
           const ThemeToggle(),
           IconButton(
@@ -140,12 +118,15 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
             icon: Icon(Icons.tune, color: c.inkMuted),
             onPressed: () => DemoDirectorSheet.show(context),
           ),
-          const SizedBox(width: Gap.xs),
         ],
       ),
-      body: SafeArea(
-        top: false,
-        child: IndexedStack(
+      // No SafeArea here, deliberately. It would apply the bottom inset as
+      // padding and *remove* it from the MediaQuery underneath, which is
+      // exactly the padding the four lists need in order to scroll clear of
+      // the nav bar rather than stopping short of it. They take it themselves,
+      // through `lumaScrollPadding`.
+      body: Builder(
+        builder: (context) => IndexedStack(
           index: _tab,
           children: [
             _dashboard(context, state, credit),
@@ -155,7 +136,9 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
           ],
         ),
       ),
-      bottomNavigationBar: NavigationBar(
+      bottomNavigationBar: LumaFrost(
+        border: Border(top: BorderSide(color: c.line)),
+        child: NavigationBar(
         selectedIndex: _tab,
         onDestinationSelected: (i) => setState(() => _tab = i),
         destinations: const [
@@ -179,7 +162,8 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
             selectedIcon: Icon(Icons.flag),
             label: 'Disputes',
           ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -198,7 +182,7 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
     final recent = state.forPharmacy(SeedData.pharmacies[0].did).take(5).toList();
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.lg, Gap.lg, Gap.xxl),
+      padding: lumaScrollPadding(context, top: Gap.lg),
       children: [
         if (_upgradeCaption != null) ...[
           LampCard(
@@ -255,27 +239,21 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
                 style: LaMPType.caption.copyWith(color: c.inkFaint),
               ),
               const SizedBox(height: Gap.lg),
-              Row(
+              LampStatRow(
                 children: [
-                  Expanded(
-                    child: LampStat(
-                      label: 'On time',
-                      value: '${credit.onTimeCount}',
-                      valueColor: c.verified,
-                    ),
+                  LampStat(
+                    label: 'On time',
+                    value: '${credit.onTimeCount}',
+                    valueColor: c.verified,
                   ),
-                  Expanded(
-                    child: LampStat(
-                      label: 'Late',
-                      value: '${credit.lateCount}',
-                      valueColor: credit.lateCount > 0 ? c.pending : c.ink,
-                    ),
+                  LampStat(
+                    label: 'Late',
+                    value: '${credit.lateCount}',
+                    valueColor: credit.lateCount > 0 ? c.pending : c.ink,
                   ),
-                  Expanded(
-                    child: LampStat(
-                      label: 'Defaults',
-                      value: '${credit.defaultCount}',
-                    ),
+                  LampStat(
+                    label: 'Defaults',
+                    value: '${credit.defaultCount}',
                   ),
                 ],
               ),
@@ -493,7 +471,7 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
     final c = context.lamp;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.lg, Gap.lg, Gap.xxl),
+      padding: lumaScrollPadding(context, top: Gap.lg),
       children: [
         LampCard(
           child: Column(
@@ -627,7 +605,7 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
     final token = target.token;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.lg, Gap.lg, Gap.xxl),
+      padding: lumaScrollPadding(context, top: Gap.lg),
       children: [
         LampCard(
           child: Column(
@@ -759,11 +737,23 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
       if (res.ok) _tab = 0;
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(res.ok ? 'Settled. Cycle recorded.' : (res.error ?? 'Refused')),
-      ),
-    );
+    if (res.ok) {
+      LumaHaptics.commit();
+      LumaToast.show(
+        context,
+        'Settled. Cycle recorded.',
+        icon: Icons.payments_outlined,
+        tone: LumaToastTone.verified,
+      );
+    } else {
+      LumaHaptics.reject();
+      LumaToast.show(
+        context,
+        res.error ?? 'Refused',
+        icon: Icons.error_outline,
+        tone: LumaToastTone.dispute,
+      );
+    }
   }
 
   /// The banner line for a settlement, or null when the tier did not move.
@@ -796,7 +786,7 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
     final c = context.lamp;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.lg, Gap.lg, Gap.xxl),
+      padding: lumaScrollPadding(context, top: Gap.lg),
       children: [
         LampCard(
           child: Column(
@@ -824,8 +814,12 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
                       'Damaged seals reported by ${SeedData.pharmacies[0].name}',
                     );
                     if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Dispute raised')),
+                    LumaHaptics.reject();
+                    LumaToast.show(
+                      context,
+                      'Dispute raised',
+                      icon: Icons.flag_outlined,
+                      tone: LumaToastTone.dispute,
                     );
                   },
                   icon: const Icon(Icons.report_problem_outlined, size: IconSize.sm),

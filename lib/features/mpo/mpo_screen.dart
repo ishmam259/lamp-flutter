@@ -4,6 +4,9 @@ import 'package:provider/provider.dart';
 import '../../core/chain/crypto.dart';
 import '../../core/constants/app_theme.dart';
 import '../../core/constants/palette.dart';
+import '../../core/design/luma_press.dart';
+import '../../core/design/luma_toast.dart';
+import '../../core/design/luma_frost.dart';
 import '../../core/constants/formatters.dart';
 import '../../core/models/domain_models.dart';
 import '../../core/state/lamp_state.dart';
@@ -11,13 +14,13 @@ import '../../core/world/queries.dart';
 import '../../core/world/seed.dart';
 import '../../widgets/carton_code_view.dart';
 import '../../widgets/ui/lamp_skeleton.dart';
+import '../../widgets/theme_toggle.dart';
 import '../../widgets/ui/lamp_ui.dart';
 import '../../widgets/carton_scanner_sheet.dart';
 import '../../widgets/data_matrix_view.dart';
 import '../../widgets/demo_director_sheet.dart';
 import '../../widgets/ledger_inspector_sheet.dart';
 import '../../widgets/signature_pad.dart';
-import '../../widgets/lamp_mark.dart';
 import '../../core/constants/typography.dart';
 
 class MpoScreen extends StatefulWidget {
@@ -104,80 +107,69 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
     final c = context.lamp;
 
     return Scaffold(
-        appBar: AppBar(
-          backgroundColor: c.surface,
-          elevation: 1,
-          leading: IconButton(
-            icon: Icon(Icons.arrow_back, color: c.ink),
-            onPressed: widget.onBackToLauncher,
-            tooltip: 'All Personas',
-          ),
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const LampMark(size: 20),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      'MPO Delivery App',
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: c.ink),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  // Tracks the switch on the Scan tab. It was always the
-                  // connected glyph, including while the device was queuing
-                  // scans because it had no signal.
-                  Icon(
-                    _offlineMode ? Icons.wifi_off : Icons.wifi,
-                    size: 14,
-                    color: _offlineMode ? c.pending : c.brand,
-                  ),
-                ],
+      extendBodyBehindAppBar: true,
+      // One bar for all five seats — see `LumaAppBar`. This one used to set
+      // `elevation: 1`, which gave it a drop shadow no other screen had; the
+      // separation is now a hairline under glass, and the content scrolls
+      // visibly beneath it.
+      appBar: LumaAppBar(
+        title: 'Delivery officer',
+        // From the seed rather than three literals. The identity line used to
+        // be hardcoded, so it disagreed with the device id every other screen
+        // read from `_me`.
+        subtitle: '${_me.name} · ${_me.deviceId} · ${_me.territory}',
+        onBack: widget.onBackToLauncher,
+        actions: [
+          // Tracks the switch on the Scan tab. It was always the connected
+          // glyph, including while the device was queuing scans because it
+          // had no signal.
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: Gap.xs),
+            child: Center(
+              child: Icon(
+                _offlineMode ? Icons.wifi_off : Icons.wifi,
+                size: IconSize.sm,
+                color: _offlineMode ? c.pending : c.brand,
               ),
-              Text(
-                '${_me.name} · ${_me.deviceId} · ${_me.territory}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 11, color: c.inkFaint),
-              ),
-            ],
+            ),
           ),
-          actions: [
-            IconButton(
-              tooltip: 'Ledger Inspector',
-              icon: Icon(Icons.account_tree_outlined, color: c.verified),
-              onPressed: () => LedgerInspectorSheet.show(context),
-            ),
-            IconButton(
-              tooltip: 'Demo Director',
-              icon: Icon(Icons.movie_filter_outlined, color: c.brand),
-              onPressed: () => DemoDirectorSheet.show(context),
-            ),
-            const SizedBox(width: 8),
+          const ThemeToggle(),
+          IconButton(
+            tooltip: 'Ledger',
+            icon: Icon(Icons.account_tree_outlined, color: c.inkMuted),
+            onPressed: () => LedgerInspectorSheet.show(context),
+          ),
+          IconButton(
+            tooltip: 'Demo controls',
+            icon: Icon(Icons.tune, color: c.inkMuted),
+            onPressed: () => DemoDirectorSheet.show(context),
+          ),
+        ],
+        // Colours come from `tabBarTheme` now; the three screens that had a
+        // TabBar were each setting the same three by hand.
+        bottom: TabBar(
+          controller: _tabController,
+          isScrollable: true,
+          tabs: const [
+            Tab(text: 'Route'),
+            Tab(text: 'Scan'),
+            Tab(text: 'Sign'),
+            Tab(text: 'Returns'),
           ],
-          bottom: TabBar(
-            controller: _tabController,
-            isScrollable: true,
-            labelColor: c.brand,
-            unselectedLabelColor: c.inkFaint,
-            indicatorColor: c.brand,
-            tabs: const [
-              Tab(text: "Route"),
-              Tab(text: "Scan"),
-              Tab(text: "Sign"),
-              Tab(text: "Returns"),
-            ],
-          ),
         ),
-        body: SafeArea(
-          // Android draws its gesture bar over the bottom of the window.
-          // Without this the last row of every list sits underneath it.
-          // Top is already handled by the AppBar.
-          top: false,
-          child: !state.isInitialized
+      ),
+        // The Builder is load-bearing: under it, `MediaQuery.padding.top`
+        // carries the height of the bar and its tab strip, which is what
+        // `lumaScrollPadding` reads in each tab below. Outside it, the same
+        // call would return the status bar alone and every tab would start
+        // its content behind the glass.
+        // No SafeArea. It would apply the bottom inset as padding and remove
+        // it from the MediaQuery underneath — and the tabs below read that
+        // inset themselves, through `lumaScrollPadding`, so it would be
+        // counted twice and every list would stop a gesture bar short of the
+        // bottom of the screen.
+        body: Builder(
+          builder: (context) => !state.isInitialized
               ? const LampShimmer(
                   child: Padding(
                     padding: EdgeInsets.all(Gap.lg),
@@ -257,7 +249,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
     );
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: lumaScrollPadding(context, top: Gap.lg),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 600),
@@ -569,7 +561,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
     final totalCartons = view.token.declaredCartons;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: lumaScrollPadding(context, top: Gap.lg),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 600),
@@ -759,7 +751,17 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                 style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: c.ink),
               ),
               const SizedBox(height: 8),
+              // Zero, and not left to default to null. A vertical ListView
+              // with no padding quietly adopts `MediaQuery.padding` as its
+              // own, which is meant for a list that *is* the scroll view.
+              // This one is nested inside another, under a Scaffold with
+              // `extendBodyBehindAppBar` — so the top inset it inherited had
+              // the status bar, the app bar and the tab bar folded into it,
+              // and it printed as an empty 490px band between the 'Cartons'
+              // heading and CTN-1. The outer SingleChildScrollView already
+              // reads the real insets through `lumaScrollPadding`.
               ListView.separated(
+                padding: EdgeInsets.zero,
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: delivery.cartons.length,
@@ -1031,11 +1033,16 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
       _offlineQueue.add(targetCarton.gs1);
       if (!mounted) return;
       setState(() {});
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Queued · ${_offlineQueue.length} offline'),
-          duration: const Duration(milliseconds: 700),
-        ),
+      // The receipt is for the queueing, not for a verification — the row
+      // stays unmarked until `drainScanQueue` gets the batch accepted, which
+      // is why the tone is pending rather than verified.
+      LumaHaptics.select();
+      LumaToast.show(
+        context,
+        'Queued · ${_offlineQueue.length} offline',
+        icon: Icons.cloud_off_outlined,
+        tone: LumaToastTone.pending,
+        duration: const Duration(milliseconds: 1200),
       );
     } else {
       await state.scanCarton(delivery.tokenId, targetCarton.gs1, _me.deviceId);
@@ -1077,8 +1084,12 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
       _offlineQueue.clear();
     });
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Drained $count scans in one transaction')),
+      LumaHaptics.commit();
+      LumaToast.show(
+        context,
+        'Drained $count scans in one transaction',
+        icon: Icons.cloud_done_outlined,
+        tone: LumaToastTone.verified,
       );
     }
   }
@@ -1106,7 +1117,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
     }
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: lumaScrollPadding(context, top: Gap.lg),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 600),
@@ -1199,17 +1210,28 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                                   'mock-signature-stroke',
                                 );
                                 if (!context.mounted) return;
+                                // Read off the token rather than printed as
+                                // "24h": the window is policy, and a seeded
+                                // world is free to set it to something else.
                                 final hours =
                                     token.disputeWindowMs ~/ (3600 * 1000);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      res.ok
-                                          ? 'Delivered. Dispute window open ${hours}h.'
-                                          : (res.error ?? 'Refused'),
-                                    ),
-                                  ),
-                                );
+                                if (res.ok) {
+                                  LumaHaptics.commit();
+                                  LumaToast.show(
+                                    context,
+                                    'Delivered. Dispute window open ${hours}h.',
+                                    icon: Icons.check_circle_outline,
+                                    tone: LumaToastTone.verified,
+                                  );
+                                } else {
+                                  LumaHaptics.reject();
+                                  LumaToast.show(
+                                    context,
+                                    res.error ?? 'Refused',
+                                    icon: Icons.error_outline,
+                                    tone: LumaToastTone.dispute,
+                                  );
+                                }
                                 if (res.ok) {
                                   setState(() {
                                     _hasSignature = false;
@@ -1243,7 +1265,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
     final c = context.lamp;
     final delivery = view.delivery!;
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: lumaScrollPadding(context, top: Gap.lg),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 600),
@@ -1277,8 +1299,12 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                         onPressed: () async {
                           await state.raiseDispute(delivery.tokenId, 'Damage in transit reported by MPO');
                           if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Dispute raised on ledger. Status: DISPUTED')),
+                            LumaHaptics.reject();
+                            LumaToast.show(
+                              context,
+                              'Dispute raised on ledger · DISPUTED',
+                              icon: Icons.flag_outlined,
+                              tone: LumaToastTone.dispute,
                             );
                           }
                         },

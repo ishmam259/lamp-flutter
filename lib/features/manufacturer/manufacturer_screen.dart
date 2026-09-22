@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_theme.dart';
 import '../../core/constants/palette.dart';
+import '../../core/design/luma_press.dart';
+import '../../core/design/luma_toast.dart';
+import '../../core/design/luma_frost.dart';
 import '../../core/constants/formatters.dart';
 import '../../core/models/domain_models.dart';
 import '../../core/state/lamp_state.dart';
@@ -11,8 +14,8 @@ import '../../widgets/demo_director_sheet.dart';
 import '../../widgets/ledger_inspector_sheet.dart';
 import '../../widgets/lifecycle_rail.dart';
 import '../../widgets/private_seal.dart';
+import '../../widgets/theme_toggle.dart';
 import '../../widgets/ui/lamp_ui.dart';
-import '../../widgets/lamp_mark.dart';
 import '../../core/constants/typography.dart';
 
 /// The lifecycle state the rail should draw for one receivable.
@@ -92,82 +95,45 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
     final c = context.lamp;
 
     return Scaffold(
-        appBar: AppBar(
-          backgroundColor: c.surface,
-          elevation: 1,
-          leading: IconButton(
-            icon: Icon(Icons.arrow_back, color: c.ink),
-            onPressed: widget.onBackToLauncher,
-            tooltip: 'All Personas',
+      extendBodyBehindAppBar: true,
+      // One bar for all five seats — see `LumaAppBar`. This one used to set
+      // `elevation: 1`, which gave it a drop shadow no other screen had; the
+      // separation is now a hairline under glass, and the content scrolls
+      // visibly beneath it.
+      appBar: LumaAppBar(
+        title: 'Manufacturer',
+        subtitle: 'Shomota · Bogura Depot',
+        onBack: widget.onBackToLauncher,
+        actions: [
+          const ThemeToggle(),
+          IconButton(
+            tooltip: 'Ledger',
+            icon: Icon(Icons.account_tree_outlined, color: c.inkMuted),
+            onPressed: () => LedgerInspectorSheet.show(context),
           ),
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const LampMark(size: 20),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      'Manufacturer',
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: c.ink),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: c.brand.withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      'SHOMOTA',
-                      style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: c.brand),
-                    ),
-                  ),
-                ],
-              ),
-              Text(
-                'Shomota · Bogura Depot',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 11, color: c.inkFaint),
-              ),
-            ],
+          IconButton(
+            tooltip: 'Demo controls',
+            icon: Icon(Icons.tune, color: c.inkMuted),
+            onPressed: () => DemoDirectorSheet.show(context),
           ),
-          actions: [
-            IconButton(
-              tooltip: 'Ledger Inspector',
-              icon: Icon(Icons.account_tree_outlined, color: c.verified),
-              onPressed: () => LedgerInspectorSheet.show(context),
-            ),
-            IconButton(
-              tooltip: 'Demo Director',
-              icon: Icon(Icons.movie_filter_outlined, color: c.brand),
-              onPressed: () => DemoDirectorSheet.show(context),
-            ),
-            const SizedBox(width: 8),
+        ],
+        // Colours come from `tabBarTheme` now; the three screens that had a
+        // TabBar were each setting the same three by hand.
+        bottom: TabBar(
+          controller: _tabController,
+          isScrollable: true,
+          tabs: const [
+            Tab(text: 'Receivables'),
+            Tab(text: 'Tracking'),
+            Tab(text: 'Mint invoice'),
           ],
-          bottom: TabBar(
-            controller: _tabController,
-            isScrollable: true,
-            labelColor: c.brand,
-            unselectedLabelColor: c.inkFaint,
-            indicatorColor: c.brand,
-            tabs: const [
-              Tab(text: "Receivables & Pipeline"),
-              Tab(text: "Delivery Tracking"),
-              Tab(text: "Mint Invoice"),
-            ],
-          ),
         ),
-        body: SafeArea(
-          // Android draws its gesture bar over the bottom of the window.
-          // Without this the last row of every list sits underneath it.
-          // Top is already handled by the AppBar.
-          top: false,
-          child: TabBarView(
+      ),
+        // The Builder is load-bearing: under it, `MediaQuery.padding.top`
+        // carries the height of the bar and its tab strip, which is what
+        // `lumaScrollPadding` reads in each tab below.
+        body: Builder(
+          builder: (context) => TabBarView(
             controller: _tabController,
             children: [
               _buildReceivablesTab(context, state),
@@ -204,7 +170,7 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
         views.where((v) => v.token.isFinanceable(state.now)).length;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: lumaScrollPadding(context, top: Gap.lg),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 800),
@@ -487,7 +453,7 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
     final ratio = total > 0 ? scanned / total : 0.0;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: lumaScrollPadding(context, top: Gap.lg),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 800),
@@ -504,13 +470,30 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // `spaceBetween` distributes what is left over and does
+                    // nothing at all when there is none — these two ran 418
+                    // pixels off a 360dp phone. The title takes what it needs
+                    // and the officer's name gives way.
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Consignment Tracking: ${delivery.invoiceId}',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: c.ink)),
-                        Text('MPO: Kamrul Hasan',
-                            style: TextStyle(fontSize: 12, color: c.inkFaint)),
+                        Expanded(
+                          child: Text(
+                            'Tracking · ${delivery.invoiceId}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: c.ink),
+                          ),
+                        ),
+                        const SizedBox(width: Gap.sm),
+                        Flexible(
+                          child: Text(
+                            'Kamrul Hasan',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.end,
+                            style: TextStyle(fontSize: 12, color: c.inkFaint),
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 12),
@@ -525,10 +508,16 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                     ),
                     const SizedBox(height: 8),
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('$scanned of $total cartons confirmed on-chain',
-                            style: TextStyle(fontSize: 11, color: c.inkMuted)),
+                        Expanded(
+                          child: Text(
+                            '$scanned of $total cartons confirmed on-chain',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 11, color: c.inkMuted),
+                          ),
+                        ),
+                        const SizedBox(width: Gap.sm),
                         Text('${(ratio * 100).toInt()}%',
                             style: TextStyle(fontSize: 11, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, fontWeight: FontWeight.bold, color: c.brand)),
                       ],
@@ -580,17 +569,42 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
     final c = context.lamp;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
+      // The value here is a 64-character hash in three of the four calls, so
+      // it is the side that has to give. Both halves are bounded: the label
+      // takes what it needs up to two fifths, the value takes the rest and
+      // truncates in the middle of a string that has no spaces to wrap at.
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(isChain ? Icons.link : Icons.cloud_outlined, size: 14, color: isChain ? c.verified : c.inkFaint),
-              const SizedBox(width: 8),
-              Text(label, style: TextStyle(fontSize: 11, color: c.inkMuted)),
-            ],
+          Flexible(
+            flex: 2,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(isChain ? Icons.link : Icons.cloud_outlined, size: 14, color: isChain ? c.verified : c.inkFaint),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 11, color: c.inkMuted),
+                  ),
+                ),
+              ],
+            ),
           ),
-          Text(value, style: TextStyle(fontSize: 11, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, color: isChain ? c.verified : c.inkFaint)),
+          const SizedBox(width: Gap.sm),
+          Expanded(
+            flex: 3,
+            child: Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.end,
+              style: TextStyle(fontSize: 11, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, color: isChain ? c.verified : c.inkFaint),
+            ),
+          ),
         ],
       ),
     );
@@ -599,7 +613,7 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
   Widget _buildMintTab(BuildContext context, LaMPState state) {
     final c = context.lamp;
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: lumaScrollPadding(context, top: Gap.lg),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 700),
@@ -753,19 +767,23 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
 
                       if (context.mounted) {
                         if (res.ok) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              backgroundColor: c.verified,
-                              content: Text('Receivable minted'),
-                            ),
+                          // A mint is a block. Two beats and a pill, not a
+                          // four-second slab across the foot of the screen.
+                          LumaHaptics.commit();
+                          LumaToast.show(
+                            context,
+                            'Receivable minted',
+                            icon: Icons.token_outlined,
+                            tone: LumaToastTone.verified,
                           );
                           _tabController.animateTo(0);
                         } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              backgroundColor: c.dispute,
-                              content: Text(res.error ?? 'Minting failed'),
-                            ),
+                          LumaHaptics.reject();
+                          LumaToast.show(
+                            context,
+                            res.error ?? 'Minting failed',
+                            icon: Icons.error_outline,
+                            tone: LumaToastTone.dispute,
                           );
                         }
                       }

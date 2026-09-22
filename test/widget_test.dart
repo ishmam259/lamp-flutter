@@ -56,9 +56,14 @@ void main() {
     await tester.pumpAndSettle();
 
     // Into a seat.
+    //
+    // 'Delivery officer' is no longer a witness for which screen is showing:
+    // the seat's own app bar is titled with the same words the launcher card
+    // uses, which is the point — a seat should be called one thing. The
+    // section header is what only the launcher has.
     await tester.tap(find.text('Delivery officer'));
     await tester.pumpAndSettle();
-    expect(find.text('Delivery officer'), findsNothing);
+    expect(find.text('In the field'), findsNothing);
 
     // Seats are swapped by setState rather than pushed, so there is only ever
     // one route. Before PopScope, this popped it and closed the app.
@@ -67,7 +72,7 @@ void main() {
 
     expect(popped, isTrue, reason: 'back should have been handled, not ignored');
     expect(
-      find.text('Delivery officer'),
+      find.text('In the field'),
       findsOneWidget,
       reason: 'back from a seat should land on the launcher',
     );
