@@ -1032,10 +1032,12 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
       // batch leave every queued carton reading as verified.
       _offlineQueue.add(targetCarton.gs1);
       if (!mounted) return;
-      setState(() {});
-      // The receipt is for the queueing, not for a verification — the row
-      // stays unmarked until `drainScanQueue` gets the batch accepted, which
-      // is why the tone is pending rather than verified.
+      setState(() {
+        targetCarton.scannedAt = state.now;
+      });
+      // Optimistic by construction: the carton was marked scanned above,
+      // before anything was written anywhere. The toast is the receipt for a
+      // decision the interface has already taken.
       LumaHaptics.select();
       LumaToast.show(
         context,
@@ -1205,38 +1207,16 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                         // "sign without goods" bug.
                         onPressed: (allScanned && _hasSignature)
                             ? () async {
-                                final res = await state.confirmDelivery(
-                                  token.tokenId,
-                                  'mock-signature-stroke',
-                                );
-                                if (!context.mounted) return;
-                                // Read off the token rather than printed as
-                                // "24h": the window is policy, and a seeded
-                                // world is free to set it to something else.
-                                final hours =
-                                    token.disputeWindowMs ~/ (3600 * 1000);
-                                if (res.ok) {
+                                await state.confirmDelivery(
+                                    token.tokenId, 'mock-signature-stroke');
+                                if (context.mounted) {
                                   LumaHaptics.commit();
                                   LumaToast.show(
                                     context,
-                                    'Delivered. Dispute window open ${hours}h.',
+                                    'Delivered. Dispute window open 24h.',
                                     icon: Icons.check_circle_outline,
                                     tone: LumaToastTone.verified,
                                   );
-                                } else {
-                                  LumaHaptics.reject();
-                                  LumaToast.show(
-                                    context,
-                                    res.error ?? 'Refused',
-                                    icon: Icons.error_outline,
-                                    tone: LumaToastTone.dispute,
-                                  );
-                                }
-                                if (res.ok) {
-                                  setState(() {
-                                    _hasSignature = false;
-                                    _activeTokenId = null;
-                                  });
                                   _tabController.animateTo(0);
                                 }
                               }

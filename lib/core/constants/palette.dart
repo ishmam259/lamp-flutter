@@ -201,9 +201,9 @@ class LampPalette extends ThemeExtension<LampPalette> {
 
   /// The default for the institutional seats.
   ///
-  /// Brand is a deeper sky so it sits beside the mint `verified` without
-  /// sharing the hue. The previous `brand == verified == #3DDC97` made every
-  /// primary action indistinguishable from a confirmation mark.
+  /// Brand and `verified` share the mint, which is the Luma palette as drawn.
+  /// A primary action and a confirmation mark therefore read the same colour;
+  /// that trade was taken deliberately in favour of the Luma identity.
   static const LampPalette portalDark = LampPalette(
     bg: Color(0xFF090D0C),
     surface: Color(0xFF17211C),
@@ -214,9 +214,9 @@ class LampPalette extends ThemeExtension<LampPalette> {
     inkFaint: Color(0xFF7C8A85),
     line: Color(0xFF2A3630),
     lineStrong: Color(0xFF3A4941),
-    brand: Color(0xFF38BDF8),
+    brand: Color(0xFF3DDC97),
     onBrand: Color(0xFF04120C),
-    brandSoft: Color(0x1F38BDF8),
+    brandSoft: Color(0x1F3DDC97),
     verified: Color(0xFF3DDC97),
     verifiedSoft: Color(0x1F3DDC97),
     pending: Color(0xFFE8A33D),
