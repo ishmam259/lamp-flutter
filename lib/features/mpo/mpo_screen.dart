@@ -523,7 +523,17 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                 style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: c.ink),
               ),
               const SizedBox(height: 8),
+              // Zero, and not left to default to null. A vertical ListView
+              // with no padding quietly adopts `MediaQuery.padding` as its
+              // own, which is meant for a list that *is* the scroll view.
+              // This one is nested inside another, under a Scaffold with
+              // `extendBodyBehindAppBar` — so the top inset it inherited had
+              // the status bar, the app bar and the tab bar folded into it,
+              // and it printed as an empty 490px band between the 'Cartons'
+              // heading and CTN-1. The outer SingleChildScrollView already
+              // reads the real insets through `lumaScrollPadding`.
               ListView.separated(
+                padding: EdgeInsets.zero,
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: delivery.cartons.length,
