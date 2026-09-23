@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../core/auth/accounts.dart';
+import '../core/auth/auth_controller.dart';
 
 import '../core/constants/formatters.dart';
 import '../core/constants/palette.dart';
@@ -83,7 +85,7 @@ class DemoDirectorSheet extends StatelessWidget {
           // Meghna financing & reject Padma duplicate attempt" was
           // fifty-six characters. The person reading this wrote the
           // shot list.
-          _Scene(n: '1', title: 'Manufacturer', note: 'Mint', persona: PersonaId.manufacturer),
+          _Scene(n: '1', title: 'Manufacturer', note: 'Issue', persona: PersonaId.manufacturer),
           _Scene(n: '2', title: 'Delivery officer', note: 'Scan', persona: PersonaId.mpo),
           _Scene(n: '3', title: 'Bank', note: 'Finance', persona: PersonaId.bank),
           _Scene(n: '4', title: 'Pharmacy', note: 'Settle', persona: PersonaId.pharmacy),
@@ -146,9 +148,9 @@ class _Scene extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final state = Provider.of<LaMPState>(context, listen: false);
+    final auth = Provider.of<AuthController?>(context, listen: false);
     final c = context.lamp;
-    final selected = state.currentPersona == persona;
+    final selected = auth?.current?.seat == persona;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: Gap.xs),
@@ -156,8 +158,10 @@ class _Scene extends StatelessWidget {
         color: selected ? c.brandSoft : Colors.transparent,
         borderRadius: BorderRadius.circular(LaMPRadius.control),
         child: InkWell(
+          // Opens that seat as its account. This used to set a persona on
+          // LaMPState that the app shell never read, so the jump did nothing.
           onTap: () {
-            state.setPersona(persona);
+            auth?.switchTo(Accounts.forSeat(persona));
             Navigator.pop(context);
           },
           borderRadius: BorderRadius.circular(LaMPRadius.control),

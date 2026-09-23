@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/app_theme.dart';
+import '../../core/constants/ledger_labels.dart';
 import '../../core/constants/colors.dart';
 import '../../core/constants/formatters.dart';
 import '../../core/constants/palette.dart';
@@ -14,9 +15,8 @@ import '../../core/state/lamp_state.dart';
 import '../../core/world/queries.dart';
 import '../../core/world/seed.dart';
 import '../../widgets/credit_ring.dart';
-import '../../widgets/demo_director_sheet.dart';
 import '../../widgets/ledger_inspector_sheet.dart';
-import '../../widgets/theme_toggle.dart';
+import '../../widgets/ui/lamp_ledger_ui.dart';
 import '../../widgets/ui/lamp_skeleton.dart';
 import '../../widgets/ui/lamp_ui.dart';
 
@@ -32,9 +32,7 @@ import '../../widgets/ui/lamp_ui.dart';
 /// counter, and four scrollable tabs pinned under the status bar are the
 /// furthest possible place from a thumb.
 class PharmacyScreen extends StatefulWidget {
-  final VoidCallback onBackToLauncher;
-
-  const PharmacyScreen({super.key, required this.onBackToLauncher});
+  const PharmacyScreen({super.key});
 
   @override
   State<PharmacyScreen> createState() => _PharmacyScreenState();
@@ -105,19 +103,11 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
       appBar: LumaAppBar(
         title: pharmacy.name,
         subtitle: pharmacy.territory,
-        onBack: widget.onBackToLauncher,
         actions: [
-          const ThemeToggle(),
-          IconButton(
-            tooltip: 'Ledger',
-            icon: Icon(Icons.account_tree_outlined, color: c.inkMuted),
-            onPressed: () => LedgerInspectorSheet.show(context),
+          LampBlockPip(
+            onTap: () => LedgerInspectorSheet.show(context),
           ),
-          IconButton(
-            tooltip: 'Demo controls',
-            icon: Icon(Icons.tune, color: c.inkMuted),
-            onPressed: () => DemoDirectorSheet.show(context),
-          ),
+          const LampSeatMenu(),
         ],
       ),
       // No SafeArea here, deliberately. It would apply the bottom inset as
@@ -185,24 +175,17 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
       padding: lumaScrollPadding(context, top: Gap.lg),
       children: [
         if (_upgradeCaption != null) ...[
+          // The fact, with a dot for its state — not a green panel.
           LampCard(
-            background: c.verifiedSoft,
-            border: c.verified,
             child: Row(
               children: [
-                Icon(Icons.trending_up, size: IconSize.lg, color: c.verified),
+                const LampStateDot(LampState.confirmed),
                 const SizedBox(width: Gap.md),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Tier upgraded',
-                        style: LaMPType.sub.copyWith(
-                          color: c.ink,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                      Text('Tier upgraded', style: LaMPType.head.copyWith(color: c.ink)),
                       Text(
                         _upgradeCaption!,
                         style: LaMPType.caption.copyWith(color: c.inkMuted),
@@ -216,84 +199,153 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
           const SizedBox(height: Gap.lg),
         ],
 
-        // The ring sits above the figures rather than beside them. At 110px
-        // next to a column of text it left under 200px for the text and
-        // overflowed; stacked, both get the full width.
-        LampCard(
-          child: Column(
+        _creditCard(context, credit),
+        const SizedBox(height: Gap.xl),
+
+        LampEyebrow(
+          'Due now',
+          trailing: switch (open.length) {
+            0 => null,
+            1 => '1 invoice',
+            final n => '$n invoices · ${LaMPFormatters.formatBDTCompact(owed)}',
+          },
+        ),
+        const SizedBox(height: Gap.md),
+        _dueNowCard(context, state, open.isEmpty ? null : open.first),
+
+        const SizedBox(height: Gap.xl),
+        const LampEyebrow('Recent'),
+        const SizedBox(height: Gap.md),
+        if (recent.isEmpty)
+          Text(
+            'Nothing delivered yet.',
+            style: LaMPType.caption.copyWith(color: c.inkFaint),
+          )
+        else
+          LampCard(
+            padding: EdgeInsets.zero,
+            child: Column(
+              children: [
+                for (int i = 0; i < recent.length; i++) ...[
+                  if (i > 0) Divider(height: 1, thickness: 1, color: c.line),
+                  _recentRow(context, recent[i], credit),
+                ],
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// Credit you can count: one arc per cycle, and what the next one buys.
+  Widget _creditCard(BuildContext context, CreditHistory credit) {
+    final c = context.lamp;
+    final tier = credit.tier;
+    final next = tier.index + 1 < RecourseTier.values.length
+        ? RecourseTier.values[tier.index + 1]
+        : null;
+    final toGo = (tier.cyclesToNext ?? 0) - credit.cycles.length;
+    double? nextAdvance;
+    for (final band in SeedData.meghnaCurve.bands) {
+      if (band.tier == next) nextAdvance = band.advanceRatePct;
+    }
+
+    return LampCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
             children: [
               CreditRing(
                 cycles: credit.cycles,
-                tier: credit.tier,
-                size: 120,
+                tier: tier,
+                size: 104,
                 strokeWidth: 10,
               ),
-              const SizedBox(height: Gap.lg),
-              Text(
-                credit.tier.label,
-                style: LaMPType.title.copyWith(color: c.brand),
-              ),
-              const SizedBox(height: Gap.xs),
-              Text(
-                '${credit.cycles.length} cycles settled',
-                style: LaMPType.caption.copyWith(color: c.inkFaint),
-              ),
-              const SizedBox(height: Gap.lg),
-              LampStatRow(
-                children: [
-                  LampStat(
-                    label: 'On time',
-                    value: '${credit.onTimeCount}',
-                    valueColor: c.verified,
-                  ),
-                  LampStat(
-                    label: 'Late',
-                    value: '${credit.lateCount}',
-                    valueColor: credit.lateCount > 0 ? c.pending : c.ink,
-                  ),
-                  LampStat(
-                    label: 'Defaults',
-                    value: '${credit.defaultCount}',
-                  ),
-                ],
-              ),
-              const SizedBox(height: Gap.md),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: () => setState(() => _tab = 1),
-                  child: const Text('See cycle history'),
+              const SizedBox(width: Gap.lg),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const LampEyebrow('Credit tier'),
+                    const SizedBox(height: Gap.xs),
+                    Text(tier.label, style: LaMPType.title.copyWith(color: c.ink)),
+                    const SizedBox(height: Gap.xs),
+                    if (next != null && toGo > 0)
+                      Text.rich(
+                        TextSpan(children: [
+                          TextSpan(
+                            text: '$toGo more on-time '
+                                '${toGo == 1 ? 'cycle unlocks' : 'cycles unlock'} ',
+                          ),
+                          TextSpan(
+                            text: next.label,
+                            style: LaMPType.caption.copyWith(
+                              color: c.ink,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          if (nextAdvance != null)
+                            TextSpan(
+                              text: ' — ${nextAdvance.toStringAsFixed(0)}% advance.',
+                            ),
+                        ]),
+                        style: LaMPType.caption.copyWith(color: c.inkMuted),
+                      )
+                    else
+                      Text(
+                        tier.blurb,
+                        style: LaMPType.caption.copyWith(color: c.inkMuted),
+                      ),
+                  ],
                 ),
               ),
             ],
           ),
-        ),
-        const SizedBox(height: Gap.xl),
-
-        const LampSectionHeader(title: 'Due now'),
-        _dueNowCard(context, open.isEmpty ? null : open.first),
-
-        if (open.isNotEmpty) ...[
-          const SizedBox(height: Gap.md),
-          LampKeyValue(
-            label: 'Total outstanding',
-            value: LaMPFormatters.formatBDT(owed),
-            mono: true,
+          Divider(height: Gap.xl, thickness: 1, color: c.line),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              // Each count takes a share rather than its natural width, so a
+              // wider face or a larger text scale wraps a label instead of
+              // pushing History off the card.
+              Expanded(
+                child: _count(context, 'On time', credit.onTimeCount, c.verified),
+              ),
+              Expanded(
+                child: _count(
+                  context,
+                  'Late',
+                  credit.lateCount,
+                  credit.lateCount > 0 ? c.pending : c.ink,
+                ),
+              ),
+              Expanded(
+                child: _count(
+                  context,
+                  'Defaults',
+                  credit.defaultCount,
+                  credit.defaultCount > 0 ? c.dispute : c.ink,
+                ),
+              ),
+              TextButton(
+                onPressed: () => setState(() => _tab = 1),
+                child: const Text('History ›'),
+              ),
+            ],
           ),
         ],
+      ),
+    );
+  }
 
-        const SizedBox(height: Gap.xl),
-        const LampSectionHeader(title: 'Recent deliveries'),
-        if (recent.isEmpty)
-          Text(
-            'Nothing delivered yet.',
-            style: LaMPType.small.copyWith(color: c.inkFaint),
-          )
-        else
-          for (final v in recent) ...[
-            _recentRow(context, v),
-            const SizedBox(height: Gap.sm),
-          ],
+  Widget _count(BuildContext context, String label, int value, Color color) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        LampEyebrow(label),
+        const SizedBox(height: Gap.xs),
+        Text('$value', style: LaMPType.monoBody.copyWith(color: color)),
       ],
     );
   }
@@ -302,53 +354,58 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
   ///
   /// This is where a settled invoice goes when it leaves "Due now" — without
   /// it, paying makes the invoice vanish with nothing to show it landed.
-  Widget _recentRow(BuildContext context, TokenView v) {
+  Widget _recentRow(BuildContext context, TokenView v, CreditHistory credit) {
     final c = context.lamp;
     final token = v.token;
-    final tone = switch (token.state) {
-      TokenState.settled => LampTone.verified,
-      TokenState.disputed => LampTone.dispute,
-      TokenState.financed => LampTone.chain,
-      TokenState.delivered => LampTone.verified,
-      _ => LampTone.neutral,
+    CreditCycle? cycle;
+    for (final cc in credit.cycles) {
+      if (cc.tokenId == token.tokenId) cycle = cc;
+    }
+
+    final LampState dot = switch (token.state) {
+      TokenState.settled => cycle == null || cycle.onTime
+          ? LampState.confirmed
+          : LampState.pending,
+      TokenState.disputed || TokenState.defaulted => LampState.refused,
+      TokenState.delivered || TokenState.financed => LampState.confirmed,
+      _ => LampState.pending,
     };
 
-    return LampCard(
-      padding: const EdgeInsets.all(Gap.md),
+    final detail = cycle != null
+        ? 'Settled ${LaMPFormatters.formatDateShort(cycle.settledAt)} · '
+            '${cycle.onTime ? 'on time' : '${cycle.daysLate} days late'}'
+        : '${token.state.label} · ${token.declaredCartons} '
+            '${token.declaredCartons == 1 ? 'carton' : 'cartons'}';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: Gap.lg, vertical: Gap.md),
       child: Row(
         children: [
+          LampStateDot(dot),
+          const SizedBox(width: Gap.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        token.invoiceId,
-                        style: LaMPType.monoCaption.copyWith(
-                          color: c.ink,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(width: Gap.sm),
-                    LampChip(label: token.state.label, tone: tone),
-                  ],
-                ),
-                const SizedBox(height: 2),
                 Text(
-                  '${LaMPFormatters.formatDate(token.issuedAt)} · '
-                  '${token.declaredCartons} cartons',
-                  style: LaMPType.micro.copyWith(color: c.inkFaint),
+                  token.invoiceId,
+                  style: LaMPType.monoCaption.copyWith(
+                    color: c.ink,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  detail,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: LaMPType.caption.copyWith(color: c.inkFaint),
                 ),
               ],
             ),
           ),
           const SizedBox(width: Gap.sm),
           Text(
-            LaMPFormatters.formatBDTCompact(token.declaredValue),
+            LaMPFormatters.formatBDT(token.declaredValue),
             style: LaMPType.monoCaption.copyWith(color: c.ink),
           ),
         ],
@@ -365,32 +422,24 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
   ///     payment CTA only appears once the goods have actually been recorded
   ///     as delivered on the ledger.
   ///
-  /// The screen used to show **Pay now** against a CREATED receivable — a bill
-  /// for goods nobody had delivered — and to treat FINANCED as "nothing to
-  /// pay", which it is not: the bank advances against the receivable to the
+  /// The screen used to show a pay button against a CREATED receivable — a
+  /// bill for goods nobody had delivered — and to treat FINANCED as "nothing
+  /// to pay", which it is not: the bank advances against the receivable to the
   /// manufacturer, and the pharmacy still owes the full amount.
-  Widget _dueNowCard(BuildContext context, TokenView? next) {
+  Widget _dueNowCard(BuildContext context, LaMPState state, TokenView? next) {
     final c = context.lamp;
 
     if (next == null) {
       return LampCard(
-        background: c.verifiedSoft,
-        border: c.verified,
         child: Row(
           children: [
-            Icon(Icons.check_circle_outline, size: IconSize.lg, color: c.verified),
+            const LampStateDot(LampState.confirmed),
             const SizedBox(width: Gap.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Nothing outstanding',
-                    style: LaMPType.sub.copyWith(
-                      color: c.ink,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                  Text('Nothing outstanding', style: LaMPType.head.copyWith(color: c.ink)),
                   Text(
                     'Every invoice on this counter has settled',
                     style: LaMPType.caption.copyWith(color: c.inkMuted),
@@ -403,63 +452,115 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
       );
     }
 
-    final state = context.read<LaMPState>();
     final token = next.token;
     final overdue = token.dueDate < state.now;
+    final amount = LaMPFormatters.formatBDT(token.declaredValue);
 
-    return LampCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  token.invoiceId,
-                  style: LaMPType.monoBody.copyWith(
-                    color: c.ink,
-                    fontWeight: FontWeight.w600,
-                  ),
+    final body = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                token.invoiceId,
+                style: LaMPType.monoBody.copyWith(
+                  color: c.ink,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-              LampChip(
-                label: LaMPFormatters.formatDaysUntil(token.dueDate, state.now),
-                tone: overdue ? LampTone.dispute : LampTone.pending,
+            ),
+            LampStateChip(
+              overdue ? LampState.refused : LampState.pending,
+              LaMPFormatters.formatDaysUntil(token.dueDate, state.now),
+            ),
+          ],
+        ),
+        const SizedBox(height: Gap.lg),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const LampEyebrow('Amount due'),
+                  const SizedBox(height: Gap.xs),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(amount, style: LaMPType.figure.copyWith(color: c.ink)),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: Gap.md),
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  const LampEyebrow('Supplier'),
+                  const SizedBox(height: Gap.xs),
+                  Text(
+                    SeedData.manufacturer.name,
+                    textAlign: TextAlign.end,
+                    style: LaMPType.caption.copyWith(color: c.ink),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: Gap.lg),
+        if (token.isPayable) ...[
+          Row(
+            children: [
+              Icon(Icons.check_circle_outline, size: IconSize.sm, color: c.verified),
+              const SizedBox(width: Gap.sm),
+              Expanded(
+                child: Text(
+                  'Delivery confirmed · '
+                  '${token.scanned} of ${token.declaredCartons} cartons',
+                  style: LaMPType.caption.copyWith(color: c.inkMuted),
+                ),
               ),
             ],
           ),
           const SizedBox(height: Gap.md),
-          LampKeyValue(
-            label: 'Amount',
-            value: LaMPFormatters.formatBDT(token.declaredValue),
-            valueColor: c.brand,
-            mono: true,
+          ElevatedButton(
+            onPressed: () => setState(() {
+              _payTokenId = token.tokenId;
+              _tab = 2;
+            }),
+            style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+            child: Text('Pay $amount'),
           ),
-          LampKeyValue(
-            label: 'Supplier',
-            value: SeedData.manufacturer.name,
-          ),
-          const SizedBox(height: Gap.md),
-          if (token.isPayable)
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => setState(() {
-                  _payTokenId = token.tokenId;
-                  _tab = 2;
-                }),
-                child: const Text('Pay now'),
+        ] else
+          Row(
+            children: [
+              LampStateDot(
+                token.state == TokenState.disputed ? LampState.refused : LampState.pending,
               ),
-            )
-          else
-            Text(
-              token.state == TokenState.disputed
-                  ? 'Resolve the dispute before settling.'
-                  : 'Payable once the delivery is confirmed on the ledger.',
-              style: LaMPType.caption.copyWith(color: c.inkMuted),
-            ),
-        ],
-      ),
+              const SizedBox(width: Gap.sm),
+              Expanded(
+                child: Text(
+                  token.state == TokenState.disputed
+                      ? 'Resolve the dispute before settling.'
+                      : 'You can pay once the delivery is confirmed.',
+                  style: LaMPType.caption.copyWith(color: c.inkMuted),
+                ),
+              ),
+            ],
+          ),
+      ],
+    );
+
+    final tx = state.lastTxFor(token.tokenId);
+    if (tx == null) return LampCard(child: body);
+    return LampReceiptCard(
+      tx: tx,
+      onOpen: () => LedgerInspectorSheet.show(context),
+      child: body,
     );
   }
 
@@ -485,7 +586,7 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
               const SizedBox(height: Gap.lg),
               Text(
                 credit.tier.label,
-                style: LaMPType.title.copyWith(color: c.brand),
+                style: LaMPType.title.copyWith(color: c.ink),
               ),
               const SizedBox(height: Gap.xs),
               Text(
@@ -498,7 +599,8 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
         ),
         const SizedBox(height: Gap.xl),
 
-        const LampSectionHeader(title: 'Settled cycles'),
+        LampEyebrow('Settled cycles', trailing: '${credit.cycles.length}'),
+        const SizedBox(height: Gap.md),
         for (final cycle in credit.cycles.reversed) ...[
           LampCard(
             padding: const EdgeInsets.all(Gap.md),
@@ -525,7 +627,7 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
                         cycle.onTime
                             ? 'On time'
                             : '${cycle.daysLate} days late',
-                        style: LaMPType.micro.copyWith(
+                        style: LaMPType.caption.copyWith(
                           color: cycle.onTime ? c.inkFaint : c.pending,
                         ),
                       ),
@@ -560,18 +662,12 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
       // is, rather than offering a button that will be refused.
       final waiting = open.isNotEmpty;
       return ListView(
-        padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.lg, Gap.lg, Gap.xxl),
+        padding: lumaScrollPadding(context, top: Gap.lg),
         children: [
           LampCard(
-            background: waiting ? c.pendingSoft : c.verifiedSoft,
-            border: waiting ? c.pending : c.verified,
             child: Row(
               children: [
-                Icon(
-                  waiting ? Icons.schedule : Icons.check_circle_outline,
-                  size: IconSize.lg,
-                  color: waiting ? c.pending : c.verified,
-                ),
+                LampStateDot(waiting ? LampState.pending : LampState.confirmed),
                 const SizedBox(width: Gap.md),
                 Expanded(
                   child: Column(
@@ -579,16 +675,13 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
                     children: [
                       Text(
                         waiting ? 'Not payable yet' : 'Nothing to settle',
-                        style: LaMPType.sub.copyWith(
-                          color: c.ink,
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style: LaMPType.head.copyWith(color: c.ink),
                       ),
                       Text(
                         waiting
-                            ? '${open.first.token.invoiceId} is '
-                                '${open.first.token.state.label.toLowerCase()}. '
-                                'Payable once the delivery is confirmed.'
+                            ? '${open.first.token.invoiceId} is still on its '
+                                "way. You can pay once it's delivered and "
+                                'confirmed.'
                             : 'Every invoice on this counter has settled',
                         style: LaMPType.caption.copyWith(color: c.inkMuted),
                       ),
@@ -611,7 +704,7 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Settle', style: LaMPType.head.copyWith(color: c.ink)),
+              const LampEyebrow('Settle'),
               const SizedBox(height: Gap.md),
               LampKeyValue(
                 label: 'Invoice',
@@ -621,7 +714,6 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
               LampKeyValue(
                 label: 'Amount',
                 value: LaMPFormatters.formatBDT(token.declaredValue),
-                valueColor: c.brand,
                 mono: true,
               ),
               LampKeyValue(
@@ -643,7 +735,8 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
         ),
         const SizedBox(height: Gap.xl),
 
-        const LampSectionHeader(title: 'Pay with'),
+        const LampEyebrow('Pay with'),
+        const SizedBox(height: Gap.md),
         _payOption('bKash', 'Instant', LaMPColors.bKash),
         const SizedBox(height: Gap.sm),
         _payOption('Nagad', 'Instant', LaMPColors.nagad),
@@ -655,6 +748,7 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
           width: double.infinity,
           child: ElevatedButton(
             onPressed: () => _executePayment(state, target),
+            style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
             // The button carried the amount and the method as well, at
             // seventy-seven characters over two lines. Both are on the card
             // directly above it.
@@ -672,7 +766,6 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
     return LampCard(
       onTap: () => setState(() => _payMethod = name),
       padding: const EdgeInsets.all(Gap.md),
-      background: selected ? accent.withValues(alpha: 0.08) : c.surface,
       border: selected ? accent : c.line,
       child: Row(
         children: [
@@ -688,17 +781,15 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
               color: selected ? accent : Colors.transparent,
             ),
             child: selected
-                ? const Icon(Icons.check, size: 12, color: Colors.white)
+                // Dark themes' brand is near-white, so the check takes onBrand.
+                ? Icon(Icons.check, size: 12, color: accent == c.brand ? c.onBrand : Colors.white) // design-lint: allow (on the bKash/Nagad logo colour)
                 : null,
           ),
           const SizedBox(width: Gap.md),
           Expanded(
             child: Text(
               name,
-              style: LaMPType.sub.copyWith(
-                color: selected ? accent : c.ink,
-                fontWeight: FontWeight.w600,
-              ),
+              style: LaMPType.sub.copyWith(color: c.ink),
             ),
           ),
           Text(speed, style: LaMPType.caption.copyWith(color: c.inkFaint)),
@@ -716,7 +807,7 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
           children: [
             LampBusy(),
             SizedBox(width: Gap.lg),
-            Expanded(child: Text('Submitting to the ledger')),
+            Expanded(child: Text('Recording your payment…')),
           ],
         ),
       ),
@@ -749,7 +840,7 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
       LumaHaptics.reject();
       LumaToast.show(
         context,
-        res.error ?? 'Refused',
+        LedgerLabels.reason(res.error),
         icon: Icons.error_outline,
         tone: LumaToastTone.dispute,
       );
@@ -792,6 +883,8 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const LampEyebrow('Disputes'),
+              const SizedBox(height: Gap.xs),
               Text('Raise a dispute', style: LaMPType.head.copyWith(color: c.ink)),
               const SizedBox(height: Gap.xs),
               Text(
@@ -801,10 +894,11 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
               const SizedBox(height: Gap.lg),
               SizedBox(
                 width: double.infinity,
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: c.dispute,
-                    foregroundColor: Colors.white,
+                // Refused colour on the label and outline, never as a fill.
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: c.dispute,
+                    side: BorderSide(color: c.dispute),
                   ),
                   onPressed: () async {
                     final open = _open(state);

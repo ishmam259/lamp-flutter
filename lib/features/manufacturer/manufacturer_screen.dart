@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_theme.dart';
+import '../../core/constants/ledger_labels.dart';
 import '../../core/constants/palette.dart';
 import '../../core/design/luma_press.dart';
 import '../../core/design/luma_toast.dart';
@@ -10,11 +11,10 @@ import '../../core/models/domain_models.dart';
 import '../../core/state/lamp_state.dart';
 import '../../core/world/queries.dart';
 import '../../core/world/seed.dart';
-import '../../widgets/demo_director_sheet.dart';
 import '../../widgets/ledger_inspector_sheet.dart';
 import '../../widgets/lifecycle_rail.dart';
 import '../../widgets/private_seal.dart';
-import '../../widgets/theme_toggle.dart';
+import '../../widgets/ui/lamp_ledger_ui.dart';
 import '../../widgets/ui/lamp_ui.dart';
 import '../../core/constants/typography.dart';
 
@@ -46,9 +46,7 @@ TokenState _tokenStateFor(TokenView view) {
 }
 
 class ManufacturerScreen extends StatefulWidget {
-  final VoidCallback onBackToLauncher;
-
-  const ManufacturerScreen({super.key, required this.onBackToLauncher});
+  const ManufacturerScreen({super.key});
 
   @override
   State<ManufacturerScreen> createState() => _ManufacturerScreenState();
@@ -92,7 +90,6 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
 
   Widget _buildScaffold(BuildContext context) {
     final state = context.watch<LaMPState>();
-    final c = context.lamp;
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -103,19 +100,9 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
       appBar: LumaAppBar(
         title: 'Manufacturer',
         subtitle: 'Shomota · Bogura Depot',
-        onBack: widget.onBackToLauncher,
         actions: [
-          const ThemeToggle(),
-          IconButton(
-            tooltip: 'Ledger',
-            icon: Icon(Icons.account_tree_outlined, color: c.inkMuted),
-            onPressed: () => LedgerInspectorSheet.show(context),
-          ),
-          IconButton(
-            tooltip: 'Demo controls',
-            icon: Icon(Icons.tune, color: c.inkMuted),
-            onPressed: () => DemoDirectorSheet.show(context),
-          ),
+          LampBlockPip(onTap: () => LedgerInspectorSheet.show(context)),
+          const LampSeatMenu(),
         ],
         // Colours come from `tabBarTheme` now; the three screens that had a
         // TabBar were each setting the same three by hand.
@@ -123,9 +110,9 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
           controller: _tabController,
           isScrollable: true,
           tabs: const [
-            Tab(text: 'Receivables'),
+            Tab(text: 'Invoices'),
             Tab(text: 'Tracking'),
-            Tab(text: 'Mint invoice'),
+            Tab(text: 'New invoice'),
           ],
         ),
       ),
@@ -249,12 +236,8 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                       runSpacing: 4,
                       children: [
                         Text(
-                          'On the ledger',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: c.ink),
-                        ),
-                        Text(
-                          'lamp-channel',
-                          style: TextStyle(fontSize: 10, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, color: c.inkFaint),
+                          'Invoices',
+                          style: LaMPType.head.copyWith(color: c.ink),
                         ),
                       ],
                     ),
@@ -262,8 +245,8 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
 
                     if (views.isEmpty)
                       Text(
-                        'No receivables on the ledger yet.',
-                        style: TextStyle(fontSize: 12, color: c.inkFaint),
+                        'No invoices yet.',
+                        style: LaMPType.caption.copyWith(color: c.inkFaint),
                       )
                     else
                       for (final view in views) ...[
@@ -286,7 +269,7 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
 
     final tone = switch (token.state) {
       TokenState.settled => LampTone.verified,
-      TokenState.financed => LampTone.chain,
+      TokenState.financed => LampTone.verified,
       TokenState.delivered => LampTone.verified,
       TokenState.disputed => LampTone.dispute,
       TokenState.defaulted => LampTone.dispute,
@@ -312,19 +295,13 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                   token.invoiceId,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: LaMPType.mono,
-                    fontFamilyFallback: LaMPType.fallback,
-                    color: c.ink,
-                  ),
+                  style: LaMPType.monoBody.copyWith(color: c.ink),
                 ),
               ),
               const SizedBox(width: 8),
               Text(
                 LaMPFormatters.formatBDT(token.declaredValue),
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: c.brand),
+                style: LaMPType.monoBody.copyWith(color: c.ink),
               ),
             ],
           ),
@@ -334,7 +311,7 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
           Text(
             '${view.pharmacy?.name ?? token.buyerDid} · '
             '${view.pharmacy?.territory ?? ''}',
-            style: TextStyle(fontSize: 12, color: c.inkMuted),
+            style: LaMPType.caption.copyWith(color: c.inkMuted),
           ),
           const SizedBox(height: 12),
 
@@ -353,15 +330,10 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
             children: [
               Flexible(
                 child: Text(
-                  'Token ${token.tokenId}',
+                  'Due ${LaMPFormatters.formatDate(token.dueDate)}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontFamily: LaMPType.mono,
-                    fontFamilyFallback: LaMPType.fallback,
-                    color: c.inkFaint,
-                  ),
+                  style: LaMPType.caption.copyWith(color: c.inkFaint),
                 ),
               ),
               const SizedBox(width: 12),
@@ -372,10 +344,7 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.end,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: c.inkFaint,
-                  ),
+                  style: LaMPType.caption.copyWith(color: c.inkFaint),
                 ),
               ),
             ],
@@ -397,11 +366,11 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: c.inkFaint)),
+          Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: LaMPType.caption.copyWith(color: c.inkFaint)),
           const SizedBox(height: 4),
-          Text(value, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color)),
+          Text(value, maxLines: 1, overflow: TextOverflow.ellipsis, style: LaMPType.figure.copyWith(color: color)),
           const SizedBox(height: 2),
-          Text(sub, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 10, color: c.inkFaint)),
+          Text(sub, maxLines: 1, overflow: TextOverflow.ellipsis, style: LaMPType.caption.copyWith(color: c.inkFaint)),
         ],
       ),
     );
@@ -431,13 +400,13 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
               const SizedBox(height: 12),
               Text(
                 'Nothing in transit.',
-                style: TextStyle(fontSize: 13, color: c.inkMuted),
+                style: LaMPType.caption.copyWith(color: c.inkMuted),
               ),
               const SizedBox(height: 4),
               Text(
                 'Every consignment on the book has been handed over.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 11, color: c.inkFaint),
+                style: LaMPType.caption.copyWith(color: c.inkFaint),
               ),
             ],
           ),
@@ -481,7 +450,7 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                             'Tracking · ${delivery.invoiceId}',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: c.ink),
+                            style: LaMPType.head.copyWith(color: c.ink),
                           ),
                         ),
                         const SizedBox(width: Gap.sm),
@@ -491,7 +460,7 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             textAlign: TextAlign.end,
-                            style: TextStyle(fontSize: 12, color: c.inkFaint),
+                            style: LaMPType.caption.copyWith(color: c.inkFaint),
                           ),
                         ),
                       ],
@@ -511,24 +480,23 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                       children: [
                         Expanded(
                           child: Text(
-                            '$scanned of $total cartons confirmed on-chain',
+                            '$scanned of $total cartons delivered',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: 11, color: c.inkMuted),
+                            style: LaMPType.caption.copyWith(color: c.inkMuted),
                           ),
                         ),
                         const SizedBox(width: Gap.sm),
                         Text('${(ratio * 100).toInt()}%',
-                            style: TextStyle(fontSize: 11, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, fontWeight: FontWeight.bold, color: c.brand)),
+                            style: LaMPType.monoCaption.copyWith(fontWeight: FontWeight.w600, color: c.brand)),
                       ],
                     ),
                     const SizedBox(height: 16),
                     Divider(color: c.line),
                     const SizedBox(height: 8),
 
-                    // Private Data Collection Demo
-                    Text('Private Data Collection (invoiceLineItems)',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: c.ink)),
+                    Text('Line items · private to ${SeedData.manufacturer.name}',
+                        style: LaMPType.caption.copyWith(fontWeight: FontWeight.w600, color: c.ink)),
                     const SizedBox(height: 8),
                     // The real line items and the real digest the chaincode
                     // put on the channel. This was a literal product list that
@@ -547,65 +515,17 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                     ),
                     const SizedBox(height: 16),
 
-                    // On-chain vs Off-chain split
-                    Text('On-Chain vs Off-Chain Split (Whitepaper §4.4)',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: c.inkFaint)),
-                    const SizedBox(height: 8),
-                    _splitRow(context, 'On-Chain Token State', delivery.status.id, isChain: true),
-                    _splitRow(context, 'Carton Hash Set (${view.token.declaredCartons} hashes)', 'Committed in Block', isChain: true),
-                    _splitRow(context, 'Physical GPS & Courier Location', 'Bogura Sadar Road (Off-chain)', isChain: false),
-                    _splitRow(context, 'Digital Signature Image', delivery.signatureRef ?? 'Pending (Off-chain)', isChain: false),
+                    LampKeyValue(label: 'Delivery', value: delivery.status.label),
+                    LampKeyValue(
+                      label: 'Pharmacist signature',
+                      value: delivery.signatureRef == null ? 'Not yet' : 'Signed',
+                    ),
                   ],
                 ),
               ),
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _splitRow(BuildContext context, String label, String value, {required bool isChain}) {
-    final c = context.lamp;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      // The value here is a 64-character hash in three of the four calls, so
-      // it is the side that has to give. Both halves are bounded: the label
-      // takes what it needs up to two fifths, the value takes the rest and
-      // truncates in the middle of a string that has no spaces to wrap at.
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Flexible(
-            flex: 2,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(isChain ? Icons.link : Icons.cloud_outlined, size: 14, color: isChain ? c.verified : c.inkFaint),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 11, color: c.inkMuted),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: Gap.sm),
-          Expanded(
-            flex: 3,
-            child: Text(
-              value,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.end,
-              style: TextStyle(fontSize: 11, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, color: isChain ? c.verified : c.inkFaint),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -627,16 +547,16 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Mint New Receivable Token',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: c.ink)),
-                Text('Needs a bank co-signature',
-                    style: TextStyle(fontSize: 12, color: c.inkMuted)),
+                Text('New invoice',
+                    style: LaMPType.head.copyWith(color: c.ink)),
+                Text('Issued to the pharmacy once a partner bank co-signs.',
+                    style: LaMPType.caption.copyWith(color: c.inkMuted)),
                 const SizedBox(height: 16),
                 Divider(color: c.line),
                 const SizedBox(height: 12),
 
                 // Buyer Selection
-                Text('BUYER PHARMACY', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: c.inkFaint)),
+                Text('BUYER PHARMACY', style: LaMPType.label.copyWith(color: c.inkFaint)),
                 const SizedBox(height: 8),
                 Container(
                   padding: const EdgeInsets.all(12),
@@ -651,16 +571,16 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                     runSpacing: 4,
                     children: [
                       Text('Rahman Medical Hall (রহমান মেডিকেল হল)',
-                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: c.ink)),
-                      Text('Bogura Sadar', style: TextStyle(fontSize: 12, color: c.inkFaint)),
+                          style: LaMPType.caption.copyWith(fontWeight: FontWeight.w600, color: c.ink)),
+                      Text('Bogura Sadar', style: LaMPType.caption.copyWith(color: c.inkFaint)),
                     ],
                   ),
                 ),
                 const SizedBox(height: 16),
 
                 // Products & Cartons
-                Text('MEDICINE LINE ITEMS & CARTONS',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: c.inkFaint)),
+                Text('MEDICINES',
+                    style: LaMPType.label.copyWith(color: c.inkFaint)),
                 const SizedBox(height: 8),
 
                 for (final prod in SeedData.products.take(3)) ...[
@@ -674,9 +594,9 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(prod.name,
-                                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.ink)),
+                                  style: LaMPType.caption.copyWith(fontWeight: FontWeight.w600, color: c.ink)),
                               Text('${prod.strength} · ৳${prod.unitPrice}/unit · ${prod.unitsPerCarton} units/ctn',
-                                  style: TextStyle(fontSize: 11, color: c.inkFaint)),
+                                  style: LaMPType.caption.copyWith(color: c.inkFaint)),
                             ],
                           ),
                         ),
@@ -692,7 +612,7 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                               },
                             ),
                             Text('${_selectedCartons[prod.sku] ?? 0} ctn',
-                                style: const TextStyle(fontSize: 13, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, fontWeight: FontWeight.bold)),
+                                style: LaMPType.monoCaption.copyWith(fontWeight: FontWeight.w600)),
                             IconButton(
                               icon: const Icon(Icons.add_circle_outline, size: 18),
                               onPressed: () {
@@ -716,11 +636,7 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                 // control; this one was a `final` field fixed at 45 days.
                 Text(
                   'Credit period',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: c.ink,
-                  ),
+                  style: LaMPType.caption.copyWith(fontWeight: FontWeight.w600, color: c.ink),
                 ),
                 const SizedBox(height: 8),
                 Wrap(
@@ -772,8 +688,8 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                           LumaHaptics.commit();
                           LumaToast.show(
                             context,
-                            'Receivable minted',
-                            icon: Icons.token_outlined,
+                            'Invoice issued',
+                            icon: Icons.receipt_long_outlined,
                             tone: LumaToastTone.verified,
                           );
                           _tabController.animateTo(0);
@@ -781,15 +697,15 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                           LumaHaptics.reject();
                           LumaToast.show(
                             context,
-                            res.error ?? 'Minting failed',
+                            LedgerLabels.reason(res.error),
                             icon: Icons.error_outline,
                             tone: LumaToastTone.dispute,
                           );
                         }
                       }
                     },
-                    icon: const Icon(Icons.token_outlined),
-                    label: const Text('Mint Receivable Token to Consortium Ledger'),
+                    icon: const Icon(Icons.receipt_long_outlined),
+                    label: const Text('Issue invoice'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: c.brand,
                       foregroundColor: c.onBrand,

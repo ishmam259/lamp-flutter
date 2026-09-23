@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../constants/palette.dart';
 import '../constants/typography.dart';
+import '../../widgets/lamp_mark.dart';
 
 /// `backdrop-filter: blur(20px) saturate(180%)`.
 ///
@@ -111,11 +112,19 @@ class LumaFrost extends StatelessWidget {
 class LumaAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
 
-  /// The second line — a role, an organisation, a channel. Set in mono at 11,
-  /// which is what the rest of the app uses for machine-adjacent metadata.
+  /// The second line — a role, an organisation, a person. Sans: names are
+  /// prose, and mono's extra width is what used to truncate them.
   final String? subtitle;
 
+  /// An identifier that follows the subtitle — a device id, an MSP. Set in
+  /// mono beside the sans subtitle: same line, two faces, each doing its job.
+  final String? subtitleId;
+
   final Widget? leading;
+
+  /// Width of the [leading] slot. Flutter's default of 56 is too narrow for
+  /// the 38dp brand mark once it has its padding.
+  final double? leadingWidth;
   final VoidCallback? onBack;
   final List<Widget> actions;
   final PreferredSizeWidget? bottom;
@@ -124,7 +133,9 @@ class LumaAppBar extends StatelessWidget implements PreferredSizeWidget {
     super.key,
     required this.title,
     this.subtitle,
+    this.subtitleId,
     this.leading,
+    this.leadingWidth,
     this.onBack,
     this.actions = const [],
     this.bottom,
@@ -143,7 +154,7 @@ class LumaAppBar extends StatelessWidget implements PreferredSizeWidget {
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       scrolledUnderElevation: 0,
-      titleSpacing: leading == null && onBack == null ? Gap.lg : 0,
+      titleSpacing: 0,
       // The bar itself draws nothing; the glass behind it draws everything,
       // and it has to cover the status bar too or the top strip is clear while
       // the bar under it is frosted.
@@ -151,9 +162,15 @@ class LumaAppBar extends StatelessWidget implements PreferredSizeWidget {
         border: Border(bottom: BorderSide(color: c.line.withValues(alpha: 0.9))),
         child: const SizedBox.expand(),
       ),
+      // A seat is the signed-in user's home, with nothing behind it to go
+      // back to, so the slot carries the mark instead of an arrow.
+      leadingWidth: leadingWidth ?? (onBack == null ? Gap.lg + 38 + Gap.md : null),
       leading: leading ??
           (onBack == null
-              ? null
+              ? const Padding(
+                  padding: EdgeInsets.only(left: Gap.lg, right: Gap.md),
+                  child: Center(child: LampMark(size: 38)),
+                )
               : IconButton(
                   icon: const Icon(Icons.arrow_back),
                   color: c.ink,
@@ -170,10 +187,16 @@ class LumaAppBar extends StatelessWidget implements PreferredSizeWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-          if (subtitle != null)
-            Text(
-              subtitle!,
-              style: LaMPType.monoCaption.copyWith(color: c.inkFaint),
+          if (subtitle != null || subtitleId != null)
+            Text.rich(
+              TextSpan(children: [
+                if (subtitle != null) TextSpan(text: subtitle),
+                if (subtitle != null && subtitleId != null)
+                  const TextSpan(text: ' · '),
+                if (subtitleId != null)
+                  TextSpan(text: subtitleId, style: LaMPType.monoCaption),
+              ]),
+              style: LaMPType.caption.copyWith(color: c.inkFaint),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),

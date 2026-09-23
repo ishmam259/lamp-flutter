@@ -1,8 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../core/chain/contract.dart';
 import '../../core/chain/crypto.dart';
+import '../../core/constants/app_mode.dart';
 import '../../core/constants/app_theme.dart';
+import '../../core/constants/ledger_labels.dart';
 import '../../core/constants/palette.dart';
 import '../../core/design/luma_press.dart';
 import '../../core/design/luma_toast.dart';
@@ -13,26 +16,31 @@ import '../../core/state/lamp_state.dart';
 import '../../core/world/queries.dart';
 import '../../core/world/seed.dart';
 import '../../widgets/carton_code_view.dart';
+import '../../widgets/ui/lamp_ledger_ui.dart';
 import '../../widgets/ui/lamp_skeleton.dart';
-import '../../widgets/theme_toggle.dart';
 import '../../widgets/ui/lamp_ui.dart';
 import '../../widgets/carton_scanner_sheet.dart';
 import '../../widgets/data_matrix_view.dart';
-import '../../widgets/demo_director_sheet.dart';
 import '../../widgets/ledger_inspector_sheet.dart';
 import '../../widgets/signature_pad.dart';
 import '../../core/constants/typography.dart';
 
+/// The delivery officer's seat: today's round, the cartons at the door, the
+/// pharmacist's signature, and returns.
+///
+/// Laid out against the redesign's MPO mockups (`docs/DESIGN_SYSTEM.md`):
+/// one bar with the block pip, a bottom nav the thumb can reach, one stop
+/// open at a time as a receipt of its last ledger write, and carton progress
+/// as 25 ticks rather than a percentage — so the refused carton shows in its
+/// own position.
 class MpoScreen extends StatefulWidget {
-  final VoidCallback onBackToLauncher;
-
-  const MpoScreen({super.key, required this.onBackToLauncher});
+  const MpoScreen({super.key});
 
   @override
   State<MpoScreen> createState() => _MpoScreenState();
 }
 
-class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMixin {
+class _MpoScreenState extends State<MpoScreen> {
   /// A carton belonging to no consignment in this world.
   ///
   /// The scan cascade substitutes this at position 14, and the same payload is
@@ -42,12 +50,12 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
   static const String _misroutedGs1 =
       '(01)08901234001019(17)280824(10)BCH-FOREIGN(21)SN-9999';
 
-  late TabController _tabController;
+  /// Route, Scan, Sign, Returns.
+  int _tab = 0;
   bool _offlineMode = false;
   final List<String> _offlineQueue = [];
   bool _autoScanning = false;
   Timer? _autoTimer;
-  String? _scanBannerError;
   bool _hasSignature = false;
 
   /// The stop the Scan, Sign and Returns tabs are working on.
@@ -78,16 +86,11 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
     return route.first;
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 4, vsync: this);
-  }
+  void _goTo(int tab) => setState(() => _tab = tab);
 
   @override
   void dispose() {
     _autoTimer?.cancel();
-    _tabController.dispose();
     super.dispose();
   }
 
@@ -108,444 +111,468 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
 
     return Scaffold(
       extendBodyBehindAppBar: true,
-      // One bar for all five seats — see `LumaAppBar`. This one used to set
-      // `elevation: 1`, which gave it a drop shadow no other screen had; the
-      // separation is now a hairline under glass, and the content scrolls
-      // visibly beneath it.
+      extendBody: true,
       appBar: LumaAppBar(
         title: 'Delivery officer',
-        // From the seed rather than three literals. The identity line used to
-        // be hardcoded, so it disagreed with the device id every other screen
-        // read from `_me`.
-        subtitle: '${_me.name} · ${_me.deviceId} · ${_me.territory}',
-        onBack: widget.onBackToLauncher,
+        subtitle: '${_me.name} · ${_me.territory}',
         actions: [
-          // Tracks the switch on the Scan tab. It was always the connected
-          // glyph, including while the device was queuing scans because it
-          // had no signal.
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: Gap.xs),
-            child: Center(
-              child: Icon(
-                _offlineMode ? Icons.wifi_off : Icons.wifi,
-                size: IconSize.sm,
-                color: _offlineMode ? c.pending : c.brand,
+          // Offline, the pip gives way to what is waiting to be written —
+          // the one fact about the ledger that is not on it yet.
+          if (_offlineQueue.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: Gap.xs),
+              child: Center(
+                child: LampStateChip(
+                  LampState.pending,
+                  '${_offlineQueue.length} queued',
+                ),
               ),
+            )
+          else
+            LampBlockPip(
+              onTap: () => LedgerInspectorSheet.show(context),
             ),
-          ),
-          const ThemeToggle(),
-          IconButton(
-            tooltip: 'Ledger',
-            icon: Icon(Icons.account_tree_outlined, color: c.inkMuted),
-            onPressed: () => LedgerInspectorSheet.show(context),
-          ),
-          IconButton(
-            tooltip: 'Demo controls',
-            icon: Icon(Icons.tune, color: c.inkMuted),
-            onPressed: () => DemoDirectorSheet.show(context),
-          ),
+          const LampSeatMenu(),
         ],
-        // Colours come from `tabBarTheme` now; the three screens that had a
-        // TabBar were each setting the same three by hand.
-        bottom: TabBar(
-          controller: _tabController,
-          isScrollable: true,
-          tabs: const [
-            Tab(text: 'Route'),
-            Tab(text: 'Scan'),
-            Tab(text: 'Sign'),
-            Tab(text: 'Returns'),
+      ),
+      // No SafeArea: each tab reads the insets itself through
+      // `lumaScrollPadding`, under a Builder so the bar's height is folded in.
+      body: Builder(
+        builder: (context) => !state.isInitialized
+            ? const LampShimmer(
+                child: Padding(
+                  padding: EdgeInsets.all(Gap.lg),
+                  child: Column(
+                    children: [
+                      LampSkeletonCard(lines: 2),
+                      SizedBox(height: Gap.lg),
+                      LampSkeletonCard(lines: 1),
+                    ],
+                  ),
+                ),
+              )
+            : IndexedStack(
+                index: _tab,
+                children: [
+                  _buildRouteTab(context, route, state),
+                  active == null
+                      ? _noStop(context, 'Nothing left to scan.')
+                      : _buildScannerTab(context, active, state),
+                  active == null
+                      ? _noStop(context, 'Nothing left to sign for.')
+                      : _buildConfirmTab(context, active, state),
+                  active == null
+                      ? _noStop(context, 'Nothing left to return.')
+                      : _buildReturnsTab(context, active, state),
+                ],
+              ),
+      ),
+      bottomNavigationBar: LumaFrost(
+        border: Border(top: BorderSide(color: c.line)),
+        child: NavigationBar(
+          selectedIndex: _tab,
+          onDestinationSelected: _goTo,
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.route_outlined),
+              selectedIcon: Icon(Icons.route),
+              label: 'Route',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.qr_code_scanner),
+              label: 'Scan',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.draw_outlined),
+              selectedIcon: Icon(Icons.draw),
+              label: 'Sign',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.assignment_return_outlined),
+              selectedIcon: Icon(Icons.assignment_return),
+              label: 'Returns',
+            ),
           ],
         ),
       ),
-        // The Builder is load-bearing: under it, `MediaQuery.padding.top`
-        // carries the height of the bar and its tab strip, which is what
-        // `lumaScrollPadding` reads in each tab below. Outside it, the same
-        // call would return the status bar alone and every tab would start
-        // its content behind the glass.
-        // No SafeArea. It would apply the bottom inset as padding and remove
-        // it from the MediaQuery underneath — and the tabs below read that
-        // inset themselves, through `lumaScrollPadding`, so it would be
-        // counted twice and every list would stop a gesture bar short of the
-        // bottom of the screen.
-        body: Builder(
-          builder: (context) => !state.isInitialized
-              ? const LampShimmer(
-                  child: Padding(
-                    padding: EdgeInsets.all(Gap.lg),
-                    child: Column(
-                      children: [
-                        LampSkeletonCard(lines: 2),
-                        SizedBox(height: Gap.lg),
-                        LampSkeletonCard(lines: 1),
-                      ],
-                    ),
-                  ),
-                )
-              : TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildRouteTab(context, route, state),
-                    active == null
-                        ? _noStop(context, 'Nothing left to scan.')
-                        : _buildScannerTab(context, active, state),
-                    active == null
-                        ? _noStop(context, 'Nothing left to sign for.')
-                        : _buildConfirmTab(context, active, state),
-                    active == null
-                        ? _noStop(context, 'Nothing left to return.')
-                        : _buildReturnsTab(context, active, state),
-                  ],
-                ),
-        ),
     );
   }
 
   /// What the working tabs show when the round is done.
   Widget _noStop(BuildContext context, String message) {
-    final c = context.lamp;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.check_circle_outline, size: 40, color: c.verified),
-            const SizedBox(height: 12),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: c.inkMuted),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Every consignment assigned to this device has been handed over.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 11, color: c.inkFaint),
-            ),
-          ],
+    return ListView(
+      padding: lumaScrollPadding(context, top: Gap.lg),
+      children: [
+        LampEmpty(
+          icon: Icons.check_circle_outline,
+          title: message,
+          message: 'Every consignment assigned to this device has been handed over.',
         ),
-      ),
+      ],
     );
   }
+
+  /// Per-carton states for the tick bar, in manifest order.
+  ///
+  /// Drawn from the carton rows so a refusal sits where it happened; the
+  /// counts beside the bar come off the ledger.
+  List<LampState?> _ticks(Delivery? delivery) => [
+        for (final carton in delivery?.cartons ?? const <Carton>[])
+          if (carton.rejected == true && carton.scannedAt == null)
+            LampState.refused
+          else if (_offlineQueue.contains(carton.gs1))
+            LampState.pending
+          else if (carton.scannedAt != null)
+            LampState.confirmed
+          else
+            null,
+      ];
+
+  int _refused(Delivery? delivery) => (delivery?.cartons ?? const <Carton>[])
+      .where((c) => c.rejected == true && c.scannedAt == null)
+      .length;
 
   /// Today's round.
   ///
   /// A stop leaves this list once the ledger holds every carton and the
   /// pharmacy has signed — the same two conditions as `app/mpo/page.tsx:28-36`.
-  /// Before this the tab drew one hard-coded stop, so a completed delivery sat
-  /// there permanently and a freshly minted consignment never appeared.
+  /// One stop is open at a time; the rest wait under it, a tap away.
   Widget _buildRouteTab(
     BuildContext context,
     List<TokenView> route,
     LaMPState state,
   ) {
     final c = context.lamp;
-    final activeId = _activeStop(state)?.tokenId;
-    final cartonsLeft = route.fold<int>(
-      0,
-      (sum, TokenView v) =>
-          sum + (v.token.declaredCartons - v.token.scanned).clamp(0, 1 << 30),
-    );
+    final active = _activeStop(state);
 
-    return SingleChildScrollView(
-      padding: lumaScrollPadding(context, top: Gap.lg),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 600),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: c.surface,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: c.line),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: LampStat(label: 'Stops', value: '${route.length}'),
-                    ),
-                    Expanded(
-                      child: LampStat(label: 'Cartons', value: '$cartonsLeft'),
-                    ),
-                    Expanded(
-                      child: LampStat(
-                        label: 'Date',
-                        value: LaMPFormatters.formatDateShort(state.now),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              if (route.isEmpty)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 32,
-                  ),
-                  decoration: BoxDecoration(
-                    color: c.surface,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: c.line),
-                  ),
-                  child: Text(
-                    'No deliveries assigned today.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 13, color: c.inkFaint),
-                  ),
-                )
-              else
-                for (int i = 0; i < route.length; i++) ...[
-                  _stopCard(
-                    context,
-                    route[i],
-                    state,
-                    position: i + 1,
-                    total: route.length,
-                    selected: route[i].tokenId == activeId,
-                  ),
-                  const SizedBox(height: 12),
-                ],
-            ],
+    if (active == null) {
+      return ListView(
+        padding: lumaScrollPadding(context, top: Gap.lg),
+        children: const [
+          LampEmpty(
+            icon: Icons.check_circle_outline,
+            title: 'Round complete',
+            message: 'No deliveries assigned today.',
           ),
+        ],
+      );
+    }
+
+    int positionOf(TokenView v) =>
+        route.indexWhere((r) => r.tokenId == v.tokenId) + 1;
+    final position = positionOf(active);
+    final others = [
+      for (final v in route)
+        if (v.tokenId != active.tokenId) v,
+    ];
+    final lines = active.invoice?.lineItems ?? const <LineItem>[];
+
+    return ListView(
+      padding: lumaScrollPadding(context, top: Gap.lg),
+      children: [
+        _stopCard(context, active, state, position: position, total: route.length),
+        if (others.isNotEmpty) ...[
+          const SizedBox(height: Gap.xl),
+          LampEyebrow(
+            position == 1 ? 'Next' : 'Also on the round',
+            trailing: '${others.length} ${others.length == 1 ? 'stop' : 'stops'}',
+          ),
+          const SizedBox(height: Gap.md),
+          for (final v in others) ...[
+            _nextStopRow(context, v, positionOf(v)),
+            const SizedBox(height: Gap.sm),
+          ],
+        ],
+        const SizedBox(height: Gap.xl),
+        LampEyebrow(
+          'Manifest',
+          trailing: '${lines.length} ${lines.length == 1 ? 'line' : 'lines'}',
         ),
-      ),
+        const SizedBox(height: Gap.md),
+        // Read off the invoice. These were three literal rows naming
+        // Paracetamol, Esomeprazole and Metformin whatever the consignment
+        // actually held.
+        if (lines.isEmpty)
+          Text(
+            'No line items recorded for this consignment.',
+            style: LaMPType.caption.copyWith(color: c.inkFaint),
+          )
+        else
+          LampCard(
+            padding: EdgeInsets.zero,
+            child: Column(
+              children: [
+                for (int i = 0; i < lines.length; i++) ...[
+                  if (i > 0) Divider(height: 1, thickness: 1, color: c.line),
+                  _manifestRow(context, lines[i]),
+                ],
+              ],
+            ),
+          ),
+      ],
     );
   }
 
-  /// One stop on the round. Tapping it selects it for the working tabs, and
-  /// the selected one opens to show its manifest.
+  /// The open stop, as a receipt of the last thing the ledger recorded
+  /// against it.
   Widget _stopCard(
     BuildContext context,
     TokenView view,
     LaMPState state, {
     required int position,
     required int total,
-    required bool selected,
   }) {
     final c = context.lamp;
     final token = view.token;
     final pharmacy = view.pharmacy;
     final scanned = token.scanned;
     final declared = token.declaredCartons;
-    final ratio = declared == 0 ? 0.0 : scanned / declared;
     final complete = token.isFullyScanned;
+    final refused = _refused(view.delivery);
+    final left = (declared - scanned).clamp(0, declared);
 
     final status = switch (view.delivery?.status) {
-      DeliveryStatus.completed => ('DELIVERED', c.verified, c.verifiedSoft),
-      DeliveryStatus.awaitingConfirmation => (
-          'AWAITING SIGNATURE',
-          c.pending,
-          c.pendingSoft
-        ),
-      DeliveryStatus.scanning => ('SCANNING', c.pending, c.pendingSoft),
-      DeliveryStatus.disputed => ('DISPUTED', c.dispute, c.disputeSoft),
-      _ => ('PENDING', c.pending, c.pendingSoft),
+      DeliveryStatus.completed => (LampState.confirmed, 'Delivered'),
+      DeliveryStatus.awaitingConfirmation => (LampState.pending, 'Awaiting signature'),
+      DeliveryStatus.scanning => (LampState.pending, 'Scanning'),
+      DeliveryStatus.disputed => (LampState.refused, 'Disputed'),
+      _ => (LampState.pending, 'Pending'),
     };
 
-    return InkWell(
-      borderRadius: BorderRadius.circular(12),
-      onTap: () => setState(() => _activeTokenId = token.tokenId),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: c.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: selected ? c.brand : c.line),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    final body = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // A Wrap, not a Row: "Awaiting signature" beside the stop counter
+        // runs off a 360dp phone, and a status the officer needs to read is
+        // not something to ellipsise.
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: Gap.sm,
+          runSpacing: Gap.sm,
           children: [
-            // A Wrap, not a Row. "Awaiting signature" beside the stop
-            // counter runs 35 pixels off a 360dp phone, and a status the
-            // officer needs to read is not something to ellipsise — so it
-            // drops to its own line instead.
-            SizedBox(
-              width: double.infinity,
-              child: Wrap(
-                alignment: WrapAlignment.spaceBetween,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                spacing: 8,
-                runSpacing: 6,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: c.brandSoft,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      'Stop $position of $total',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: c.brand,
-                      ),
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: status.$3,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      status.$1,
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: status.$2,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              pharmacy?.name ?? token.buyerDid,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: c.ink,
-              ),
-            ),
-            if (pharmacy != null)
-              Text(
-                '${pharmacy.nameBn} · ${pharmacy.address}',
-                style: TextStyle(fontSize: 12, color: c.inkMuted),
-              ),
-            const SizedBox(height: 12),
-            Divider(color: c.line, height: 1),
-            const SizedBox(height: 12),
-            // Three figures sharing the width. Unflexed beside a
-            // spaceBetween they claimed their natural widths and
-            // overflowed a 360dp phone by 62 pixels; LampStat scales
-            // its figure down rather than pushing its neighbours off.
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: LampStat(label: 'Invoice', value: token.invoiceId),
-                ),
-                Expanded(
-                  child: LampStat(
-                    label: 'Cartons',
-                    value: '$scanned/$declared',
-                  ),
-                ),
-                Expanded(
-                  child: LampStat(
-                    label: 'Value',
-                    value: LaMPFormatters.formatBDT(token.declaredValue),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: ratio,
-                minHeight: 6,
-                backgroundColor: c.line,
-                valueColor: AlwaysStoppedAnimation<Color>(c.brand),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '${(ratio * 100).toInt()}% verified on the ledger',
-              style: TextStyle(fontSize: 11, color: c.inkFaint),
-            ),
-
-            if (selected) ...[
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    setState(() => _activeTokenId = token.tokenId);
-                    _tabController.animateTo(complete ? 2 : 1);
-                  },
-                  icon: Icon(
-                    complete ? Icons.draw_outlined : Icons.qr_code_scanner,
-                    size: 18,
-                  ),
-                  label: Text(
-                    complete
-                        ? 'Hand over and sign'
-                        : scanned == 0
-                            ? 'Start carton scan'
-                            : 'Continue scanning ($scanned/$declared)',
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: c.brand,
-                    foregroundColor: c.onBrand,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Manifest',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: c.ink,
-                ),
-              ),
-              const SizedBox(height: 4),
-              // Read off the invoice. These were three literal rows naming
-              // Paracetamol, Esomeprazole and Metformin whatever the
-              // consignment actually held.
-              if (view.invoice == null)
-                Text(
-                  'No line items recorded for this consignment.',
-                  style: TextStyle(fontSize: 11, color: c.inkFaint),
-                )
-              else
-                for (final line in view.invoice!.lineItems)
-                  _manifestRow(
-                    context,
-                    '${line.name} ${line.strength} (${line.sku})',
-                    '${line.cartons} cartons',
-                    '${LaMPFormatters.formatBDTPlain(line.quantity)} units',
-                  ),
-            ],
+            LampEyebrow('Stop $position of $total'),
+            LampStateChip(status.$1, status.$2),
           ],
         ),
+        const SizedBox(height: Gap.md),
+        Text(
+          pharmacy?.name ?? token.buyerDid,
+          style: LaMPType.title.copyWith(color: c.ink),
+        ),
+        if (pharmacy != null)
+          Text(
+            '${pharmacy.nameBn} · ${pharmacy.address}',
+            style: LaMPType.caption.copyWith(color: c.inkMuted),
+          ),
+        Divider(height: Gap.xl, thickness: 1, color: c.line),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              flex: 5,
+              child: _figure(context, 'Invoice', Text(token.invoiceId)),
+            ),
+            const SizedBox(width: Gap.md),
+            Expanded(
+              flex: 3,
+              child: _figure(
+                context,
+                'Cartons',
+                Text.rich(TextSpan(children: [
+                  TextSpan(text: '$scanned'),
+                  TextSpan(
+                    text: '/$declared',
+                    style: LaMPType.monoBody.copyWith(color: c.inkFaint),
+                  ),
+                ])),
+              ),
+            ),
+            const SizedBox(width: Gap.md),
+            Expanded(
+              flex: 5,
+              child: _figure(
+                context,
+                'Value ৳',
+                Text(LaMPFormatters.formatBDTPlain(token.declaredValue)),
+                end: true,
+              ),
+            ),
+          ],
+        ),
+        Divider(height: Gap.xl, thickness: 1, color: c.line),
+        LampTickBar.of(_ticks(view.delivery)),
+        const SizedBox(height: Gap.sm),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                refused > 0
+                    ? '$scanned verified · $refused refused'
+                    : '$scanned verified',
+                style: LaMPType.monoCaption.copyWith(color: c.inkMuted),
+              ),
+            ),
+            Text(
+              '${(LaMPContract.confirmationThreshold * 100).round()}% to finance',
+              style: LaMPType.monoCaption.copyWith(color: c.inkFaint),
+            ),
+          ],
+        ),
+        const SizedBox(height: Gap.lg),
+        ElevatedButton.icon(
+          onPressed: () {
+            setState(() => _activeTokenId = token.tokenId);
+            _goTo(complete ? 2 : 1);
+          },
+          icon: Icon(
+            complete ? Icons.draw_outlined : Icons.qr_code_scanner,
+            size: IconSize.md,
+          ),
+          label: complete
+              ? const Text('Hand over and sign')
+              : Text.rich(TextSpan(children: [
+                  TextSpan(text: scanned == 0 ? 'Scan cartons' : 'Continue scanning'),
+                  TextSpan(
+                    text: '  $left left',
+                    style: LaMPType.monoCaption.copyWith(
+                      color: c.onBrand.withValues(alpha: 0.7),
+                    ),
+                  ),
+                ])),
+          style: ElevatedButton.styleFrom(
+            minimumSize: const Size.fromHeight(48),
+          ),
+        ),
+      ],
+    );
+
+    final tx = state.lastTxFor(token.tokenId);
+    if (tx == null) return LampCard(child: body);
+    return LampReceiptCard(
+      tx: tx,
+      onOpen: () => LedgerInspectorSheet.show(context),
+      child: body,
+    );
+  }
+
+  /// An uppercase label over a mono figure, scaled down rather than clipped
+  /// when the column is narrow.
+  Widget _figure(BuildContext context, String label, Widget value, {bool end = false}) {
+    final c = context.lamp;
+    return Column(
+      crossAxisAlignment: end ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      children: [
+        LampEyebrow(label),
+        const SizedBox(height: Gap.xs),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: end ? Alignment.centerRight : Alignment.centerLeft,
+          child: DefaultTextStyle(
+            style: LaMPType.monoBody.copyWith(
+              color: c.ink,
+              fontWeight: FontWeight.w600,
+            ),
+            maxLines: 1,
+            child: value,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// A stop further down the round. Tapping opens it above.
+  Widget _nextStopRow(BuildContext context, TokenView view, int position) {
+    final c = context.lamp;
+    final pharmacy = view.pharmacy;
+    return LampCard(
+      padding: const EdgeInsets.symmetric(horizontal: Gap.lg, vertical: Gap.md),
+      onTap: () => setState(() => _activeTokenId = view.tokenId),
+      child: Row(
+        children: [
+          Container(
+            width: 28,
+            height: 28,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: c.surfaceAlt,
+              borderRadius: BorderRadius.circular(LaMPRadius.control),
+            ),
+            child: Text(
+              '$position',
+              style: LaMPType.monoCaption.copyWith(color: c.inkMuted),
+            ),
+          ),
+          const SizedBox(width: Gap.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  pharmacy?.name ?? view.token.buyerDid,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: LaMPType.sub.copyWith(color: c.ink),
+                ),
+                if (pharmacy != null)
+                  Text(
+                    pharmacy.address,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: LaMPType.caption.copyWith(color: c.inkFaint),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: Gap.md),
+          Text(
+            '${view.token.declaredCartons} cartons',
+            style: LaMPType.monoCaption.copyWith(color: c.inkMuted),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _manifestRow(BuildContext context, String name, String cartons, String units) {
+  Widget _manifestRow(BuildContext context, LineItem line) {
     final c = context.lamp;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: Gap.lg, vertical: Gap.md),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
-            child: Text(name, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${line.name} ${line.strength}',
+                  style: LaMPType.sub.copyWith(color: c.ink),
+                ),
+                Text(
+                  line.sku,
+                  style: LaMPType.monoCaption.copyWith(color: c.inkFaint),
+                ),
+              ],
+            ),
           ),
-          Text(cartons, style: const TextStyle(fontSize: 12, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, fontWeight: FontWeight.bold)),
-          const SizedBox(width: 8),
-          Text(units, style: TextStyle(fontSize: 11, color: c.inkFaint)),
+          const SizedBox(width: Gap.md),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '${line.cartons} ${line.cartons == 1 ? 'carton' : 'cartons'}',
+                style: LaMPType.monoCaption.copyWith(
+                  color: c.ink,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Text(
+                '${LaMPFormatters.formatBDTPlain(line.quantity)} units',
+                style: LaMPType.caption.copyWith(color: c.inkFaint),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -554,311 +581,246 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
   Widget _buildScannerTab(BuildContext context, TokenView view, LaMPState state) {
     final c = context.lamp;
     final delivery = view.delivery!;
-    // Counts come off the token. The off-chain rows are what drive the
-    // per-carton ticks below, but the ledger is what decides whether this
-    // consignment has been delivered.
+    // Counts come off the token: the ledger is what decides whether this
+    // consignment has been delivered. The ticks come off the carton rows,
+    // so each one sits in its own position.
     final scannedCount = view.token.scanned;
     final totalCartons = view.token.declaredCartons;
+    final refused = _refused(delivery);
+    final queued = _offlineQueue.length;
+    final toGo = (totalCartons - scannedCount - refused - queued).clamp(0, totalCartons);
 
-    return SingleChildScrollView(
+    return ListView(
       padding: lumaScrollPadding(context, top: Gap.lg),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 600),
+      children: [
+        LampCard(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Scanner Status Bar
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: c.surface,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: c.line),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('SCAN PROGRESS', style: TextStyle(fontSize: 10, color: c.inkFaint)),
-                          Text('$scannedCount of $totalCartons verified',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-                        ],
-                      ),
-                    ),
-                    Row(
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Switch(
-                          value: _offlineMode,
-                          activeThumbColor: c.pending,
-                          onChanged: (val) {
-                            setState(() {
-                              _offlineMode = val;
-                            });
-                            if (!val && _offlineQueue.isNotEmpty) {
-                              _drainQueue(state, delivery.tokenId);
-                            }
-                          },
-                        ),
-                        Text(
-                          _offlineMode ? 'OFFLINE' : 'ONLINE',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: _offlineMode ? c.pending : c.brand,
-                          ),
+                        const LampEyebrow('Cartons checked'),
+                        const SizedBox(height: Gap.xs),
+                        Text.rich(
+                          TextSpan(children: [
+                            TextSpan(text: '$scannedCount'),
+                            TextSpan(
+                              text: ' / $totalCartons',
+                              style: LaMPType.figure.copyWith(color: c.inkFaint),
+                            ),
+                          ]),
+                          style: LaMPType.figure.copyWith(color: c.ink),
                         ),
                       ],
+                    ),
+                  ),
+                  Text(
+                    _offlineMode ? 'OFFLINE' : 'ONLINE',
+                    style: LaMPType.label.copyWith(
+                      color: _offlineMode ? c.pending : c.inkFaint,
+                    ),
+                  ),
+                  Switch(
+                    value: _offlineMode,
+                    activeThumbColor: c.pending,
+                    onChanged: (val) {
+                      setState(() => _offlineMode = val);
+                      if (!val && _offlineQueue.isNotEmpty) {
+                        _drainQueue(state, delivery.tokenId);
+                      }
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: Gap.md),
+              LampTickBar.of(_ticks(delivery)),
+              const SizedBox(height: Gap.sm),
+              Wrap(
+                spacing: Gap.md,
+                children: [
+                  Text('$scannedCount verified',
+                      style: LaMPType.monoCaption.copyWith(color: c.verified)),
+                  if (refused > 0)
+                    Text('$refused refused',
+                        style: LaMPType.monoCaption.copyWith(color: c.dispute)),
+                  if (queued > 0)
+                    Text('$queued queued',
+                        style: LaMPType.monoCaption.copyWith(color: c.pending)),
+                  Text('$toGo to go',
+                      style: LaMPType.monoCaption.copyWith(color: c.inkFaint)),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: Gap.lg),
+
+        if (cameraScanningSupported) ...[
+          ElevatedButton.icon(
+            onPressed: () => _openCameraScanner(state, delivery),
+            icon: const Icon(Icons.qr_code_scanner, size: IconSize.md),
+            label: const Text('Scan with camera'),
+            style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+          ),
+          const SizedBox(height: Gap.sm),
+        ],
+        Row(
+          children: [
+            Expanded(
+              child: cameraScanningSupported
+                  ? OutlinedButton.icon(
+                      onPressed: () => _scanNextCarton(state, delivery),
+                      icon: const Icon(Icons.touch_app_outlined, size: IconSize.md),
+                      label: const Text('Scan next'),
+                      style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                    )
+                  : ElevatedButton.icon(
+                      onPressed: () => _scanNextCarton(state, delivery),
+                      icon: const Icon(Icons.touch_app_outlined, size: IconSize.md),
+                      label: const Text('Scan next'),
+                      style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                    ),
+            ),
+            if (kDemoTools) ...[
+            const SizedBox(width: Gap.sm),
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => _toggleAutoScan(state, delivery),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                  foregroundColor: _autoScanning ? c.dispute : null,
+                  side: _autoScanning ? BorderSide(color: c.dispute) : null,
+                ),
+                child: Text(_autoScanning ? 'Stop' : 'Scan all'),
+              ),
+            ),
+            ],
+          ],
+        ),
+        // Present a carton from no consignment to a second device, so the
+        // camera can be refused by the chaincode on camera. Testing only.
+        if (kDemoTools)
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: () => _showMisroutedCode(context),
+            icon: const Icon(Icons.report_gmailerrorred_outlined, size: IconSize.sm),
+            label: const Text('Show a misrouted carton code'),
+            style: TextButton.styleFrom(
+              foregroundColor: c.dispute,
+              padding: const EdgeInsets.symmetric(horizontal: Gap.xs),
+            ),
+          ),
+        ),
+        if (!cameraScanningSupported)
+          Text(
+            'Camera scanning runs on Android and iOS.',
+            style: LaMPType.caption.copyWith(color: c.inkFaint),
+          ),
+        const SizedBox(height: Gap.xl),
+
+        LampEyebrow('Cartons', trailing: '${delivery.cartons.length} total'),
+        const SizedBox(height: Gap.md),
+        for (int i = 0; i < delivery.cartons.length; i++) ...[
+          _cartonRow(context, view, delivery.cartons[i], i),
+          const SizedBox(height: Gap.sm),
+        ],
+
+        if (scannedCount >= totalCartons) ...[
+          const SizedBox(height: Gap.md),
+          ElevatedButton.icon(
+            onPressed: () => _goTo(2),
+            icon: const Icon(Icons.draw_outlined, size: IconSize.md),
+            label: const Text('Hand over and sign'),
+            style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// One carton. A refused one says why, on its own row, where it happened —
+  /// the one moment the demo exists to show is not a banner at the top.
+  Widget _cartonRow(BuildContext context, TokenView view, Carton carton, int i) {
+    final c = context.lamp;
+    final refused = carton.rejected == true && carton.scannedAt == null;
+    final queued = _offlineQueue.contains(carton.gs1);
+    final scanned = carton.scannedAt != null && !queued;
+    final isPlant = i == 13; // Carton 14, the planted misroute.
+
+    final Widget trailing;
+    if (refused) {
+      trailing = const LampStateChip(LampState.refused, 'Refused');
+    } else if (queued) {
+      trailing = const LampStateChip(LampState.pending, 'Queued');
+    } else if (scanned) {
+      trailing = Icon(Icons.check_circle, color: c.verified, size: IconSize.md);
+    } else if (isPlant && kDemoTools) {
+      trailing = const LampStateChip(LampState.refused, 'Test carton');
+    } else {
+      trailing = Icon(Icons.radio_button_unchecked, color: c.lineStrong, size: IconSize.md);
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(Gap.md),
+      decoration: BoxDecoration(
+        color: c.surface,
+        borderRadius: BorderRadius.circular(LaMPRadius.card),
+        border: Border.all(color: refused ? c.dispute : c.line),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              // Tapping enlarges the carton's code into something a second
+              // device can actually read.
+              InkWell(
+                onTap: () => _showCartonCode(context, carton),
+                borderRadius: BorderRadius.circular(LaMPRadius.control),
+                child: DataMatrixView(text: carton.gs1, size: 40),
+              ),
+              const SizedBox(width: Gap.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      carton.cartonId,
+                      style: LaMPType.monoCaption.copyWith(
+                        color: c.ink,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      refused
+                          ? 'Not on this invoice'
+                          : '${carton.sku} · ${carton.batch}',
+                      style: refused
+                          ? LaMPType.caption.copyWith(color: c.dispute)
+                          : LaMPType.monoCaption.copyWith(color: c.inkFaint),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 12),
-
-              // Rejection Banner (The BCOLBD Carton 14 shot)
-              if (_scanBannerError != null)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: c.disputeSoft,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: c.dispute),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.warning_amber_rounded, color: c.dispute, size: 20),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _scanBannerError!,
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: c.dispute),
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close, size: 16),
-                        onPressed: () => setState(() => _scanBannerError = null),
-                      ),
-                    ],
-                  ),
-                ),
-
-              // Scanner Action Buttons
-              if (cameraScanningSupported) ...[
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () => _openCameraScanner(state, delivery),
-                    icon: const Icon(Icons.qr_code_scanner, size: 18),
-                    label: const Text('Scan with camera'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: c.brand,
-                      foregroundColor: c.onBrand,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-              ],
-              // Present a carton from no consignment to a second device, so
-              // the camera can be refused by the chaincode on camera.
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton.icon(
-                  onPressed: () => _showMisroutedCode(context),
-                  icon: const Icon(Icons.report_gmailerrorred_outlined, size: 16),
-                  label: const Text(
-                    'Show a misrouted carton code',
-                    style: TextStyle(fontSize: 12),
-                  ),
-                  style: TextButton.styleFrom(
-                    foregroundColor: c.dispute,
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  Expanded(
-                    child: cameraScanningSupported
-                        ? OutlinedButton.icon(
-                            onPressed: () => _scanNextCarton(state, delivery),
-                            icon: const Icon(Icons.touch_app_outlined, size: 18),
-                            label: const Text('Scan Next Carton'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: c.brand,
-                              side: BorderSide(color: c.brand),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                            ),
-                          )
-                        : ElevatedButton.icon(
-                            onPressed: () => _scanNextCarton(state, delivery),
-                            icon: const Icon(Icons.touch_app_outlined, size: 18),
-                            label: const Text('Scan Next Carton'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: c.brand,
-                              foregroundColor: c.onBrand,
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                          ),
-                  ),
-                  const SizedBox(width: 8),
-                  OutlinedButton(
-                    onPressed: () => _toggleAutoScan(state, delivery),
-                    style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: _autoScanning ? c.dispute : c.brand),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                    ),
-                    child: Text(
-                      _autoScanning ? 'Stop Auto' : 'Auto Cascade',
-                      style: TextStyle(
-                        color: _autoScanning ? c.dispute : c.brand,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              if (!cameraScanningSupported) ...[
-                const SizedBox(height: 8),
-                Text(
-                  'Camera scanning runs on Android and iOS.',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: c.inkFaint,
-                    height: 1.3,
-                  ),
-                ),
-              ],
-              const SizedBox(height: 16),
-
-              // List of 25 Cartons
-              Text(
-                'Cartons',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: c.ink),
-              ),
-              const SizedBox(height: 8),
-              // Zero, and not left to default to null. A vertical ListView
-              // with no padding quietly adopts `MediaQuery.padding` as its
-              // own, which is meant for a list that *is* the scroll view.
-              // This one is nested inside another, under a Scaffold with
-              // `extendBodyBehindAppBar` — so the top inset it inherited had
-              // the status bar, the app bar and the tab bar folded into it,
-              // and it printed as an empty 490px band between the 'Cartons'
-              // heading and CTN-1. The outer SingleChildScrollView already
-              // reads the real insets through `lumaScrollPadding`.
-              ListView.separated(
-                padding: EdgeInsets.zero,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: delivery.cartons.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
-                itemBuilder: (ctx, i) {
-                  final carton = delivery.cartons[i];
-                  final isScanned = carton.scannedAt != null;
-                  final isRejected = carton.rejected == true;
-                  final isPlant = (i == 13); // Carton 14 (0-indexed 13)
-
-                  return Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: c.surface,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: isRejected
-                            ? c.dispute
-                            : (isScanned ? c.verified : c.line),
-                        width: isRejected || isScanned ? 1.5 : 1,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        // Tapping enlarges the carton's code into something a
-                        // second device can actually read.
-                        InkWell(
-                          onTap: () => _showCartonCode(context, carton),
-                          borderRadius: BorderRadius.circular(4),
-                          child: DataMatrixView(text: carton.gs1, size: 40),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Wrap(
-                                crossAxisAlignment: WrapCrossAlignment.center,
-                                spacing: 6,
-                                children: [
-                                  Text(
-                                    carton.cartonId,
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                      fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback,
-                                    ),
-                                  ),
-                                  if (isPlant)
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                                      decoration: BoxDecoration(
-                                        color: c.disputeSoft,
-                                        borderRadius: BorderRadius.circular(3),
-                                      ),
-                                      child: Text('MISROUTED TEST',
-                                          style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: c.dispute)),
-                                    ),
-                                ],
-                              ),
-                              Text(
-                                '${carton.sku} · ${carton.batch} · Exp ${carton.expiry}',
-                                style: TextStyle(fontSize: 10, color: c.inkFaint),
-                              ),
-                            ],
-                          ),
-                        ),
-                        if (isRejected)
-                          Icon(Icons.cancel, color: c.dispute, size: 18)
-                        else if (isScanned)
-                          Icon(Icons.check_circle, color: c.verified, size: 18)
-                        else
-                          Icon(Icons.radio_button_unchecked, color: c.lineStrong, size: 18),
-                      ],
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 20),
-
-              if (scannedCount >= totalCartons)
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () => _tabController.animateTo(2),
-                    icon: const Icon(Icons.arrow_forward),
-                    label: const Text('Proceed to Pharmacy Owner Signature →'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: c.brand,
-                      foregroundColor: c.onBrand,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
-                ),
+              const SizedBox(width: Gap.sm),
+              trailing,
             ],
           ),
-        ),
+          if (refused) ...[
+            Divider(height: Gap.xl, thickness: 1, color: c.line),
+            Text(
+              "This carton belongs to a different consignment, so it wasn't "
+              'accepted for ${view.token.invoiceId}. Set it aside and report '
+              'it under Returns.',
+              style: LaMPType.caption.copyWith(color: c.inkMuted),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -889,8 +851,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
             if (!res.ok) {
               return CartonScanResult(
                 accepted: false,
-                message: res.error ??
-                    'Chaincode refused this carton for ${delivery.invoiceId}.',
+                message: LedgerLabels.reason(res.error),
               );
             }
 
@@ -919,19 +880,18 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: c.surface,
-        title: const Text(
-          'Misrouted carton',
-          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+        title: Text(
+          'Test carton',
+          style: LaMPType.head,
         ),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'This carton belongs to no consignment in this world. Scan it '
-                'with the camera and the chaincode will refuse it — the '
-                'refusal is genuine, not staged.',
-                style: TextStyle(fontSize: 12, height: 1.4, color: c.inkMuted),
+                'A carton from a different consignment. Scan it with the '
+                "camera to check that the app won't accept it.",
+                style: LaMPType.caption.copyWith(color: c.inkMuted, height: 1.4),
               ),
               const SizedBox(height: 12),
               const CartonCodeView(gs1: _misroutedGs1, size: 200),
@@ -961,7 +921,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
         backgroundColor: c.surface,
         title: Text(
           carton.cartonId,
-          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+          style: LaMPType.sub.copyWith(fontWeight: FontWeight.w600),
         ),
         content: SingleChildScrollView(
           child: CartonCodeView(gs1: carton.gs1, size: 200),
@@ -1003,7 +963,8 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
 
     // Check if this is the planted foreign carton (#14 -> index 13)
     // On the real demo, Carton 14 is presented with a foreign payload
-    if (unscannedIndex == 13 && targetCarton.rejected != true) {
+    // Testing only: a release build scans the carton the officer is holding.
+    if (kDemoTools && unscannedIndex == 13 && targetCarton.rejected != true) {
       // Send foreign barcode to trigger genuine chaincode refusal!
       final res =
           await state.scanCarton(delivery.tokenId, _misroutedGs1, _me.deviceId);
@@ -1017,11 +978,15 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
         res.error ?? 'Carton does not belong to this invoice.',
       );
       if (!mounted) return;
-      setState(() {
-        _scanBannerError =
-            'CHAINCODE REFUSED: Carton does not belong to invoice '
-            '${delivery.invoiceId}. Product rejected!';
-      });
+      // The refusal itself is drawn on the carton's row, in position. The
+      // toast is only the moment it happened.
+      LumaHaptics.reject();
+      LumaToast.show(
+        context,
+        "${targetCarton.cartonId} isn't on this invoice",
+        icon: Icons.block,
+        tone: LumaToastTone.dispute,
+      );
       return;
     }
 
@@ -1100,17 +1065,12 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
     final c = context.lamp;
     final token = view.token;
 
-    // The gate reads the ledger, not the off-chain carton rows.
-    //
-    // It used to count `Carton.scannedAt`, which `confirmDelivery` then reset
-    // to null on success — so the screen's idea of what had been handed over
-    // disagreed with the chain's the moment anything was signed for. A
-    // pharmacy can only sign for what the ledger says arrived.
+    // The gate reads the ledger, not the off-chain carton rows. A pharmacy
+    // can only sign for what the ledger says arrived.
     final scannedCount = token.scanned;
     final totalCartons = token.declaredCartons;
     final allScanned = token.isFullyScanned;
 
-    // Build the caption that explains why the button is disabled, if it is.
     String? gateCaption;
     if (!allScanned) {
       gateCaption = 'Scan all $totalCartons cartons before signing';
@@ -1118,190 +1078,156 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
       gateCaption = 'Sign above to enable submission';
     }
 
-    return SingleChildScrollView(
+    return ListView(
       padding: lumaScrollPadding(context, top: Gap.lg),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 600),
+      children: [
+        LampCard(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: c.surface,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: c.line),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              const LampEyebrow("Pharmacist's signature"),
+              const SizedBox(height: Gap.xs),
+              Text(
+                view.pharmacy?.name ?? token.buyerDid,
+                style: LaMPType.title.copyWith(color: c.ink),
+              ),
+              Text(
+                'The pharmacist signs for the cartons scanned in.',
+                style: LaMPType.caption.copyWith(color: c.inkMuted),
+              ),
+              Divider(height: Gap.xl, thickness: 1, color: c.line),
+              LampKeyValue(label: 'Invoice', value: token.invoiceId, mono: true),
+              LampKeyValue(
+                label: 'Invoice total',
+                value: LaMPFormatters.formatBDT(token.declaredValue),
+                mono: true,
+              ),
+              LampKeyValue(
+                label: 'Cartons received',
+                value: '$scannedCount of $totalCartons',
+                mono: true,
+              ),
+              LampKeyValue(label: 'Terms', value: '${token.termsDays} days'),
+              const SizedBox(height: Gap.lg),
+              SignaturePad(
+                onSigned: (hasInk) => setState(() => _hasSignature = hasInk),
+              ),
+              const SizedBox(height: Gap.lg),
+              if (gateCaption != null) ...[
+                Row(
                   children: [
-                    Text(
-                      'Pharmacy Counter-Confirmation',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: c.ink),
-                    ),
-                    Text(
-                      'Sign to confirm delivery',
-                      style: TextStyle(fontSize: 12, color: c.inkMuted),
-                    ),
-                    const SizedBox(height: 16),
-                    Divider(color: c.line, height: 1),
-                    const SizedBox(height: 16),
-
-                    // Three label/value pairs, each of which was a
-                    // spaceBetween that overflowed once the sweep could
-                    // actually reach this tab.
-                    LampKeyValue(
-                      label: 'Invoice',
-                      value: token.invoiceId,
-                      mono: true,
-                    ),
-                    LampKeyValue(
-                      label: 'Invoice total',
-                      value: LaMPFormatters.formatBDT(token.declaredValue),
-                      mono: true,
-                    ),
-                    LampKeyValue(
-                      label: 'Cartons received',
-                      // Live count of scanned cartons, not just the manifest
-                      // total — a pharmacy can only confirm what actually
-                      // arrived.
-                      value: '$scannedCount of $totalCartons',
-                      mono: true,
-                    ),
-                    LampKeyValue(
-                      label: 'Terms',
-                      value: '${token.termsDays} days',
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Signature Pad
-                    SignaturePad(
-                      onSigned: (hasInk) {
-                        setState(() {
-                          _hasSignature = hasInk;
-                        });
-                      },
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    if (gateCaption != null) ...[
-                      Text(
+                    const LampStateDot(LampState.pending),
+                    const SizedBox(width: Gap.sm),
+                    Expanded(
+                      child: Text(
                         gateCaption,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: c.pending,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                    ],
-
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        // Both gates must be open: every carton scanned AND
-                        // the signature pad has ink. A blank signature alone
-                        // could previously submit; that is the user-reported
-                        // "sign without goods" bug.
-                        onPressed: (allScanned && _hasSignature)
-                            ? () async {
-                                await state.confirmDelivery(
-                                    token.tokenId, 'mock-signature-stroke');
-                                if (context.mounted) {
-                                  LumaHaptics.commit();
-                                  LumaToast.show(
-                                    context,
-                                    'Delivered. Dispute window open 24h.',
-                                    icon: Icons.check_circle_outline,
-                                    tone: LumaToastTone.verified,
-                                  );
-                                  _tabController.animateTo(0);
-                                }
-                              }
-                            : null,
-                        icon: const Icon(Icons.check_circle_outline),
-                        label: const Text('Confirm Receipt & Submit PoD'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: c.brand,
-                          foregroundColor: c.onBrand,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          disabledBackgroundColor: c.surfaceSunken,
-                        ),
+                        style: LaMPType.meta.copyWith(color: c.pending),
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: Gap.md),
+              ],
+              ElevatedButton.icon(
+                // Both gates must be open: every carton on the ledger AND ink
+                // on the pad.
+                onPressed: (allScanned && _hasSignature)
+                    ? () async {
+                        await state.confirmDelivery(
+                            token.tokenId, 'mock-signature-stroke');
+                        if (context.mounted) {
+                          LumaHaptics.commit();
+                          LumaToast.show(
+                            context,
+                            'Delivered. Dispute window open 24h.',
+                            icon: Icons.check_circle_outline,
+                            tone: LumaToastTone.verified,
+                          );
+                          _goTo(0);
+                        }
+                      }
+                    : null,
+                icon: const Icon(Icons.check_circle_outline, size: IconSize.md),
+                label: const Text('Confirm delivery'),
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
                 ),
               ),
             ],
           ),
         ),
-      ),
+      ],
     );
   }
 
   Widget _buildReturnsTab(BuildContext context, TokenView view, LaMPState state) {
     final c = context.lamp;
     final delivery = view.delivery!;
-    return SingleChildScrollView(
+    return ListView(
       padding: lumaScrollPadding(context, top: Gap.lg),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 600),
+      children: [
+        LampCard(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: c.surface,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: c.line),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Reverse Carton Scan / Returns',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: c.ink),
+              const LampEyebrow('Returns'),
+              const SizedBox(height: Gap.xs),
+              Text(
+                'Report a damaged or misrouted carton',
+                style: LaMPType.head.copyWith(color: c.ink),
+              ),
+              Text(
+                'Raises a dispute on ${view.token.invoiceId}. The invoice '
+                "can't be financed while the dispute is open.",
+                style: LaMPType.caption.copyWith(color: c.inkMuted),
+              ),
+              Divider(height: Gap.xl, thickness: 1, color: c.line),
+              Row(
+                children: [
+                  Icon(Icons.report_problem_outlined,
+                      color: c.inkMuted, size: IconSize.lg),
+                  const SizedBox(width: Gap.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Damage in transit',
+                            style: LaMPType.sub.copyWith(color: c.ink)),
+                        Text('Seals broken in transit',
+                            style: LaMPType.caption.copyWith(color: c.inkFaint)),
+                      ],
                     ),
-                    Text(
-                      'Report a damaged or misrouted carton',
-                      style: TextStyle(fontSize: 12, color: c.inkMuted),
-                    ),
-                    const SizedBox(height: 16),
-                    ListTile(
-                      leading: Icon(Icons.report_problem_outlined, color: c.pending),
-                      title: const Text('Damage in Transit', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                      subtitle: const Text('Seals broken in transit'),
-                      trailing: ElevatedButton(
-                        onPressed: () async {
-                          await state.raiseDispute(delivery.tokenId, 'Damage in transit reported by MPO');
-                          if (context.mounted) {
-                            LumaHaptics.reject();
-                            LumaToast.show(
-                              context,
-                              'Dispute raised on ledger · DISPUTED',
-                              icon: Icons.flag_outlined,
-                              tone: LumaToastTone.dispute,
-                            );
-                          }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: c.pending,
-                          foregroundColor: c.onBrand,
-                        ),
-                        child: const Text('Flag Carton'),
-                      ),
-                    ),
-                  ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: Gap.lg),
+              // Refused colour on the label and outline, never as a fill.
+              OutlinedButton.icon(
+                onPressed: () async {
+                  await state.raiseDispute(
+                      delivery.tokenId, 'Damage in transit reported by MPO');
+                  if (context.mounted) {
+                    LumaHaptics.reject();
+                    LumaToast.show(
+                      context,
+                      'Dispute raised',
+                      icon: Icons.flag_outlined,
+                      tone: LumaToastTone.dispute,
+                    );
+                  }
+                },
+                icon: const Icon(Icons.flag_outlined, size: IconSize.md),
+                label: const Text('Flag carton'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                  foregroundColor: c.dispute,
+                  side: BorderSide(color: c.dispute),
                 ),
               ),
             ],
           ),
         ),
-      ),
+      ],
     );
   }
 }

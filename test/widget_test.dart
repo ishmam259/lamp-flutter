@@ -1,10 +1,29 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lamp_flutter/main.dart';
+import 'package:lamp_flutter/core/auth/auth_controller.dart';
 import 'package:lamp_flutter/core/state/lamp_state.dart';
 import 'package:lamp_flutter/core/state/theme_controller.dart';
 import 'package:lamp_flutter/features/splash/splash_screen.dart';
+
+Widget _app() => MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => LaMPState()),
+        ChangeNotifierProvider(create: (_) => ThemeController()),
+        ChangeNotifierProvider(create: (_) => AuthController()),
+      ],
+      child: const LaMPApp(),
+    );
+
+Future<void> _enterPin(WidgetTester tester, String pin) async {
+  for (final d in pin.split('')) {
+    await tester.tap(find.widgetWithText(TextButton, d));
+    await tester.pump();
+  }
+  await tester.pumpAndSettle();
+}
 
 void main() {
   setUp(() {
@@ -13,81 +32,58 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  testWidgets('LaMP App smoke test - launches into Persona Launcher', (WidgetTester tester) async {
-    await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider(create: (_) => LaMPState()),
-          ChangeNotifierProvider(create: (_) => ThemeController()),
-        ],
-        child: const LaMPApp(),
-      ),
-    );
-
+  testWidgets('launches into sign-in, offering every account', (tester) async {
+    await tester.pumpWidget(_app());
     await tester.pumpAndSettle();
 
-    expect(find.text('Last Mile Pharmacy'), findsOneWidget);
+    expect(find.text('Sign in to LaMP'), findsOneWidget);
+    expect(find.text('Kamrul Hasan'), findsOneWidget);
+    expect(find.text('Abdur Rahman'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Supervision'), 200);
+    expect(find.text('Supervision'), findsOneWidget);
+  });
 
-    // All five seats are offered, named by role rather than by the name of the
-    // screen they open.
+  testWidgets('first sign-in sets a PIN and opens that account\'s own seat',
+      (tester) async {
+    await tester.pumpWidget(_app());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Kamrul Hasan'));
+    await tester.pumpAndSettle();
+    expect(find.text('Choose a 4-digit PIN'), findsOneWidget);
+
+    await _enterPin(tester, '2468');
+    expect(find.text('Enter it again to confirm'), findsOneWidget);
+    await _enterPin(tester, '2468');
+
+    // The delivery officer's seat, with no way back to a picker.
     expect(find.text('Delivery officer'), findsOneWidget);
-    expect(find.text('Pharmacy'), findsOneWidget);
-    expect(find.text('Manufacturer'), findsOneWidget);
-
-    // The list builds lazily, so the last seats are not mounted until the
-    // viewport reaches them.
-    await tester.scrollUntilVisible(find.text('Regulator'), 200);
-    await tester.pumpAndSettle();
-    expect(find.text('Bank'), findsOneWidget);
-    expect(find.text('Regulator'), findsOneWidget);
+    expect(find.byTooltip('Back'), findsNothing);
   });
 
-  testWidgets('system back returns to the launcher, it does not close the app',
-      (WidgetTester tester) async {
-    await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider(create: (_) => LaMPState()),
-          ChangeNotifierProvider(create: (_) => ThemeController()),
-        ],
-        child: const LaMPApp(),
-      ),
-    );
+  testWidgets('a wrong PIN does not sign in', (tester) async {
+    await tester.pumpWidget(_app());
+    await tester.pumpAndSettle();
+    final auth = tester.element(find.byType(MainShell)).read<AuthController>();
+
+    // Set a PIN, then sign out.
+    await tester.tap(find.text('Kamrul Hasan'));
+    await tester.pumpAndSettle();
+    await _enterPin(tester, '1357');
+    await _enterPin(tester, '1357');
+    await auth.signOut();
     await tester.pumpAndSettle();
 
-    // Into a seat.
-    //
-    // 'Delivery officer' is no longer a witness for which screen is showing:
-    // the seat's own app bar is titled with the same words the launcher card
-    // uses, which is the point — a seat should be called one thing. The
-    // section header is what only the launcher has.
-    await tester.tap(find.text('Delivery officer'));
+    await tester.tap(find.text('Kamrul Hasan'));
     await tester.pumpAndSettle();
-    expect(find.text('In the field'), findsNothing);
+    await _enterPin(tester, '0000');
 
-    // Seats are swapped by setState rather than pushed, so there is only ever
-    // one route. Before PopScope, this popped it and closed the app.
-    final popped = await tester.binding.handlePopRoute();
-    await tester.pumpAndSettle();
-
-    expect(popped, isTrue, reason: 'back should have been handled, not ignored');
-    expect(
-      find.text('In the field'),
-      findsOneWidget,
-      reason: 'back from a seat should land on the launcher',
-    );
+    expect(auth.current, isNull);
+    expect(find.text('Wrong PIN. Try again.'), findsOneWidget);
   });
 
-  testWidgets('a fast load never flashes the splash', (WidgetTester tester) async {
-    await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider(create: (_) => LaMPState()),
-          ChangeNotifierProvider(create: (_) => ThemeController()),
-        ],
-        child: const LaMPApp(),
-      ),
-    );
+  testWidgets('a fast load never flashes the splash', (tester) async {
+    await tester.pumpWidget(_app());
 
     // Before the show-delay elapses there must be nothing to see. Platform
     // guidance on both sides is that a launch screen should disappear as soon
@@ -102,6 +98,6 @@ void main() {
 
     // And it still arrives at the app.
     await tester.pumpAndSettle();
-    expect(find.text('Delivery officer'), findsOneWidget);
+    expect(find.text('Sign in to LaMP'), findsOneWidget);
   });
 }

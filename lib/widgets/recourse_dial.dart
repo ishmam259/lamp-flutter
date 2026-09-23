@@ -105,12 +105,7 @@ class RecourseDial extends StatelessWidget {
               Flexible(
                 child: Text(
                   tier.label.toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.6,
-                    color: isActive ? c.brand : subColor,
-                  ),
+                  style: LaMPType.label.copyWith(color: isActive ? c.brand : subColor),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -119,16 +114,11 @@ class RecourseDial extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             '${band.advanceRatePct.round()}%',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback,
-              color: textColor,
-            ),
+            style: LaMPType.figure.copyWith(color: textColor),
           ),
           Text(
             'advance',
-            style: TextStyle(fontSize: 10, color: subColor),
+            style: LaMPType.caption.copyWith(color: subColor),
           ),
           const SizedBox(height: 8),
           ClipRRect(
@@ -155,15 +145,10 @@ class RecourseDial extends StatelessWidget {
           // one of them. The bank's share is the remainder, and the split bar
           // directly above already shows it.
           Text(
-            'mfr ${band.manufacturerRecoursePct.round()}%',
+            'Recourse ${band.manufacturerRecoursePct.round()}%',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 9,
-              fontFamily: LaMPType.mono,
-              fontFamilyFallback: LaMPType.fallback,
-              color: subColor,
-            ),
+            style: LaMPType.monoCaption.copyWith(color: subColor),
           ),
         ],
       ),

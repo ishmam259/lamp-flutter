@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Light, dark, or whatever the phone is set to.
+/// Light, dark, or the default. On the default the launcher follows the phone
+/// and each seat takes its world's own theme — see `LaMPTheme.of`.
 ///
 /// Separate from [LaMPState] on purpose: how the app looks is a preference
 /// belonging to the person holding the phone, and it should not be thrown away
@@ -10,10 +11,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 class ThemeController extends ChangeNotifier {
   static const String _key = 'lamp.themeMode';
 
-  ThemeMode _mode = ThemeMode.system;
+  ThemeMode _mode;
   ThemeMode get mode => _mode;
 
-  ThemeController() {
+  /// The mode given here applies until a stored preference is read, and
+  /// stays if there is none — tests use it to pin a theme.
+  ThemeController([this._mode = ThemeMode.system]) {
     _load();
   }
 
@@ -24,7 +27,8 @@ class ThemeController extends ChangeNotifier {
       _mode = switch (stored) {
         'light' => ThemeMode.light,
         'dark' => ThemeMode.dark,
-        _ => ThemeMode.system,
+        'system' => ThemeMode.system,
+        _ => _mode,
       };
       notifyListeners();
       // Push it to the platform too. A preference stored before this existed
@@ -99,7 +103,7 @@ class ThemeController extends ChangeNotifier {
       };
 
   String get label => switch (_mode) {
-        ThemeMode.system => 'Following system',
+        ThemeMode.system => 'Seat default',
         ThemeMode.light => 'Light',
         ThemeMode.dark => 'Dark',
       };

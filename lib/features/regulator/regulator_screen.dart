@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/app_theme.dart';
+import '../../core/constants/ledger_labels.dart';
 import '../../core/constants/palette.dart';
 import '../../core/constants/formatters.dart';
 import '../../core/models/domain_models.dart';
@@ -11,9 +12,8 @@ import '../../core/constants/typography.dart';
 import '../../core/models/ledger_models.dart';
 import '../../core/state/lamp_state.dart';
 import '../../core/world/queries.dart';
-import '../../widgets/demo_director_sheet.dart';
 import '../../widgets/ledger_inspector_sheet.dart';
-import '../../widgets/theme_toggle.dart';
+import '../../widgets/ui/lamp_ledger_ui.dart';
 import '../../widgets/ui/lamp_ui.dart';
 
 /// The supervisory seat. Reads the channel, writes nothing.
@@ -28,9 +28,7 @@ import '../../widgets/ui/lamp_ui.dart';
 /// refusal is on the screen, with the block number and the transaction that
 /// carries it.
 class RegulatorScreen extends StatelessWidget {
-  final VoidCallback onBackToLauncher;
-
-  const RegulatorScreen({super.key, required this.onBackToLauncher});
+  const RegulatorScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -85,19 +83,9 @@ class RegulatorScreen extends StatelessWidget {
       appBar: LumaAppBar(
         title: 'Regulator',
         subtitle: 'Bangladesh Bank · DGDA',
-        onBack: onBackToLauncher,
         actions: [
-          const ThemeToggle(),
-          IconButton(
-            tooltip: 'Ledger',
-            icon: Icon(Icons.account_tree_outlined, color: c.inkMuted),
-            onPressed: () => LedgerInspectorSheet.show(context),
-          ),
-          IconButton(
-            tooltip: 'Demo controls',
-            icon: Icon(Icons.tune, color: c.inkMuted),
-            onPressed: () => DemoDirectorSheet.show(context),
-          ),
+          LampBlockPip(onTap: () => LedgerInspectorSheet.show(context)),
+          const LampSeatMenu(),
         ],
       ),
         // No SafeArea. It would apply the bottom inset as padding and remove
@@ -114,16 +102,15 @@ class RegulatorScreen extends StatelessWidget {
                 // Observer status. The one thing that distinguishes this seat from
                 // every other is that it can read everything and change nothing.
                 LampCard(
-                  background: c.chainSoft,
-                  border: c.chain.withValues(alpha: 0.3),
                   padding: const EdgeInsets.all(Gap.md),
                   child: Row(
                     children: [
-                      Icon(Icons.visibility_outlined, size: IconSize.md, color: c.chain),
+                      Icon(Icons.visibility_outlined, size: IconSize.md, color: c.inkMuted),
                       const SizedBox(width: Gap.md),
                       Expanded(
                         child: Text(
-                          'Read-only observer. Endorses nothing.',
+                          'View only. You can see every record on the ledger '
+                          "but can't approve or change any.",
                           style: LaMPType.caption.copyWith(color: c.ink),
                         ),
                       ),
@@ -136,10 +123,10 @@ class RegulatorScreen extends StatelessWidget {
                   children: [
                     Expanded(
                       child: _Metric(
-                        label: 'Receivables',
+                        label: 'Invoices',
                         value: '${views.length}',
                         caption: '$cartonsTraced cartons traced',
-                        tone: LampTone.chain,
+                        tone: LampTone.neutral,
                       ),
                     ),
                     const SizedBox(width: Gap.md),
@@ -148,7 +135,7 @@ class RegulatorScreen extends StatelessWidget {
                         label: 'Financing',
                         value: LaMPFormatters.formatBDTCompact(financingVolume),
                         caption: '${financed.length} advanced',
-                        tone: LampTone.chain,
+                        tone: LampTone.neutral,
                       ),
                     ),
                     const SizedBox(width: Gap.md),
@@ -168,7 +155,7 @@ class RegulatorScreen extends StatelessWidget {
                   children: [
                     Expanded(
                       child: _Metric(
-                        label: 'Duplicate advances',
+                        label: 'Duplicates',
                         value: '${duplicateAttempts.length}',
                         caption: 'refused',
                         tone: duplicateAttempts.isEmpty
@@ -179,9 +166,9 @@ class RegulatorScreen extends StatelessWidget {
                     const SizedBox(width: Gap.md),
                     Expanded(
                       child: _Metric(
-                        label: 'Carton rejects',
+                        label: 'Wrong cartons',
                         value: '${cartonFailures.length}',
-                        caption: 'hash mismatch',
+                        caption: 'refused',
                         tone: cartonFailures.isEmpty
                             ? LampTone.verified
                             : LampTone.pending,
@@ -190,9 +177,9 @@ class RegulatorScreen extends StatelessWidget {
                     const SizedBox(width: Gap.md),
                     Expanded(
                       child: _Metric(
-                        label: 'Policy failures',
+                        label: 'Unapproved',
                         value: '${policyFailures.length}',
-                        caption: 'quorum',
+                        caption: 'records',
                         tone: policyFailures.isEmpty
                             ? LampTone.verified
                             : LampTone.dispute,
@@ -204,7 +191,7 @@ class RegulatorScreen extends StatelessWidget {
 
                 LampSectionHeader(
                   title: 'Duplicate financing',
-                  caption: 'Advances the chaincode refused',
+                  caption: 'Attempts to finance an invoice twice, blocked',
                   trailing: LampChip(
                     label: duplicateAttempts.isEmpty ? 'Clean' : 'Flagged',
                     tone: duplicateAttempts.isEmpty
@@ -215,7 +202,7 @@ class RegulatorScreen extends StatelessWidget {
                 if (duplicateAttempts.isEmpty)
                   LampCard(
                     child: Text(
-                      'None recorded. Finance this receivable from Padma to raise one.',
+                      'None recorded.',
                       style: LaMPType.caption.copyWith(color: c.inkFaint),
                     ),
                   )
@@ -229,9 +216,9 @@ class RegulatorScreen extends StatelessWidget {
 
                 LampSectionHeader(
                   title: 'Carton traceability',
-                  caption: 'Scans matched against dispatch hashes',
+                  caption: 'Every scanned carton checked against what was shipped',
                   trailing: LampChip(
-                    label: cartonFailures.isEmpty ? 'All matched' : 'Mismatch',
+                    label: cartonFailures.isEmpty ? 'All matched' : 'Wrong carton',
                     tone: cartonFailures.isEmpty
                         ? LampTone.verified
                         : LampTone.pending,
@@ -259,13 +246,13 @@ class RegulatorScreen extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  cf.message ?? 'Carton hash mismatch',
+                                  LedgerLabels.reason(cf.message),
                                   style: LaMPType.caption.copyWith(color: c.ink),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  'Block ${cf.blockNumber}',
-                                  style: LaMPType.monoCaption
+                                  LaMPFormatters.formatDateTime(cf.timestamp),
+                                  style: LaMPType.caption
                                       .copyWith(color: c.inkFaint),
                                 ),
                               ],
@@ -283,10 +270,10 @@ class RegulatorScreen extends StatelessWidget {
                 // the one refusal a regulator most needs to read, so it now gets
                 // the same treatment as the other two.
                 LampSectionHeader(
-                  title: 'Endorsement policy',
-                  caption: 'Transactions that failed to reach quorum',
+                  title: 'Approvals',
+                  caption: "Records that didn't get every approval they need",
                   trailing: LampChip(
-                    label: policyFailures.isEmpty ? 'Quorum held' : 'Failed',
+                    label: policyFailures.isEmpty ? 'All approved' : 'Missing',
                     tone: policyFailures.isEmpty
                         ? LampTone.verified
                         : LampTone.dispute,
@@ -295,8 +282,7 @@ class RegulatorScreen extends StatelessWidget {
                 if (policyFailures.isEmpty)
                   LampCard(
                     child: Text(
-                      'Every transaction on this channel carried the signatures '
-                      'its policy requires.',
+                      'Every record had all the approvals it needed.',
                       style: LaMPType.caption.copyWith(color: c.inkFaint),
                     ),
                   )
@@ -351,8 +337,7 @@ class _RefusalCard extends StatelessWidget {
     final c = context.lamp;
 
     return LampCard(
-      background: c.disputeSoft,
-      border: c.dispute.withValues(alpha: 0.4),
+      border: c.dispute,
       padding: const EdgeInsets.all(Gap.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -364,7 +349,7 @@ class _RefusalCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  tx.submitter,
+                  LedgerLabels.org(tx.submitter),
                   style: LaMPType.caption.copyWith(
                     color: c.dispute,
                     fontWeight: FontWeight.w600,
@@ -375,24 +360,15 @@ class _RefusalCard extends StatelessWidget {
               ),
               const SizedBox(width: Gap.sm),
               Text(
-                'Block ${tx.blockNumber}',
-                style: LaMPType.monoCaption.copyWith(color: c.inkFaint),
+                LaMPFormatters.formatDateShort(tx.timestamp),
+                style: LaMPType.caption.copyWith(color: c.inkFaint),
               ),
             ],
           ),
           const SizedBox(height: Gap.xs),
           Text(
-            tx.message ?? 'Duplicate advance refused',
+            LedgerLabels.reason(tx.message),
             style: LaMPType.caption.copyWith(color: c.ink),
-          ),
-          const SizedBox(height: Gap.xs),
-          // A 64-character hash has no spaces to wrap at, so it is truncated
-          // rather than allowed to run off the card.
-          Text(
-            tx.txId,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: LaMPType.monoCaption.copyWith(color: c.inkFaint),
           ),
         ],
       ),

@@ -232,7 +232,7 @@ class _Header extends StatelessWidget {
                   if (subtitle != null)
                     Text(
                       subtitle!,
-                      style: LaMPType.monoCaption.copyWith(color: c.inkFaint),
+                      style: LaMPType.caption.copyWith(color: c.inkFaint),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),

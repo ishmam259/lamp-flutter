@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import '../core/constants/palette.dart';
+import '../core/constants/typography.dart';
 
 class SignaturePad extends StatefulWidget {
   final ValueChanged<bool> onSigned;
@@ -81,7 +82,7 @@ class _SignaturePadState extends State<SignaturePad> {
             Expanded(
               child: Text(
                 'Sign above',
-                style: TextStyle(fontSize: 11, color: c.inkFaint),
+                style: LaMPType.caption.copyWith(color: c.inkFaint),
               ),
             ),
             TextButton(
@@ -90,7 +91,7 @@ class _SignaturePadState extends State<SignaturePad> {
                 visualDensity: VisualDensity.compact,
                 padding: const EdgeInsets.symmetric(horizontal: 8),
               ),
-              child: const Text('Clear Signature', style: TextStyle(fontSize: 12)),
+              child: Text('Clear Signature', style: LaMPType.caption),
             ),
           ],
         ),

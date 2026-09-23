@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../core/constants/app_mode.dart';
+import '../../core/constants/ledger_labels.dart';
 import '../../core/constants/app_theme.dart';
 import '../../core/constants/palette.dart';
 import '../../core/design/luma_frost.dart';
@@ -9,17 +11,17 @@ import '../../core/models/domain_models.dart';
 import '../../core/state/lamp_state.dart';
 import '../../core/world/queries.dart';
 import '../../core/world/seed.dart';
-import '../../widgets/demo_director_sheet.dart';
 import '../../widgets/ledger_inspector_sheet.dart';
 import '../../widgets/recourse_dial.dart';
-import '../../widgets/theme_toggle.dart';
+import '../../widgets/ui/lamp_ledger_ui.dart';
 import '../../widgets/ui/lamp_ui.dart';
 import '../../core/constants/typography.dart';
 
 class BankScreen extends StatefulWidget {
-  final VoidCallback onBackToLauncher;
+  /// Which bank's desk to open on — the signed-in account's bank.
+  final Msp? initialBank;
 
-  const BankScreen({super.key, required this.onBackToLauncher});
+  const BankScreen({super.key, this.initialBank});
 
   @override
   State<BankScreen> createState() => _BankScreenState();
@@ -27,7 +29,7 @@ class BankScreen extends StatefulWidget {
 
 class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  Msp _activeBank = Msp.meghnaMSP;
+  late Msp _activeBank = widget.initialBank ?? Msp.meghnaMSP;
   String? _executionBanner;
   bool _isSuccessBanner = false;
   bool _isAdvancing = false;
@@ -92,7 +94,6 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
 
   Widget _buildScaffold(BuildContext context) {
     final state = context.watch<LaMPState>();
-    final c = context.lamp;
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -102,16 +103,16 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
       // visibly beneath it.
       appBar: LumaAppBar(
         title: 'Financing',
-        subtitle: 'Consortium endorser',
-        onBack: widget.onBackToLauncher,
+        subtitle: _activeBank.fullName,
         actions: [
-          const ThemeToggle(),
-          // Which bank's seat this is. An inline dropdown spelled the name
+          // Which bank's seat this is. Testing only: a real user works for
+          // one bank. An inline dropdown spelled the name
           // out in the bar and took about 140dp of a 360dp phone, leaving
           // the title less room than its own leading mark needed. A menu
           // costs one tap and holds the same two choices.
+          if (kDemoTools)
           PopupMenuButton<Msp>(
-            tooltip: 'Switch seat',
+            tooltip: 'Switch bank',
             initialValue: _activeBank,
             onSelected: (v) => setState(() => _activeBank = v),
             icon: const Icon(Icons.swap_horiz),
@@ -120,16 +121,8 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
               PopupMenuItem(value: Msp.padmaMSP, child: Text('Padma Bank')),
             ],
           ),
-          IconButton(
-            tooltip: 'Ledger',
-            icon: Icon(Icons.account_tree_outlined, color: c.inkMuted),
-            onPressed: () => LedgerInspectorSheet.show(context),
-          ),
-          IconButton(
-            tooltip: 'Demo controls',
-            icon: Icon(Icons.tune, color: c.inkMuted),
-            onPressed: () => DemoDirectorSheet.show(context),
-          ),
+          LampBlockPip(onTap: () => LedgerInspectorSheet.show(context)),
+          const LampSeatMenu(),
         ],
         // Colours come from `tabBarTheme` now; the three screens that had a
         // TabBar were each setting the same three by hand.
@@ -203,9 +196,8 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
               if (eligible.isEmpty)
                 _emptyCard(
                   context,
-                  'Nothing eligible yet. A delivered receivable becomes '
-                  'financeable once its 24-hour dispute window closes — '
-                  'advance the clock from the demo director.',
+                  'Nothing eligible yet. A delivered invoice can be financed '
+                  'once its 24-hour dispute window closes.',
                 )
               else
                 for (final v in eligible) ...[
@@ -219,8 +211,8 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
                   context,
                   'Awaiting dispute window',
                   waiting.length,
-                  'Cash is never released against a delivery that has not '
-                  'achieved finality',
+                  'Financing opens 24 hours after delivery, once the pharmacy '
+                  'can no longer dispute it',
                 ),
                 for (final v in waiting) ...[
                   _opportunityCard(context, state, v, eligible: false),
@@ -234,8 +226,7 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
                   context,
                   'Recently financed',
                   financed.length,
-                  'One invoice carries one token — a second advance cannot be '
-                  'drawn',
+                  'Each invoice can be financed only once',
                 ),
                 for (final v in financed) ...[
                   _financedCard(context, v),
@@ -271,27 +262,18 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
               Flexible(
                 child: Text(
                   title,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: c.ink,
-                  ),
+                  style: LaMPType.head.copyWith(color: c.ink),
                 ),
               ),
               const SizedBox(width: 8),
               Text(
                 '$count',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontFamily: LaMPType.mono,
-                  fontFamilyFallback: LaMPType.fallback,
-                  color: c.inkFaint,
-                ),
+                style: LaMPType.monoCaption.copyWith(color: c.inkFaint),
               ),
             ],
           ),
           const SizedBox(height: 2),
-          Text(hint, style: TextStyle(fontSize: 11, color: c.inkFaint)),
+          Text(hint, style: LaMPType.caption.copyWith(color: c.inkFaint)),
         ],
       ),
     );
@@ -309,7 +291,7 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
       child: Text(
         message,
         textAlign: TextAlign.center,
-        style: TextStyle(fontSize: 12, height: 1.5, color: c.inkFaint),
+        style: LaMPType.caption.copyWith(color: c.inkFaint, height: 1.5),
       ),
     );
   }
@@ -363,36 +345,26 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
                   token.invoiceId,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: LaMPType.mono,
-                    fontFamilyFallback: LaMPType.fallback,
-                    color: c.ink,
-                  ),
+                  style: LaMPType.monoBody.copyWith(color: c.ink),
                 ),
               ),
               const SizedBox(width: 8),
               Text(
                 LaMPFormatters.formatBDT(token.declaredValue),
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: c.brand,
-                ),
+                style: LaMPType.monoBody.copyWith(color: c.ink),
               ),
             ],
           ),
           const SizedBox(height: 8),
           LampChip(
-            label: eligible ? 'SCF eligible' : 'In objection period',
+            label: eligible ? 'Ready to finance' : 'Dispute window open',
             tone: eligible ? LampTone.verified : LampTone.pending,
           ),
           const SizedBox(height: 8),
           Text(
             '${view.pharmacy?.name ?? token.buyerDid} · '
             '${view.pharmacy?.territory ?? ''}',
-            style: TextStyle(fontSize: 12, color: c.inkMuted),
+            style: LaMPType.caption.copyWith(color: c.inkMuted),
           ),
           const SizedBox(height: 16),
           Divider(color: c.line, height: 1),
@@ -400,20 +372,15 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
 
           Text(
             'Before financing',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              color: c.inkFaint,
-            ),
+            style: LaMPType.caption.copyWith(fontWeight: FontWeight.w600, color: c.inkFaint),
           ),
           const SizedBox(height: 8),
 
           _checkItem(
             context,
             label: 'Delivery confirmed',
-            detail: '${token.scanned} of ${token.declaredCartons} cartons · '
-                '${(ratio * 100).toInt()}% against a '
-                '${(LaMPContract.confirmationThreshold * 100).toInt()}% threshold',
+            detail: '${token.scanned} of ${token.declaredCartons} cartons delivered · '
+                '${(LaMPContract.confirmationThreshold * 100).toInt()}% needed',
             isPassed: confirmed,
           ),
           _checkItem(
@@ -455,7 +422,7 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
                 'No band on your curve covers a '
                 '${tier.label.toLowerCase()} counterparty at this invoice '
                 'size.',
-                style: TextStyle(fontSize: 11, color: c.pending),
+                style: LaMPType.caption.copyWith(color: c.pending),
               ),
             )
           else
@@ -470,7 +437,7 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
                 runSpacing: 10,
                 alignment: WrapAlignment.spaceBetween,
                 children: [
-                  _statItem(context, 'Tier', tier.label, c.brand),
+                  _statItem(context, 'Tier', tier.label, c.ink, mono: false),
                   _statItem(context, 'Advance',
                       '${band.advanceRatePct.toStringAsFixed(1)}%', c.ink),
                   _statItem(context, 'Fee',
@@ -514,10 +481,7 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
                         ? 'No band covers this receivable'
                         : 'Finance ${LaMPFormatters.formatBDT(advanceAmount)}',
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: LaMPType.sub.copyWith(fontWeight: FontWeight.w600),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: c.brand,
@@ -533,9 +497,9 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
           if (!eligible && band != null) ...[
             const SizedBox(height: 8),
             Text(
-              'The chaincode refuses until the window closes.',
+              'Financing opens when the dispute window closes.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 11, color: c.inkFaint),
+              style: LaMPType.caption.copyWith(color: c.inkFaint),
             ),
           ],
         ],
@@ -570,13 +534,7 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
                   token.invoiceId,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: LaMPType.mono,
-                    fontFamilyFallback: LaMPType.fallback,
-                    color: c.ink,
-                  ),
+                  style: LaMPType.monoBody.copyWith(color: c.ink),
                 ),
               ),
               const SizedBox(width: 8),
@@ -593,7 +551,7 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
           const SizedBox(height: 4),
           Text(
             view.pharmacy?.name ?? token.buyerDid,
-            style: TextStyle(fontSize: 12, color: c.inkMuted),
+            style: LaMPType.caption.copyWith(color: c.inkMuted),
           ),
           const SizedBox(height: 14),
           Wrap(
@@ -648,11 +606,7 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
           Expanded(
             child: Text(
               _executionBanner!,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: _isSuccessBanner ? c.verified : c.dispute,
-              ),
+              style: LaMPType.caption.copyWith(fontWeight: FontWeight.w600, color: _isSuccessBanner ? c.verified : c.dispute),
             ),
           ),
           IconButton(
@@ -695,21 +649,12 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
               children: [
                 Text(
                   label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    height: 1.35,
-                    color: c.ink,
-                  ),
+                  style: LaMPType.caption.copyWith(fontWeight: FontWeight.w600, color: c.ink, height: 1.35),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   detail,
-                  style: TextStyle(
-                    fontSize: 11,
-                    height: 1.35,
-                    color: c.inkFaint,
-                  ),
+                  style: LaMPType.caption.copyWith(color: c.inkFaint, height: 1.35),
                 ),
               ],
             ),
@@ -719,14 +664,18 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
     );
   }
 
-  Widget _statItem(BuildContext context, String label, String value, Color color) {
+  /// [mono] is for figures; a word such as a tier name is prose.
+  Widget _statItem(BuildContext context, String label, String value, Color color,
+      {bool mono = true}) {
     final c = context.lamp;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(fontSize: 9, color: c.inkFaint)),
+        Text(label, style: LaMPType.caption.copyWith(color: c.inkFaint)),
         const SizedBox(height: 2),
-        Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: color)),
+        Text(value,
+            style: (mono ? LaMPType.monoCaption : LaMPType.caption)
+                .copyWith(fontWeight: FontWeight.w600, color: color)),
       ],
     );
   }
@@ -745,10 +694,11 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
         if (res.ok) {
           _isSuccessBanner = true;
           _executionBanner =
-              'SMART CONTRACT FINANCING EXECUTED: Advance of ${LaMPFormatters.formatBDT(advanceAmount)} committed on block #${res.tx.blockNumber} by ${_activeBank.shortName}!';
+              'Financed. ${LaMPFormatters.formatBDT(advanceAmount)} advanced to '
+              '${SeedData.manufacturer.name}.';
         } else {
           _isSuccessBanner = false;
-          _executionBanner = 'CHAINCODE REFUSAL: ${res.error} (Recorded in block #${res.tx.blockNumber} for audit)';
+          _executionBanner = "Couldn't finance. ${LedgerLabels.reason(res.error)}";
         }
       });
     } finally {
@@ -777,11 +727,11 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('Rate curve',
-                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: c.ink)),
+                        style: LaMPType.head.copyWith(color: c.ink)),
                     const SizedBox(height: 4),
                     Text(
                       'Repayment history moves risk to the bank.',
-                      style: TextStyle(fontSize: 12, color: c.inkMuted),
+                      style: LaMPType.caption.copyWith(color: c.inkMuted),
                     ),
                     const SizedBox(height: 16),
                     RecourseDial(
@@ -848,16 +798,12 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
                   children: [
                     Text(
                       'Portfolio',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: c.ink,
-                      ),
+                      style: LaMPType.head.copyWith(color: c.ink),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       'Exposure across financed receivables.',
-                      style: TextStyle(fontSize: 12, color: c.inkMuted),
+                      style: LaMPType.caption.copyWith(color: c.inkMuted),
                     ),
                     const SizedBox(height: 20),
                     Wrap(
@@ -868,7 +814,7 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
                           context,
                           'Advanced to date',
                           LaMPFormatters.formatBDTCompact(advanced),
-                          c.brand,
+                          c.ink,
                         ),
                         _statItem(
                           context,
@@ -904,13 +850,12 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
                 context,
                 'Outstanding advances',
                 outstanding.length,
-                'Cash out against a receivable the pharmacy has yet to settle',
+                "Advances on invoices the pharmacy hasn't paid yet",
               ),
               if (outstanding.isEmpty)
                 _emptyCard(
                   context,
-                  'Nothing outstanding. Every receivable this consortium has '
-                  'financed has been repaid.',
+                  'Nothing outstanding. Every financed invoice has been repaid.',
                 )
               else
                 for (final v in outstanding) ...[

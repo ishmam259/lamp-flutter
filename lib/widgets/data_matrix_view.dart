@@ -17,9 +17,9 @@ class DataMatrixView extends StatelessWidget {
       height: size,
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Colors.white, // design-lint: allow (a barcode must be black on white to scan)
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: Colors.black12),
+        border: Border.all(color: Colors.black12), // design-lint: allow (a barcode must be black on white to scan)
       ),
       child: CustomPaint(
         painter: _DataMatrixPainter(seed: text.hashCode),
@@ -35,7 +35,7 @@ class _DataMatrixPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paintBlack = Paint()..color = Colors.black;
+    final paintBlack = Paint()..color = Colors.black; // design-lint: allow (a barcode must be black on white to scan)
     const grid = 12;
     final cell = size.width / grid;
 

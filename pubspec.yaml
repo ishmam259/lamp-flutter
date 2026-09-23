@@ -51,6 +51,7 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.4
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -66,16 +67,32 @@ flutter:
   assets:
     - assets/images/
 
-  # IBM Plex Sans is deliberately no longer registered. The interface face is
-  # now the platform's own — San Francisco, Segoe UI, Roboto — which is what
-  # Luma does and why their text matches the OS chrome around it. The .ttf
-  # files are still in assets/fonts so reverting is a four-line change; they
-  # are simply not bundled, which takes ~330 KB off the shipped app.
+  # Anek Latin + Anek Bangla are one superfamily, so Latin and Bengali share
+  # metrics on the same line — a pharmacy's two names, and the taka sign, which
+  # only the Bangla half carries. Static 400/500/600 instances cut from the
+  # Google Fonts variable files (OFL, see assets/fonts/Anek-OFL.txt); those
+  # three are the only weights the type scale uses.
   #
-  # Mono stays bundled: a ledger's money and hashes have to line up in a
+  # Mono stays IBM Plex: a ledger's money and hashes have to line up in a
   # column, and the system monospace is Courier on one platform and absent on
-  # another. Bengali stays for the same reason as before — the taka sign.
+  # another.
   fonts:
+    - family: AnekLatin
+      fonts:
+        - asset: assets/fonts/AnekLatin-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/AnekLatin-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/AnekLatin-SemiBold.ttf
+          weight: 600
+    - family: AnekBangla
+      fonts:
+        - asset: assets/fonts/AnekBangla-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/AnekBangla-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/AnekBangla-SemiBold.ttf
+          weight: 600
     - family: IBMPlexMono
       fonts:
         - asset: assets/fonts/IBMPlexMono-Regular.ttf
@@ -83,14 +100,6 @@ flutter:
         - asset: assets/fonts/IBMPlexMono-Medium.ttf
           weight: 500
         - asset: assets/fonts/IBMPlexMono-SemiBold.ttf
-          weight: 600
-    - family: NotoSansBengali
-      fonts:
-        - asset: assets/fonts/NotoSansBengali-Regular.ttf
-          weight: 400
-        - asset: assets/fonts/NotoSansBengali-Medium.ttf
-          weight: 500
-        - asset: assets/fonts/NotoSansBengali-SemiBold.ttf
           weight: 600
 
   # An image asset can refer to one or more resolution-specific "variants", see
@@ -118,3 +127,18 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+# Launcher icons, generated from the design-handoff masters in
+# assets/app_icon/ (which is deliberately outside the bundled assets/images/).
+# Regenerate with `dart run flutter_launcher_icons`. Web icons are copied from
+# the masters directly, since the handoff ships purpose-made maskable ones.
+flutter_launcher_icons:
+  image_path: "assets/app_icon/ios_appicon_1024.png"
+  ios: true
+  remove_alpha_ios: true
+  android: true
+  adaptive_icon_background: "#0B120F"
+  adaptive_icon_foreground: "assets/app_icon/android_adaptive_foreground_432.png"
+  adaptive_icon_monochrome: "assets/app_icon/android_adaptive_monochrome_432.png"
+  # The foreground master is already sized to the 66/108 safe zone.
+  adaptive_icon_foreground_inset: 0

@@ -123,6 +123,17 @@ class LaMPState extends ChangeNotifier {
   int get blockHeight => ledger.height;
   List<Block> get blocks => ledger.blocks;
   List<ChainTx> get txs => ledger.txs;
+
+  /// The most recent accepted write that names [tokenId] — what a receipt
+  /// footer cites. Null for a token nothing has been written about yet.
+  ChainTx? lastTxFor(String tokenId) {
+    final all = ledger.txs;
+    for (var i = all.length - 1; i >= 0; i--) {
+      final tx = all[i];
+      if (tx.status == TxStatus.valid && tx.args['tokenId'] == tokenId) return tx;
+    }
+    return null;
+  }
   int get now => clock.now;
 
   Timer? _saveTimer;

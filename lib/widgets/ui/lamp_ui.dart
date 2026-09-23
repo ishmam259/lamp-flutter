@@ -134,7 +134,7 @@ class LampSectionHeader extends StatelessWidget {
 /* Status                                                                     */
 /* -------------------------------------------------------------------------- */
 
-enum LampTone { neutral, verified, pending, dispute, chain, brand }
+enum LampTone { neutral, verified, pending, dispute, brand }
 
 extension LampToneColors on LampTone {
   Color fg(BuildContext context) {
@@ -144,7 +144,6 @@ extension LampToneColors on LampTone {
       LampTone.verified => c.verified,
       LampTone.pending => c.pending,
       LampTone.dispute => c.dispute,
-      LampTone.chain => c.chain,
       LampTone.brand => c.brand,
     };
   }
@@ -156,7 +155,6 @@ extension LampToneColors on LampTone {
       LampTone.verified => c.verifiedSoft,
       LampTone.pending => c.pendingSoft,
       LampTone.dispute => c.disputeSoft,
-      LampTone.chain => c.chainSoft,
       LampTone.brand => c.brandSoft,
     };
   }
@@ -196,7 +194,7 @@ class LampChip extends StatelessWidget {
           ],
           Text(
             label,
-            style: LaMPType.micro.copyWith(color: fg, fontWeight: FontWeight.w600),
+            style: LaMPType.caption.copyWith(color: fg, fontWeight: FontWeight.w600),
           ),
         ],
       ),
@@ -258,7 +256,7 @@ class LampStat extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             caption!,
-            style: LaMPType.micro.copyWith(color: c.inkFaint),
+            style: LaMPType.caption.copyWith(color: c.inkFaint),
             maxLines: 2,
           ),
         ],

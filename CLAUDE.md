@@ -19,6 +19,18 @@ anyone trying to rebuild.
 the rule it exists to enforce is that a screen must not offer an action the
 chaincode is going to refuse.
 
+## Design system (authoritative — read before touching any UI)
+
+Rules: `docs/DESIGN_SYSTEM.md`. Enforced by `test/design_lint_test.dart`.
+
+- Colour only via `context.lamp.*` (`lib/core/constants/palette.dart`). The brand colour is near-white in dark themes and `#0B5D42` in light themes. Mint `#3DDC97` = `verified` only. There are three states (confirmed/pending/refused) and no chain blue.
+- Type only via `LaMPType.*` (`typography.dart`): Anek Latin/Bangla sans + IBM Plex Mono for money, ids and labels. Weights 400/500/600, minimum size 11.
+- Spacing is `Gap.*`, radii are `LaMPRadius.*`, and icons are `IconSize.*`.
+- Seat chrome: `LumaAppBar` (mark in the leading slot) + `LampBlockPip` + `LampSeatMenu` (`lib/widgets/ui/lamp_ledger_ui.dart`). People sign in (`lib/core/auth/`, `features/sign_in/`) and land on their own seat; there is no seat picker. Ledger writes use `LampReceiptCard`, counts use `LampTickBar`, and state uses `LampStateDot`.
+- Logo: `LampMark` (brightness-aware assets `logo-mark-dark/light/white.png`).
+- **This is a real app for real users, not a demo.** Copy is plain language: no chaincode names, MSP ids, tx ids or raw errors on screen — use `LedgerLabels` (`lib/core/constants/ledger_labels.dart`). Testing tools sit behind `kDemoTools` (`app_mode.dart`), off in release builds. See `docs/DESIGN_SYSTEM.md` §3a.
+- A new screen follows the checklist in `docs/DESIGN_SYSTEM.md` §6.
+
 ## Toolchain layout (read this before running anything)
 
 The Flutter SDK, JDK, and Android SDK were all installed outside the project
@@ -291,15 +303,6 @@ other's membership test.
 - **`features/pharmacy/pharmacy_screen.dart`** — `_invoiceAmountFor(state)`
   reads from `state.invoices`.
 
-### Palette & widgets
-
-- **`core/constants/palette.dart`** — `portalLight.brand` shifted from
-  `#059669` (emerald, same as verified) to `#0F766E` (teal). `portalDark.brand`
-  shifted from `#3DDC97` (mint, same as verified) to `#38BDF8` (sky). The
-  brand and verified tokens are now distinguishable.
-- **`widgets/lifecycle_rail.dart`** — uses `context.lamp` tokens, not the
-  legacy `LaMPColors`.
-
 ### Theme
 
 - **`core/state/theme_controller.dart`** — `cycle()` captures the starting
@@ -360,6 +363,10 @@ at 360x800, rather than in the model. If one of these fails, a user can see it.
 `test/layout_test.dart` (78 tests): golden-style layout tests for every screen
 at multiple device sizes (iPhone SE, iPhone 15 Pro, Android 360×800) in both
 light and dark mode. These guard against overflow regressions.
+
+`test/design_lint_test.dart` (7 tests): fails on raw colours, inline font
+sizes, bold, raw `TextStyle(`, inline `fontFamily` and `brightness ==`
+branches in `lib/features` and `lib/widgets`. See `docs/DESIGN_SYSTEM.md`.
 
 `test/widget_test.dart` (a few tests): persona launcher smoke test and
 back-button behavior.

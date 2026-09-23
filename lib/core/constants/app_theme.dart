@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 
 import '../design/luma_motion.dart';
+import '../state/theme_controller.dart';
 import 'palette.dart';
 import 'typography.dart';
 
@@ -13,9 +15,15 @@ import 'typography.dart';
 class LaMPTheme {
   static ThemeData build(LampWorld world, Brightness brightness) {
     final p = LampPalette.resolve(world, brightness);
-    final base = brightness == Brightness.dark
-        ? ThemeData.dark(useMaterial3: true)
-        : ThemeData.light(useMaterial3: true);
+    // The family goes on the base, not only the text theme: buttons, tabs
+    // and the nav bar build their labels from Material's own typography and
+    // would otherwise land on Roboto.
+    final base = ThemeData(
+      brightness: brightness,
+      useMaterial3: true,
+      fontFamily: LaMPType.sans,
+      fontFamilyFallback: LaMPType.fallback,
+    );
 
     // The field apps sit closer to the eye and take more air; the portals are
     // instrument panels and earn their density.
@@ -140,15 +148,15 @@ class LaMPTheme {
         style: TextButton.styleFrom(
           foregroundColor: p.brand,
           minimumSize: const Size(0, 44),
-          textStyle: LaMPType.small.copyWith(fontWeight: FontWeight.w600),
+          textStyle: LaMPType.caption.copyWith(fontWeight: FontWeight.w600),
         ),
       ),
 
       tabBarTheme: TabBarThemeData(
         labelColor: p.brand,
         unselectedLabelColor: p.inkFaint,
-        labelStyle: LaMPType.small.copyWith(fontWeight: FontWeight.w600),
-        unselectedLabelStyle: LaMPType.small,
+        labelStyle: LaMPType.caption.copyWith(fontWeight: FontWeight.w600),
+        unselectedLabelStyle: LaMPType.caption,
         indicatorColor: p.brand,
         dividerColor: p.line,
       ),
@@ -170,7 +178,7 @@ class LaMPTheme {
           ),
         ),
         labelTextStyle: WidgetStateProperty.resolveWith(
-          (s) => LaMPType.micro.copyWith(
+          (s) => LaMPType.caption.copyWith(
             fontWeight:
                 s.contains(WidgetState.selected) ? FontWeight.w600 : FontWeight.w500,
             color: s.contains(WidgetState.selected) ? p.brand : p.inkFaint,
@@ -201,7 +209,7 @@ class LaMPTheme {
 
       snackBarTheme: SnackBarThemeData(
         backgroundColor: p.ink,
-        contentTextStyle: LaMPType.small.copyWith(color: p.bg),
+        contentTextStyle: LaMPType.caption.copyWith(color: p.bg),
         actionTextColor: p.brand,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(LaMPRadius.control),
@@ -280,7 +288,21 @@ class LaMPTheme {
     );
   }
 
-  /// The theme for a world, following whatever brightness is already in force.
-  static ThemeData of(BuildContext context, LampWorld world) =>
-      build(world, Theme.of(context).brightness);
+  /// The theme for a world.
+  ///
+  /// An explicit Light or Dark choice applies everywhere. Left on the default,
+  /// each world takes its own: field seats are light, for a phone read in
+  /// sunlight at a pharmacy door; portals are dark, for a desk.
+  static ThemeData of(BuildContext context, LampWorld world) {
+    final mode = Provider.of<ThemeController?>(context)?.mode;
+    final brightness = mode == ThemeMode.system
+        ? defaultBrightness(world)
+        : Theme.of(context).brightness;
+    return build(world, brightness);
+  }
+
+  static Brightness defaultBrightness(LampWorld world) => switch (world) {
+        LampWorld.field => Brightness.light,
+        LampWorld.portal => Brightness.dark,
+      };
 }

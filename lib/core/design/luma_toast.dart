@@ -168,7 +168,7 @@ class _ToastPillState extends State<_ToastPill> {
                       Flexible(
                         child: Text(
                           widget.message,
-                          style: LaMPType.small.copyWith(
+                          style: LaMPType.caption.copyWith(
                             color: p.bg,
                             fontWeight: FontWeight.w600,
                           ),

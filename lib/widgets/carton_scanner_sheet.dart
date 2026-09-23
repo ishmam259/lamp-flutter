@@ -4,8 +4,13 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
-import '../core/constants/colors.dart';
+import '../core/constants/palette.dart';
+import '../core/constants/typography.dart';
 import 'ui/lamp_skeleton.dart';
+
+/// The scanner is drawn over the camera feed, which is dark in either theme,
+/// so it always reads the dark field palette rather than the ambient one.
+const LampPalette _cam = LampPalette.fieldDark;
 
 /// What the chaincode made of a scanned payload.
 class CartonScanResult {
@@ -131,7 +136,7 @@ class _CartonScannerSheetState extends State<CartonScannerSheet> {
     final last = _last;
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.black, // design-lint: allow (camera ground)
       body: Stack(
         fit: StackFit.expand,
         children: [
@@ -162,13 +167,13 @@ class _CartonScannerSheetState extends State<CartonScannerSheet> {
                 const Spacer(),
                 if (last != null) _ResultBanner(result: last),
                 const SizedBox(height: 12),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 24),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: Text(
                     'Point the camera at the code on the carton. '
-                    'Each scan is submitted to the chaincode as it is read.',
+                    "Each carton is checked as soon as it's read.",
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white70, fontSize: 12, height: 1.4),
+                    style: LaMPType.caption.copyWith(color: _cam.inkMuted, height: 1.4),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -177,12 +182,12 @@ class _CartonScannerSheetState extends State<CartonScannerSheet> {
           ),
 
           if (_busy)
-            const Positioned(
+            Positioned(
               bottom: 140,
               left: 0,
               right: 0,
               child: Center(
-                child: LampBusy(size: 22, color: Colors.white),
+                child: LampBusy(size: 22, color: _cam.ink),
               ),
             ),
         ],
@@ -212,11 +217,11 @@ class _TopBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(8, 8, 8, 12),
-      color: Colors.black.withValues(alpha: 0.55),
+      color: Colors.black.withValues(alpha: 0.55), // design-lint: allow (camera ground)
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.close, color: Colors.white),
+            icon: Icon(Icons.close, color: _cam.ink),
             onPressed: onClose,
           ),
           Expanded(
@@ -225,15 +230,11 @@ class _TopBar extends StatelessWidget {
               children: [
                 Text(
                   invoiceId,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
+                  style: LaMPType.body.copyWith(fontWeight: FontWeight.w600, color: _cam.ink),
                 ),
                 Text(
                   '$scanned of $total cartons verified',
-                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  style: LaMPType.caption.copyWith(color: _cam.inkMuted),
                 ),
               ],
             ),
@@ -241,7 +242,7 @@ class _TopBar extends StatelessWidget {
           IconButton(
             icon: Icon(
               torchOn ? Icons.flash_on : Icons.flash_off,
-              color: torchOn ? LaMPColors.pending : Colors.white,
+              color: torchOn ? _cam.pending : _cam.ink,
             ),
             onPressed: onTorch,
           ),
@@ -260,8 +261,8 @@ class _ScannerReticle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colour = accepted == null
-        ? Colors.white70
-        : (accepted! ? LaMPColors.verified : LaMPColors.dispute);
+        ? _cam.inkMuted
+        : (accepted! ? _cam.verified : _cam.dispute);
 
     return Center(
       child: AnimatedContainer(
@@ -284,7 +285,7 @@ class _ResultBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colour = result.accepted ? LaMPColors.verified : LaMPColors.dispute;
+    final colour = result.accepted ? _cam.verified : _cam.dispute;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -297,19 +298,14 @@ class _ResultBanner extends StatelessWidget {
         children: [
           Icon(
             result.accepted ? Icons.verified : Icons.block,
-            color: Colors.white,
+            color: _cam.ink,
             size: 20,
           ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               result.message,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                height: 1.3,
-              ),
+              style: LaMPType.caption.copyWith(fontWeight: FontWeight.w600, color: _cam.ink, height: 1.3),
             ),
           ),
         ],
@@ -329,33 +325,29 @@ class _CameraUnavailable extends StatelessWidget {
         error.errorCode == MobileScannerErrorCode.permissionDenied;
 
     return Container(
-      color: Colors.black,
+      color: Colors.black, // design-lint: allow (camera ground)
       padding: const EdgeInsets.all(32),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
             denied ? Icons.no_photography_outlined : Icons.videocam_off_outlined,
-            color: Colors.white54,
+            color: _cam.inkFaint,
             size: 44,
           ),
           const SizedBox(height: 16),
           Text(
             denied ? 'Camera permission denied' : 'Camera unavailable',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
+            style: LaMPType.head.copyWith(color: _cam.ink),
           ),
           const SizedBox(height: 8),
           Text(
             denied
-                ? 'Grant camera access in system settings, or close this and use '
-                    'the on-screen cascade instead.'
+                ? 'Allow camera access in your phone settings, or close this and '
+                    'use Scan next instead.'
                 : error.errorDetails?.message ?? 'No camera could be started.',
             textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
+            style: LaMPType.caption.copyWith(color: _cam.inkMuted, height: 1.4),
           ),
           const SizedBox(height: 20),
           TextButton(

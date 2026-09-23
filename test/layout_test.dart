@@ -9,7 +9,8 @@ import 'package:lamp_flutter/core/constants/palette.dart';
 import 'package:lamp_flutter/core/state/lamp_state.dart';
 import 'package:lamp_flutter/core/state/theme_controller.dart';
 import 'package:lamp_flutter/features/bank/bank_screen.dart';
-import 'package:lamp_flutter/features/launcher/launcher_screen.dart';
+import 'package:lamp_flutter/features/sign_in/sign_in_screen.dart';
+import 'package:lamp_flutter/core/auth/auth_controller.dart';
 import 'package:lamp_flutter/features/manufacturer/manufacturer_screen.dart';
 import 'package:lamp_flutter/features/mpo/mpo_screen.dart';
 import 'package:lamp_flutter/features/pharmacy/pharmacy_screen.dart';
@@ -97,7 +98,14 @@ Future<List<String>> _sweep(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => LaMPState()),
-        ChangeNotifierProvider(create: (_) => ThemeController()),
+        ChangeNotifierProvider(create: (_) => AuthController()),
+        // Pinned, or every field seat would take its light default and the
+        // dark half of this sweep would test light twice.
+        ChangeNotifierProvider(
+          create: (_) => ThemeController(
+            brightness == Brightness.dark ? ThemeMode.dark : ThemeMode.light,
+          ),
+        ),
       ],
       child: MaterialApp(
         theme: LaMPTheme.build(world, brightness),
@@ -167,33 +175,33 @@ void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
   final screens = <String, ({Widget Function() build, LampWorld world, int tabs})>{
-    'launcher': (
-      build: () => LauncherScreen(onSelectPersona: (_) {}),
+    'sign in': (
+      build: () => const SignInScreen(),
       world: LampWorld.portal,
       tabs: 1,
     ),
     'mpo': (
-      build: () => MpoScreen(onBackToLauncher: () {}),
+      build: () => const MpoScreen(),
       world: LampWorld.field,
       tabs: 4,
     ),
     'pharmacy': (
-      build: () => PharmacyScreen(onBackToLauncher: () {}),
+      build: () => const PharmacyScreen(),
       world: LampWorld.field,
       tabs: 4,
     ),
     'manufacturer': (
-      build: () => ManufacturerScreen(onBackToLauncher: () {}),
+      build: () => const ManufacturerScreen(),
       world: LampWorld.portal,
       tabs: 3,
     ),
     'bank': (
-      build: () => BankScreen(onBackToLauncher: () {}),
+      build: () => const BankScreen(),
       world: LampWorld.portal,
       tabs: 3,
     ),
     'regulator': (
-      build: () => RegulatorScreen(onBackToLauncher: () {}),
+      build: () => const RegulatorScreen(),
       world: LampWorld.portal,
       tabs: 1,
     ),

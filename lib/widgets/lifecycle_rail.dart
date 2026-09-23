@@ -16,10 +16,10 @@ class LifecycleRail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final steps = [
-      {'id': TokenState.created, 'label': 'Created'},
+      {'id': TokenState.created, 'label': 'Issued'},
       {'id': TokenState.delivered, 'label': 'Delivered'},
       {'id': TokenState.financed, 'label': 'Financed'},
-      {'id': TokenState.settled, 'label': 'Settled'},
+      {'id': TokenState.settled, 'label': 'Paid'},
     ];
 
     int activeIndex = 0;
@@ -71,22 +71,14 @@ class LifecycleRail extends StatelessWidget {
                           ? Icon(Icons.check, size: 14, color: surface.onBrand)
                           : Text(
                               '${i + 1}',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: i <= activeIndex ? surface.onBrand : surface.inkFaint,
-                              ),
+                              style: LaMPType.caption.copyWith(fontWeight: FontWeight.w600, color: i <= activeIndex ? surface.onBrand : surface.inkFaint),
                             ),
                     ),
                   ),
                   const SizedBox(width: 8),
                   Text(
                     steps[i]['label'] as String,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: i == activeIndex ? FontWeight.bold : FontWeight.w500,
-                      color: i <= activeIndex ? surface.ink : surface.inkFaint,
-                    ),
+                    style: LaMPType.caption.copyWith(fontWeight: i == activeIndex ? FontWeight.w600 : FontWeight.w500, color: i <= activeIndex ? surface.ink : surface.inkFaint),
                   ),
                 ],
               ),
