@@ -144,7 +144,9 @@ class RegulatorScreen extends StatelessWidget {
       child: Row(
         children: [
           Expanded(child: figure('Invoices', '$invoices')),
-          Expanded(flex: 2, child: figure('Financed', LaMPFormatters.formatBDTCompact(advanced))),
+          const SizedBox(width: Gap.md),
+          Expanded(child: figure('Financed', LaMPFormatters.formatBDTCompact(advanced))),
+          const SizedBox(width: Gap.md),
           Expanded(child: figure('Paid', '$paid', end: true)),
         ],
       ),
