@@ -8,6 +8,7 @@ import '../chain/ledger.dart';
 import '../invoice/invoice_artifacts.dart';
 import '../models/domain_models.dart';
 import '../models/ledger_models.dart';
+import '../remote/lamp_api.dart';
 import '../store/lamp_store.dart';
 import '../world/clock.dart';
 import '../world/gs1.dart';
@@ -150,7 +151,27 @@ class LaMPState extends ChangeNotifier {
 
   Timer? _saveTimer;
 
-  LaMPState() {
+  /* ------------------------------------------------------------------------ */
+  /* The shared ledger                                                        */
+  /* ------------------------------------------------------------------------ */
+
+  /// The server this build talks to, or null to run the on-phone ledger.
+  ///
+  /// With a server, every phone reads and writes one ledger: a scan on the
+  /// officer's phone is on the bank's screen at its next poll. The phone keeps
+  /// a mirror of the server's state in [ledger] and reads it exactly as it
+  /// reads its own, so no screen knows the difference.
+  final LampApi? api;
+  bool get isRemote => api != null;
+
+  /// Why the last read from the server failed, or null when it is reachable.
+  String? remoteError;
+
+  Timer? _pollTimer;
+  bool _pulling = false;
+  static const Duration _pollEvery = Duration(seconds: 3);
+
+  LaMPState({LampApi? api}) : api = api ?? LampApi.configured() {
     initWorld();
   }
 
@@ -160,6 +181,10 @@ class LaMPState extends ChangeNotifier {
   /// on a demo device a refusal to start is indistinguishable from the app
   /// being broken — so anything unreadable falls through to a reseed.
   Future<void> initWorld() async {
+    if (isRemote) {
+      await _startRemote();
+      return;
+    }
     final stored = await LaMPStore.load();
 
     if (stored != null) {
@@ -248,10 +273,106 @@ class LaMPState extends ChangeNotifier {
     'demoInvoiceId': demoInvoiceId,
   };
 
+  /// First read from the server. Retries until it answers, holding the
+  /// splash meanwhile — there is nothing honest to show before it does.
+  Future<void> _startRemote() async {
+    _loadPhase = WorldLoad.restoring;
+    notifyListeners();
+    while (true) {
+      try {
+        await _pull();
+        break;
+      } catch (e) {
+        remoteError = "Couldn't reach the server. Retrying…";
+        debugPrint('LaMPState: server unreachable ($e)');
+        await Future<void>.delayed(_pollEvery);
+      }
+    }
+    _loadPhase = WorldLoad.ready;
+    _initialized = true;
+    notifyListeners();
+    _pollTimer = Timer.periodic(_pollEvery, (_) => _poll());
+  }
+
+  /// Re-read when the server's ledger has moved — someone else's write.
+  Future<void> _poll() async {
+    if (_pulling) return;
+    try {
+      final height = await api!.height();
+      if (height != ledger.height) await _pull();
+      if (remoteError != null) {
+        remoteError = null;
+        notifyListeners();
+      }
+    } catch (e) {
+      if (remoteError == null) {
+        remoteError = "Can't reach the server. Showing the last known state.";
+        notifyListeners();
+      }
+    }
+  }
+
+  /// Replace the mirror with the server's current state.
+  Future<void> _pull() async {
+    _pulling = true;
+    try {
+      final s = await api!.state();
+      ledger.mirror(world: s.world, txs: s.txs, height: s.height);
+      clock.syncTo(s.now);
+      invoices = s.invoices;
+      deliveries = s.deliveries;
+      final first = SeedData.pharmacies.first.did;
+      creditHistory = creditFor(first) ?? creditHistory;
+      remoteError = null;
+      notifyListeners();
+    } finally {
+      _pulling = false;
+    }
+  }
+
+  /// One write on the server, then a fresh read so every screen sees it.
+  Future<SubmitResult> _remote(
+    String fn,
+    String action,
+    Map<String, dynamic> args, {
+    bool demoControl = false,
+  }) async {
+    RemoteResult r;
+    try {
+      r = await api!.act(action, args, demoControl: demoControl);
+    } catch (e) {
+      r = const RemoteResult(ok: false, error: "Couldn't reach the server.");
+    }
+    try {
+      await _pull();
+    } catch (_) {
+      // The write's outcome stands; the next poll catches up.
+    }
+    return SubmitResult(
+      ok: r.ok,
+      error: r.error,
+      tx: r.tx ??
+          ChainTx(
+            txId: '',
+            blockNumber: ledger.height,
+            timestamp: clock.now,
+            submitter: Msp.manufacturerMSP.id,
+            fn: fn,
+            args: args,
+            status: r.ok ? TxStatus.valid : TxStatus.chaincodeError,
+            message: r.error,
+            policy: '',
+            endorsements: const [],
+            writes: const [],
+          ),
+    );
+  }
+
   /// Write the world immediately, cancelling any pending debounced save.
   Future<void> saveNow() async {
     _saveTimer?.cancel();
-    if (!_initialized) return;
+    // The server is the record; the phone keeps no copy of its own.
+    if (!_initialized || isRemote) return;
     await LaMPStore.save(_snapshot());
   }
 
@@ -269,7 +390,7 @@ class LaMPState extends ChangeNotifier {
     // silently leaves a screen rendering the pre-transaction world.
     _views = null;
     super.notifyListeners();
-    if (!_initialized) return;
+    if (!_initialized || isRemote) return;
     _saveTimer?.cancel();
     _saveTimer = Timer(
       const Duration(milliseconds: 400),
@@ -279,6 +400,7 @@ class LaMPState extends ChangeNotifier {
 
   @override
   void dispose() {
+    _pollTimer?.cancel();
     _saveTimer?.cancel();
     super.dispose();
   }
@@ -290,6 +412,10 @@ class LaMPState extends ChangeNotifier {
 
   /// Discard the stored world and rebuild the seeded one.
   Future<void> resetWorld() async {
+    if (isRemote) {
+      await _remote('reset', 'reset', const {}, demoControl: true);
+      return;
+    }
     _saveTimer?.cancel();
     _initialized = false;
     await LaMPStore.clear();
@@ -297,6 +423,10 @@ class LaMPState extends ChangeNotifier {
   }
 
   void advanceClock(int ms) {
+    if (isRemote) {
+      _remote('advanceClock', 'advanceClock', {'ms': ms}, demoControl: true);
+      return;
+    }
     clock.advance(ms);
     notifyListeners();
   }
@@ -358,6 +488,10 @@ class LaMPState extends ChangeNotifier {
 
   // Action: Scan Carton
   Future<SubmitResult> scanCarton(String tokenId, String gs1, String deviceId) async {
+    if (isRemote) {
+      return _remote('recordPoD', 'scan',
+          {'tokenId': tokenId, 'gs1': gs1, 'deviceId': deviceId});
+    }
     final cartonHash = LaMPCrypto.sha256Hex(gs1);
     final res = await ledger.submit(
       fn: 'recordPoD',
@@ -415,6 +549,10 @@ class LaMPState extends ChangeNotifier {
   /// onto the model from inside its own `setState`, which mutated an object
   /// this class owns without telling anything else that listens to it.
   void markCartonRejected(String tokenId, String cartonId, String reason) {
+    if (isRemote) {
+      _remote('', 'rejectCarton',
+          {'tokenId': tokenId, 'cartonId': cartonId, 'reason': reason});
+    }
     final delivery = getDelivery(tokenId);
     if (delivery == null) return;
     for (final carton in delivery.cartons) {
@@ -428,6 +566,10 @@ class LaMPState extends ChangeNotifier {
 
   // Action: Drain Scan Queue (offline)
   Future<SubmitResult> drainScanQueue(String tokenId, List<String> gs1List, String deviceId) async {
+    if (isRemote) {
+      return _remote('recordPoDBatch', 'drain',
+          {'tokenId': tokenId, 'gs1s': gs1List, 'deviceId': deviceId});
+    }
     final hashes = gs1List.map(LaMPCrypto.sha256Hex).toList();
     final res = await ledger.submit(
       fn: 'recordPoDBatch',
@@ -472,6 +614,10 @@ class LaMPState extends ChangeNotifier {
     // the off-chain `Delivery` model.
     final signatureRef =
         'sig:${LaMPCrypto.sha256Hex(signatureBase64).substring(0, 16)}';
+    if (isRemote) {
+      return _remote('confirmReceipt', 'confirm',
+          {'tokenId': tokenId, 'signatureRef': signatureRef});
+    }
     final res = await ledger.submit(
       fn: 'confirmReceipt',
       args: {
@@ -505,6 +651,9 @@ class LaMPState extends ChangeNotifier {
 
   // Action: Bank Finance Receivable
   Future<SubmitResult> financeReceivable(String tokenId, Msp asMsp) async {
+    if (isRemote) {
+      return _remote('matchAndAdvance', 'finance', {'tokenId': tokenId, 'bank': asMsp.id});
+    }
     final res = await ledger.submit(
       fn: 'matchAndAdvance',
       args: {'tokenId': tokenId},
@@ -520,6 +669,10 @@ class LaMPState extends ChangeNotifier {
 
   // Action: Settle Receivable
   Future<SubmitResult> settleReceivable(String tokenId, double amount, String method) async {
+    if (isRemote) {
+      return _remote('settle', 'settle',
+          {'tokenId': tokenId, 'amount': amount, 'method': method});
+    }
     final ref = '${method.toUpperCase().replaceAll(' ', '')}-${Random().nextInt(899999) + 100000}';
     final res = await ledger.submit(
       fn: 'settle',
@@ -688,6 +841,9 @@ class LaMPState extends ChangeNotifier {
 
   // Action: Raise Dispute
   Future<SubmitResult> raiseDispute(String tokenId, String reason) async {
+    if (isRemote) {
+      return _remote('raiseDispute', 'dispute', {'tokenId': tokenId, 'reason': reason});
+    }
     final res = await ledger.submit(
       fn: 'raiseDispute',
       args: {'tokenId': tokenId, 'reason': reason},
@@ -707,6 +863,13 @@ class LaMPState extends ChangeNotifier {
 
   // Action: Resolve Dispute
   Future<SubmitResult> resolveDispute(String tokenId, String resolution) async {
+    if (isRemote) {
+      return _remote('resolveDispute', 'resolve', {
+        'tokenId': tokenId,
+        'resolution': resolution,
+        'restoreTo': TokenState.delivered.id,
+      });
+    }
     final res = await ledger.submit(
       fn: 'resolveDispute',
       args: {
@@ -750,6 +913,18 @@ class LaMPState extends ChangeNotifier {
     required int termsDays,
     required List<LineItem> lineItems,
   }) async {
+    if (isRemote) {
+      // The server numbers the invoice, makes the cartons and assigns the
+      // round; the phone says what and for whom.
+      return _remote('mintReceivable', 'mint', {
+        'pharmacyDid': pharmacyDid,
+        'termsDays': termsDays,
+        'lines': [
+          for (final l in lineItems) {'sku': l.sku, 'cartons': l.cartons},
+        ],
+        'mpoId': _officerFor(pharmacyDid),
+      });
+    }
     final invoiceNum = _nextInvoiceNumber();
     final numeric = invoiceNum.toString().padLeft(5, '0');
     final invoiceId = 'INV-$numeric';

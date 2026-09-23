@@ -36,56 +36,74 @@ class LedgerLabels {
   /// ids, threshold arithmetic. Each known refusal maps to plain words; the
   /// original stays in the ledger view's details for anyone auditing.
   static String reason(String? message) {
-    final m = message ?? '';
-    final invoice = RegExp(r'INV-[\w-]+').firstMatch(m)?.group(0);
-    final hours = RegExp(r'\((\d+)h remaining\)').firstMatch(m)?.group(1);
-    final ofInvoice = invoice ?? 'this invoice';
+    final raw = message ?? '';
+    // Connection failures are already written for people.
+    if (raw.startsWith("Couldn't reach")) return raw;
 
-    if (m.contains('does not belong to invoice')) {
-      return "This carton isn't part of $ofInvoice.";
-    }
-    if (m.contains('already been scanned')) {
+    // Two vocabularies reach this: the on-phone chaincode's and the server's
+    // (the TypeScript original, which words the same refusals differently).
+    // Matched case-insensitively on the phrases the two share or differ by.
+    final m = raw.toLowerCase();
+    final invoice = RegExp(r'INV-[\w-]+').firstMatch(raw)?.group(0);
+    final hours = RegExp(r'\((\d+)h remaining\)').firstMatch(raw)?.group(1);
+    final ofInvoice = invoice ?? 'this invoice';
+    bool has(String s) => m.contains(s);
+
+    if (has('does not belong')) return "This carton isn't part of $ofInvoice.";
+    if (has('already been scanned') || has('already scanned')) {
       return 'This carton was already scanned for $ofInvoice.';
     }
-    if (m.contains('already financed') || m.contains('Duplicate advance')) {
+    if (has('no longer accepts delivery scans')) {
+      return "This invoice isn't taking scans any more.";
+    }
+    if (has('already financed') || has('duplicate advance') || has('duplicate financing')) {
       return 'This invoice has already been financed.';
     }
-    if (m.contains('financing requires DELIVERED')) {
+    if (has('financing requires delivered') || has('delivery is not confirmed')) {
       return "This invoice can't be financed until it's delivered.";
     }
-    if (m.contains('below the required')) {
-      return 'Fewer than 90% of the cartons are confirmed.';
-    }
-    if (m.contains('Dispute window is still open')) {
+    if (has('below the required')) return 'Fewer than 90% of the cartons are confirmed.';
+    if (has('dispute window is still open') || has('dispute window has not closed')) {
       return hours == null
           ? 'The dispute window is still open.'
           : 'The dispute window is still open — $hours hours left.';
     }
-    if (m.contains('under active dispute')) return 'This invoice is under dispute.';
-    if (m.contains('No registered rate curve')) {
+    if (has('no active dispute') || has('not under dispute')) {
+      return "There's no open dispute to resolve.";
+    }
+    if (has('under active dispute') || has('under dispute')) {
+      return 'This invoice is under dispute.';
+    }
+    if (has('no registered rate curve')) {
       return "No rate card covers this pharmacy's credit tier yet.";
     }
-    if (m.contains('settlement requires')) return "This invoice can't be paid yet.";
-    if (m.contains('disputes are only valid')) {
+    if (has('already settled') || has('settled or closed')) {
+      return 'This invoice is already closed.';
+    }
+    if (has('settlement requires') || has('cannot be settled')) {
+      return "This invoice can't be paid yet.";
+    }
+    if (has('disputes are only valid') || has('dispute can only be raised')) {
       return "This invoice can't be disputed at this stage.";
     }
-    if (m.contains('no active dispute')) return "There's no open dispute to resolve.";
-    if (m.contains('already settled or closed')) return 'This invoice is already closed.';
-    if (m.contains('cartons delivered (need')) {
-      return 'Fewer than 90% of the cartons were delivered.';
+    if (has('cartons delivered (need')) return 'Fewer than 90% of the cartons were delivered.';
+    if (has('has not recorded the delivery')) {
+      return "The ledger hasn't recorded this delivery yet.";
     }
-    if (m.contains('at least one carton')) return 'Add at least one carton.';
-    if (m.contains('declaredValue must be positive')) {
+    if (has('at least one carton') || has('no cartons declared')) {
+      return 'Add at least one carton.';
+    }
+    if (has('batch contained no cartons')) return 'There were no cartons to record.';
+    if (has('declaredvalue must be positive') || has('declared value must be positive')) {
       return 'The invoice total must be more than zero.';
     }
-    if (m.contains('dueDate')) return 'The due date must be after the issue date.';
-    if (m.contains('already has an active receivable')) {
+    if (has('duedate')) return 'The due date must be after the issue date.';
+    if (has('already has an active receivable') || has('already carries an unsettled')) {
       return 'This invoice has already been issued.';
     }
-    if (m.contains('not found')) return "We couldn't find this invoice.";
-    if (m.toLowerCase().contains('endorsement') || m.toLowerCase().contains('policy')) {
-      return "It didn't get every approval it needs.";
-    }
+    if (has('needs a reason') || has('resolution note is required')) return 'Add a reason.';
+    if (has('not found') || has('does not exist')) return "We couldn't find this invoice.";
+    if (has('endorsement') || has('policy')) return "It didn't get every approval it needs.";
     return "The ledger didn't accept this.";
   }
 

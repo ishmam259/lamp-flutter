@@ -40,6 +40,13 @@ class DemoClock {
   /// while the app was closed still counts. Re-anchoring to now would freeze
   /// ledger time whenever the app is not running, and two transactions either
   /// side of a restart would carry a smaller gap than actually elapsed.
+  /// Adopt a server's ledger time, so what this phone stamps and what the
+  /// server records are the same moment.
+  void syncTo(int serverNow) {
+    _anchor = DateTime.now().millisecondsSinceEpoch;
+    _offset = serverNow - demoEpoch;
+  }
+
   void restore(Map<String, dynamic> json) {
     _offset = (json['offset'] as num?)?.toInt() ?? 0;
     _anchor = (json['anchor'] as num?)?.toInt() ??

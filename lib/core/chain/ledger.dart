@@ -58,7 +58,10 @@ class LocalLedger {
   Stream<Map<String, dynamic>> get events => _eventController.stream;
   List<Block> get blocks => List.unmodifiable(_blocks);
   List<ChainTx> get txs => List.unmodifiable(_txs);
-  int get height => _blocks.length;
+  int get height => _mirroredHeight ?? _blocks.length;
+
+  /// Set while this ledger mirrors a server's (see [mirror]).
+  int? _mirroredHeight;
 
   /// Synchronous peek at world state for callers (e.g. the UI) that cannot
   /// await. Reads the live map — no defensive clone — so the caller must not
@@ -84,7 +87,26 @@ class LocalLedger {
     'confirmReceipt': "AND('ManufacturerMSP.peer')",
   };
 
+  /// Become a read-only copy of a server's ledger.
+  ///
+  /// With a server configured the phone does not run the chaincode; it reads
+  /// the world and records the server sends and renders them through the same
+  /// synchronous queries as its own ledger. Private collections are not sent —
+  /// their values never leave the server — and blocks are not either, so the
+  /// height is taken as given.
+  void mirror({
+    required Map<String, dynamic> world,
+    required List<ChainTx> txs,
+    required int height,
+  }) {
+    clear();
+    _world.addAll(world);
+    _txs.addAll(txs);
+    _mirroredHeight = height;
+  }
+
   void clear() {
+    _mirroredHeight = null;
     _world.clear();
     _collections['invoiceLineItems']?.clear();
     _collections['rateCurves']?.clear();

@@ -10,6 +10,7 @@ import '../../core/constants/ledger_labels.dart';
 import '../../core/constants/palette.dart';
 import '../../core/models/ledger_models.dart';
 import '../../core/constants/typography.dart';
+import '../../core/state/lamp_state.dart';
 import '../../core/state/theme_controller.dart';
 import '../demo_director_sheet.dart';
 
@@ -309,6 +310,9 @@ class LampBlockPip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.lamp;
+    // With a shared ledger, say so when the server can't be reached: the
+    // screen is then showing the last state it read, not the live one.
+    final offline = Provider.of<LaMPState?>(context)?.remoteError != null;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: Gap.xs),
       child: Material(
@@ -322,9 +326,12 @@ class LampBlockPip extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: Gap.md),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
-                const LampStateDot(LampState.confirmed),
+                LampStateDot(offline ? LampState.pending : LampState.confirmed),
                 const SizedBox(width: Gap.sm),
-                Text('Ledger', style: LaMPType.meta.copyWith(color: c.inkMuted)),
+                Text(
+                  offline ? 'Offline' : 'Ledger',
+                  style: LaMPType.meta.copyWith(color: offline ? c.pending : c.inkMuted),
+                ),
               ]),
             ),
           ),

@@ -1,0 +1,2106 @@
+{
+ "height": 210,
+ "now": 1789176882287,
+ "authoritative": false,
+ "world": {
+  "token:RCV-00235": {
+   "tokenId": "RCV-00235",
+   "invoiceId": "INV-00235",
+   "manufacturerMsp": "ManufacturerMSP",
+   "manufacturerId": "mfr-shomota",
+   "buyerDid": "did:lamp:pharmacy:rahman-medical",
+   "declaredValue": 373000,
+   "currency": "BDT",
+   "termsDays": 45,
+   "issuedAt": 1787526000000,
+   "observedAt": 1787526000000,
+   "datesAsserted": true,
+   "dueDate": 1791414000000,
+   "cartonHashes": [
+    "ac4536697871611163e8698f45738fe5ee360b70fbb0e1ae34a49300ab4d3a1d",
+    "f0f4b02eddcc54907119991ae26ccd3f3823da9d59c5d7abaf6bdfdccb276c9c",
+    "93d399d7b3fe998a8f2a68bbf9d92613042653054fd068247cbaf53a0001bf29",
+    "0786c496929888266d8d3aa1bdca22a779653fad6af691eaa8a49d5d0e3fa6b9",
+    "01436cc9c90f6924d2fa783776a15ee706ca23757fc56f4ad6113a430a9611a9",
+    "ed0bf30d4f49be0bd008cc0579dba6d229e88b3259c318fdcd7faf7e17c08a2d",
+    "09377ffb57e741ed902385480c90c0138960ea52e3201ad4795e95ed0f145ed2",
+    "60633496b21d53664fbaa065de2e9973e118a4e60662280bdf52f3bf01aca986",
+    "42bafbe8d776aaf5e92239b8dc27aa7e4c5f373ccd082fb58d8c61002df9189d",
+    "63ac6f56367709e347518bdcb08d1b04ece6783cc1fe2f2caf6f3d016a211f17",
+    "c2ea68a218c026112cd8a29a5b5c497ddc958f696f411ffe1dd611cb4967cfc6",
+    "abaa9feeb73f89c2e8f0b8dc11e72ed4ce6e68115df8f5cd630ee23d578105b5",
+    "56f70ea46002f0c116e30fd306e033e50f1ec7665f9f60464d4235758f155618",
+    "c97967f37a86ec1051ad75a779663c66b45848d080d6912b3d36a44d921b3132",
+    "58ad4b7e29319ec1dd56a5e68e100744211163a36b99d9ea9d22d9d84cb0d7cf",
+    "7eb2a7cfbc7ea211ea72adeb5c503eceb2a75e954800ae4112f09ab9c1849efb",
+    "64e42ff86e8a8a5b03f4306d602d0648fa8e7a060935c89f81427fff8da1fc11",
+    "41470d69c4762af6f952877e722bd9749e1d4373ff757f1d8516a25557baff11",
+    "5c9d8550f6ceb2bdb1800ee95f232e42152bb958d8606fc6c9f6ac6fec2829b6",
+    "ed486367b559bf243ee4ee0ae3c0e72da3c2645dfcdd9325b0f19792ed1a973f",
+    "d3262ae6f276a52c91884c996152714e9cf27cf74dfa204170b094250709fcb3",
+    "05622ffe450ba1858d48fdf8bea8a323e8bac54bb03d6c60e6dda26cc02fe466",
+    "7233c0a2f5d12f32bc2766216868aa62d3b1cae156c8294104fdceb4bf6f1be8",
+    "7f5aabe0d03dabad774f2902d8df5293f919e303e6d45b8f68dc753efc766449",
+    "0005ebe61a44b4f35adaa4aa7b20c54b9a15fa8d96e642fc1242a6641fbe4305"
+   ],
+   "scannedHashes": [
+    "ac4536697871611163e8698f45738fe5ee360b70fbb0e1ae34a49300ab4d3a1d",
+    "f0f4b02eddcc54907119991ae26ccd3f3823da9d59c5d7abaf6bdfdccb276c9c",
+    "93d399d7b3fe998a8f2a68bbf9d92613042653054fd068247cbaf53a0001bf29",
+    "0786c496929888266d8d3aa1bdca22a779653fad6af691eaa8a49d5d0e3fa6b9",
+    "01436cc9c90f6924d2fa783776a15ee706ca23757fc56f4ad6113a430a9611a9",
+    "ed0bf30d4f49be0bd008cc0579dba6d229e88b3259c318fdcd7faf7e17c08a2d",
+    "09377ffb57e741ed902385480c90c0138960ea52e3201ad4795e95ed0f145ed2",
+    "60633496b21d53664fbaa065de2e9973e118a4e60662280bdf52f3bf01aca986",
+    "42bafbe8d776aaf5e92239b8dc27aa7e4c5f373ccd082fb58d8c61002df9189d",
+    "63ac6f56367709e347518bdcb08d1b04ece6783cc1fe2f2caf6f3d016a211f17",
+    "c2ea68a218c026112cd8a29a5b5c497ddc958f696f411ffe1dd611cb4967cfc6",
+    "abaa9feeb73f89c2e8f0b8dc11e72ed4ce6e68115df8f5cd630ee23d578105b5",
+    "56f70ea46002f0c116e30fd306e033e50f1ec7665f9f60464d4235758f155618",
+    "c97967f37a86ec1051ad75a779663c66b45848d080d6912b3d36a44d921b3132",
+    "58ad4b7e29319ec1dd56a5e68e100744211163a36b99d9ea9d22d9d84cb0d7cf",
+    "7eb2a7cfbc7ea211ea72adeb5c503eceb2a75e954800ae4112f09ab9c1849efb",
+    "64e42ff86e8a8a5b03f4306d602d0648fa8e7a060935c89f81427fff8da1fc11",
+    "41470d69c4762af6f952877e722bd9749e1d4373ff757f1d8516a25557baff11",
+    "5c9d8550f6ceb2bdb1800ee95f232e42152bb958d8606fc6c9f6ac6fec2829b6",
+    "ed486367b559bf243ee4ee0ae3c0e72da3c2645dfcdd9325b0f19792ed1a973f",
+    "d3262ae6f276a52c91884c996152714e9cf27cf74dfa204170b094250709fcb3",
+    "05622ffe450ba1858d48fdf8bea8a323e8bac54bb03d6c60e6dda26cc02fe466",
+    "7233c0a2f5d12f32bc2766216868aa62d3b1cae156c8294104fdceb4bf6f1be8",
+    "7f5aabe0d03dabad774f2902d8df5293f919e303e6d45b8f68dc753efc766449",
+    "0005ebe61a44b4f35adaa4aa7b20c54b9a15fa8d96e642fc1242a6641fbe4305"
+   ],
+   "deliveryRatio": 1,
+   "state": "SETTLED",
+   "disputeWindowMs": 86400000,
+   "lineItemsHash": "3243ad4fa73f0d7ba1964010a9edf901aeaf248c96c211fbcfb927151dd50826",
+   "podAt": 1787551907909,
+   "disputeWindowClosesAt": 1787638307909,
+   "settlement": {
+    "settledAt": 1787552061134,
+    "amount": 373000,
+    "method": "bKash",
+    "paymentRef": "BKASH-777589",
+    "onTime": true
+   }
+  },
+  "token:RCV-00181": {
+   "tokenId": "RCV-00181",
+   "invoiceId": "INV-00181",
+   "manufacturerMsp": "ManufacturerMSP",
+   "manufacturerId": "mfr-shomota",
+   "buyerDid": "did:lamp:pharmacy:rahman-medical",
+   "declaredValue": 158700,
+   "currency": "BDT",
+   "termsDays": 45,
+   "issuedAt": 1750042800000,
+   "observedAt": 1750042800000,
+   "datesAsserted": true,
+   "dueDate": 1753930800000,
+   "cartonHashes": [
+    "6e0e695589acf31df6bb0ae0656a1dec18b6408ba3c90a3ecc820d2b4cbcda6a",
+    "eefc8dfcb0e33d8e75a78944183ffd45899ee78a9060799079ea0a375791b4c1",
+    "1e7bfc63943aafaa3c3d556309f4e6c45f7fc1227735cb3fd0e3c3e29ab7162e",
+    "11f092e0290fa0081cfc55e625dab67ffa09b80a2580cda7584787a8060d69c9",
+    "a3fe3358e9d4a3ad1384884297da4444e4fcda3f3d64e6e4b0cdc7b73eb87a56",
+    "fadbf423031bb505769491d04849b12ca24e4c3da1e366cbd0cd3f5f6036fbaf",
+    "8c9e5d8ccde23eefc9f67716131e659ddc2f34191fea3d1830874369d434617b",
+    "0501dcadb56701e4e8a443819fec83b948b1f54e7f269ad0ba3c2d8cede6cf53",
+    "f3355b34a03bcffe93797d35378213c89377e0e25558154c6b4122f385eef40d",
+    "1227c19f0c655f4b2cf1fedb0f857744e3f78eae3bcf03da827fa79fc5ef6bc0",
+    "feadb428524d61460f03a553612e29f3b8bb6d1bed7359910c48387b2734a8b6",
+    "74589587bd50a0fe337d3e2ffea4c3fb52eb37da93fb8b1ab7628101c7ed2192",
+    "29321a84a1439b6204faf5bf0cd433572f05ca8f0d7dcbfb15dd6be8d8e0c52b",
+    "f3765621da543e5a02705803ffa72864be8c0dfc18be58aeba15e8fb530c2cfe",
+    "0f629cf849a280710aeefbe608bdd1f0224c189eb207b329e1b299ee46a2f8b9",
+    "eea79e68f318eca3c08ff0cc65e63e03f35ea2171edc43173bc33c98b11cc6f7",
+    "8e013854d11f112ff2f93191a69ed83e25b2be754801c0cdfe268f416f70f25f",
+    "ee376b1a3d5e6f9d845b12ed55cd406c9cdbc0610b3737b6030f66edf9862074"
+   ],
+   "scannedHashes": [
+    "6e0e695589acf31df6bb0ae0656a1dec18b6408ba3c90a3ecc820d2b4cbcda6a",
+    "eefc8dfcb0e33d8e75a78944183ffd45899ee78a9060799079ea0a375791b4c1",
+    "1e7bfc63943aafaa3c3d556309f4e6c45f7fc1227735cb3fd0e3c3e29ab7162e",
+    "11f092e0290fa0081cfc55e625dab67ffa09b80a2580cda7584787a8060d69c9",
+    "a3fe3358e9d4a3ad1384884297da4444e4fcda3f3d64e6e4b0cdc7b73eb87a56",
+    "fadbf423031bb505769491d04849b12ca24e4c3da1e366cbd0cd3f5f6036fbaf",
+    "8c9e5d8ccde23eefc9f67716131e659ddc2f34191fea3d1830874369d434617b",
+    "0501dcadb56701e4e8a443819fec83b948b1f54e7f269ad0ba3c2d8cede6cf53",
+    "f3355b34a03bcffe93797d35378213c89377e0e25558154c6b4122f385eef40d",
+    "1227c19f0c655f4b2cf1fedb0f857744e3f78eae3bcf03da827fa79fc5ef6bc0",
+    "feadb428524d61460f03a553612e29f3b8bb6d1bed7359910c48387b2734a8b6",
+    "74589587bd50a0fe337d3e2ffea4c3fb52eb37da93fb8b1ab7628101c7ed2192",
+    "29321a84a1439b6204faf5bf0cd433572f05ca8f0d7dcbfb15dd6be8d8e0c52b",
+    "f3765621da543e5a02705803ffa72864be8c0dfc18be58aeba15e8fb530c2cfe",
+    "0f629cf849a280710aeefbe608bdd1f0224c189eb207b329e1b299ee46a2f8b9",
+    "eea79e68f318eca3c08ff0cc65e63e03f35ea2171edc43173bc33c98b11cc6f7",
+    "8e013854d11f112ff2f93191a69ed83e25b2be754801c0cdfe268f416f70f25f",
+    "ee376b1a3d5e6f9d845b12ed55cd406c9cdbc0610b3737b6030f66edf9862074"
+   ],
+   "deliveryRatio": 1,
+   "state": "SETTLED",
+   "disputeWindowMs": 86400000,
+   "lineItemsHash": "09e7537b4852930d14f6344bd50c254158063375789a741fe1fc4bfd1e739cce",
+   "podAt": 1750129200000,
+   "disputeWindowClosesAt": 1750215600000,
+   "financing": {
+    "bankMsp": "MeghnaMSP",
+    "curveId": "CURVE-MEGHNA-2026Q3",
+    "advanceRatePct": 70,
+    "feePct": 9.5,
+    "advancedAmount": 111090,
+    "financedAt": 1750302000000,
+    "manufacturerRecoursePct": 100
+   },
+   "settlement": {
+    "settledAt": 1753585200000,
+    "amount": 158700,
+    "method": "Nagad",
+    "paymentRef": "NAGAD-857319",
+    "onTime": true
+   }
+  },
+  "token:RCV-00182": {
+   "tokenId": "RCV-00182",
+   "invoiceId": "INV-00182",
+   "manufacturerMsp": "ManufacturerMSP",
+   "manufacturerId": "mfr-shomota",
+   "buyerDid": "did:lamp:pharmacy:rahman-medical",
+   "declaredValue": 334200,
+   "currency": "BDT",
+   "termsDays": 45,
+   "issuedAt": 1755399600000,
+   "observedAt": 1755399600000,
+   "datesAsserted": true,
+   "dueDate": 1759287600000,
+   "cartonHashes": [
+    "f1b3d7d9ca554c44b86b11d19aeda188487d189cedbc9da2712e75fc15e078a5",
+    "cc794e92b0014eca5e9370558fbe9af5d26aa135c1d769e4b01b95234e777e8b",
+    "5627a34a3b2a7db16b41276de6248cb13934bb67d9e18225e116513ed32e1ba5",
+    "63fa30ae2b0801b6059ab13c23c4db14dc954d05cd1268a5fcb623a771613672",
+    "993832ee67d48f99d9c2630911d313291d68cd3d30bf01db84b3411cec5d90e1",
+    "67086e58b237ad3e199ffa094afa400f12ddb3ae5cee440d1a6d509181b32cbe",
+    "726e08e5c83e021b5914a80047f57808d1db431004540f85566a84f76b5751cb",
+    "7e9d312a8c565105a555aa2cf0ade69eb8abb90b7ad15fe622c2200352e7414d",
+    "979071422be87079febc11e347598adc49977b7e191785e31ed1bbea41746359",
+    "373bf3116c61bafd32c17dbd66be3c6c1c61f231af1c1d4cf78bda2dccc5684d",
+    "87f62b81cebed1d885cc6a3dccfbc68d8b7ec4075172fe4b04a7d98fab4101c0",
+    "2d068b2f8300d666590231ae6968e1bdc8e7e72bcf397b95fe133f43a5cfd76b",
+    "dcc712e75d8516324a36b03b7392e5f1351f77dc3e45bf84975e60c5aba59a84",
+    "67c1514c14d7b4072355a34d166ec8b1133b5671e8fefe5991145e814589139c",
+    "8b64217317309186b9bc6f53d987dcb81f875e4a52766a23a81c1139b661708e",
+    "16e2f5b97dad0838beb64cff5797e0c02a0f2057ea40c8e687781ae171ae3462",
+    "b0d15af5e7e872ed3f436daaca444388ef00dd95f34f4c3ebd203c29dbd5e51b",
+    "529cf6e275399a94eac4d0b3d7ddc2f2cc5c145f80e3a41f5055de18ae1e87a4",
+    "6fa059f8c6232cbaa39ae3bc3e53cdc848274bf6cd533d357cca76baad5c1f91",
+    "6d1976dc68aa1fa31214ce422e77880f20489efbeb89d53cd86f64e5d7cbe877",
+    "9be70c374699ab96e6bd9f0b6977c5efc7eb0b83247ab4bf4f7756d3b6c20dd2",
+    "3ba13e00b930bca3ee705faf6e90ff9dd84a3093d216f3d9ce96d052874c043a",
+    "4bdd46b81f4ffe10cf83b63a6b38b3e59395cf514fcd8b1c1c98b4fa14ebfd33",
+    "14b4c2668083804fe9ab02242218348bbbf982e1293eea50db58e8c61795aa9b",
+    "0cd5e29f6700074c7f4a9405cb02269e930c4e84337d0101f85305ad4eb98df4",
+    "82504f550083d61c61c719ead6e362ac66ec87ea9d1cfa1559168a8adaa26555",
+    "a38c91b831eaf209d9a35f590a5c143cba57177642a5c650941ae27ba07f5e33"
+   ],
+   "scannedHashes": [
+    "f1b3d7d9ca554c44b86b11d19aeda188487d189cedbc9da2712e75fc15e078a5",
+    "cc794e92b0014eca5e9370558fbe9af5d26aa135c1d769e4b01b95234e777e8b",
+    "5627a34a3b2a7db16b41276de6248cb13934bb67d9e18225e116513ed32e1ba5",
+    "63fa30ae2b0801b6059ab13c23c4db14dc954d05cd1268a5fcb623a771613672",
+    "993832ee67d48f99d9c2630911d313291d68cd3d30bf01db84b3411cec5d90e1",
+    "67086e58b237ad3e199ffa094afa400f12ddb3ae5cee440d1a6d509181b32cbe",
+    "726e08e5c83e021b5914a80047f57808d1db431004540f85566a84f76b5751cb",
+    "7e9d312a8c565105a555aa2cf0ade69eb8abb90b7ad15fe622c2200352e7414d",
+    "979071422be87079febc11e347598adc49977b7e191785e31ed1bbea41746359",
+    "373bf3116c61bafd32c17dbd66be3c6c1c61f231af1c1d4cf78bda2dccc5684d",
+    "87f62b81cebed1d885cc6a3dccfbc68d8b7ec4075172fe4b04a7d98fab4101c0",
+    "2d068b2f8300d666590231ae6968e1bdc8e7e72bcf397b95fe133f43a5cfd76b",
+    "dcc712e75d8516324a36b03b7392e5f1351f77dc3e45bf84975e60c5aba59a84",
+    "67c1514c14d7b4072355a34d166ec8b1133b5671e8fefe5991145e814589139c",
+    "8b64217317309186b9bc6f53d987dcb81f875e4a52766a23a81c1139b661708e",
+    "16e2f5b97dad0838beb64cff5797e0c02a0f2057ea40c8e687781ae171ae3462",
+    "b0d15af5e7e872ed3f436daaca444388ef00dd95f34f4c3ebd203c29dbd5e51b",
+    "529cf6e275399a94eac4d0b3d7ddc2f2cc5c145f80e3a41f5055de18ae1e87a4",
+    "6fa059f8c6232cbaa39ae3bc3e53cdc848274bf6cd533d357cca76baad5c1f91",
+    "6d1976dc68aa1fa31214ce422e77880f20489efbeb89d53cd86f64e5d7cbe877",
+    "9be70c374699ab96e6bd9f0b6977c5efc7eb0b83247ab4bf4f7756d3b6c20dd2",
+    "3ba13e00b930bca3ee705faf6e90ff9dd84a3093d216f3d9ce96d052874c043a",
+    "4bdd46b81f4ffe10cf83b63a6b38b3e59395cf514fcd8b1c1c98b4fa14ebfd33",
+    "14b4c2668083804fe9ab02242218348bbbf982e1293eea50db58e8c61795aa9b",
+    "0cd5e29f6700074c7f4a9405cb02269e930c4e84337d0101f85305ad4eb98df4",
+    "82504f550083d61c61c719ead6e362ac66ec87ea9d1cfa1559168a8adaa26555",
+    "a38c91b831eaf209d9a35f590a5c143cba57177642a5c650941ae27ba07f5e33"
+   ],
+   "deliveryRatio": 1,
+   "state": "SETTLED",
+   "disputeWindowMs": 86400000,
+   "lineItemsHash": "16888dd26f28936ea45c085da87551d08e001a24afc21870778ac4de880cea1a",
+   "podAt": 1755486000000,
+   "disputeWindowClosesAt": 1755572400000,
+   "financing": {
+    "bankMsp": "MeghnaMSP",
+    "curveId": "CURVE-MEGHNA-2026Q3",
+    "advanceRatePct": 70,
+    "feePct": 9.5,
+    "advancedAmount": 233940,
+    "financedAt": 1755658800000,
+    "manufacturerRecoursePct": 100
+   },
+   "settlement": {
+    "settledAt": 1758942000000,
+    "amount": 334200,
+    "method": "Nagad",
+    "paymentRef": "NAGAD-104390",
+    "onTime": true
+   }
+  },
+  "credit:did:lamp:pharmacy:rahman-medical": {
+   "pharmacyDid": "did:lamp:pharmacy:rahman-medical",
+   "cycles": [
+    {
+     "tokenId": "RCV-00181",
+     "invoiceId": "INV-00181",
+     "value": 158700,
+     "dueDate": 1753930800000,
+     "settledAt": 1753585200000,
+     "observedAt": 1753585200000,
+     "onTime": true,
+     "daysLate": 0
+    },
+    {
+     "tokenId": "RCV-00182",
+     "invoiceId": "INV-00182",
+     "value": 334200,
+     "dueDate": 1759287600000,
+     "settledAt": 1758942000000,
+     "observedAt": 1758942000000,
+     "onTime": true,
+     "daysLate": 0
+    },
+    {
+     "tokenId": "RCV-00183",
+     "invoiceId": "INV-00183",
+     "value": 206640,
+     "dueDate": 1764644400000,
+     "settledAt": 1765422000000,
+     "observedAt": 1765422000000,
+     "onTime": false,
+     "daysLate": 9
+    },
+    {
+     "tokenId": "RCV-00184",
+     "invoiceId": "INV-00184",
+     "value": 161400,
+     "dueDate": 1770001200000,
+     "settledAt": 1769742000000,
+     "observedAt": 1769742000000,
+     "onTime": true,
+     "daysLate": 0
+    },
+    {
+     "tokenId": "RCV-00185",
+     "invoiceId": "INV-00185",
+     "value": 340200,
+     "dueDate": 1775358000000,
+     "settledAt": 1775271600000,
+     "observedAt": 1775271600000,
+     "onTime": true,
+     "daysLate": 0
+    },
+    {
+     "tokenId": "RCV-00186",
+     "invoiceId": "INV-00186",
+     "value": 225000,
+     "dueDate": 1780714800000,
+     "settledAt": 1780455600000,
+     "observedAt": 1780455600000,
+     "onTime": true,
+     "daysLate": 0
+    },
+    {
+     "tokenId": "RCV-00187",
+     "invoiceId": "INV-00187",
+     "value": 132840,
+     "dueDate": 1786071600000,
+     "settledAt": 1785812400000,
+     "observedAt": 1785812400000,
+     "onTime": true,
+     "daysLate": 0
+    },
+    {
+     "tokenId": "RCV-00235",
+     "invoiceId": "INV-00235",
+     "value": 373000,
+     "dueDate": 1791414000000,
+     "settledAt": 1787552061134,
+     "observedAt": 1787552061135,
+     "onTime": true,
+     "daysLate": 0
+    }
+   ],
+   "tier": "ESTABLISHED",
+   "onTimeCount": 7,
+   "lateCount": 1,
+   "defaultCount": 0
+  },
+  "credit:did:lamp:pharmacy:noor-medico": {
+   "pharmacyDid": "did:lamp:pharmacy:noor-medico",
+   "cycles": [
+    {
+     "tokenId": "RCV-00188",
+     "invoiceId": "INV-00188",
+     "value": 105120,
+     "dueDate": 1746500400000,
+     "settledAt": 1746414000000,
+     "observedAt": 1746414000000,
+     "onTime": true,
+     "daysLate": 0
+    },
+    {
+     "tokenId": "RCV-00189",
+     "invoiceId": "INV-00189",
+     "value": 150600,
+     "dueDate": 1754708400000,
+     "settledAt": 1754622000000,
+     "observedAt": 1754622000000,
+     "onTime": true,
+     "daysLate": 0
+    },
+    {
+     "tokenId": "RCV-00190",
+     "invoiceId": "INV-00190",
+     "value": 330600,
+     "dueDate": 1762484400000,
+     "settledAt": 1762311600000,
+     "observedAt": 1762311600000,
+     "onTime": true,
+     "daysLate": 0
+    },
+    {
+     "tokenId": "RCV-00191",
+     "invoiceId": "INV-00191",
+     "value": 144560,
+     "dueDate": 1764730800000,
+     "settledAt": 1764644400000,
+     "observedAt": 1764644400000,
+     "onTime": true,
+     "daysLate": 0
+    },
+    {
+     "tokenId": "RCV-00192",
+     "invoiceId": "INV-00192",
+     "value": 117600,
+     "dueDate": 1768964400000,
+     "settledAt": 1768791600000,
+     "observedAt": 1768791600000,
+     "onTime": true,
+     "daysLate": 0
+    },
+    {
+     "tokenId": "RCV-00193",
+     "invoiceId": "INV-00193",
+     "value": 92700,
+     "dueDate": 1775790000000,
+     "settledAt": 1777172400000,
+     "observedAt": 1777172400000,
+     "onTime": false,
+     "daysLate": 16
+    },
+    {
+     "tokenId": "RCV-00194",
+     "invoiceId": "INV-00194",
+     "value": 170300,
+     "dueDate": 1779937200000,
+     "settledAt": 1779678000000,
+     "observedAt": 1779678000000,
+     "onTime": true,
+     "daysLate": 0
+    }
+   ],
+   "tier": "BUILDING",
+   "onTimeCount": 6,
+   "lateCount": 1,
+   "defaultCount": 0
+  }
+ },
+ "txs": [
+  {
+   "txId": "1291eada03a216e059ca080fb771249f76c616b6e041785a37116878a7ca7ddd",
+   "blockNumber": 1,
+   "timestamp": 1770260400000,
+   "fn": "registerRateCurve",
+   "submitter": "MeghnaMSP",
+   "args": {
+    "curveId": "CURVE-MEGHNA-2026Q3",
+    "bands": [
+     {
+      "tier": "NEW",
+      "advanceRatePct": 70,
+      "feePct": 9.5,
+      "manufacturerRecoursePct": 100,
+      "maxInvoiceValue": 500000
+     },
+     {
+      "tier": "BUILDING",
+      "advanceRatePct": 80,
+      "feePct": 8.8,
+      "manufacturerRecoursePct": 60,
+      "maxInvoiceValue": 800000
+     },
+     {
+      "tier": "ESTABLISHED",
+      "advanceRatePct": 85,
+      "feePct": 8,
+      "manufacturerRecoursePct": 25,
+      "maxInvoiceValue": 1500000
+     },
+     {
+      "tier": "PRIME",
+      "advanceRatePct": 90,
+      "feePct": 7.2,
+      "manufacturerRecoursePct": 0,
+      "maxInvoiceValue": 3000000
+     }
+    ],
+    "curveHash": "c6853775659b05b7a54bcf85021b4df925edb8dbd8abb94b68e64a4cf241905e",
+    "assertedAt": 1770260400000
+   },
+   "policy": "OR('MeghnaMSP.peer','PadmaMSP.peer')",
+   "status": "VALID",
+   "endorsements": [
+    {
+     "msp": "ManufacturerMSP",
+     "signature": "41624bac582bcbf2acfe51afd332cd35",
+     "certFingerprint": "41624bac582bcbf2"
+    },
+    {
+     "msp": "MeghnaMSP",
+     "signature": "a013ed32036f2ae5868121dfe9121cbf",
+     "certFingerprint": "a013ed32036f2ae5"
+    },
+    {
+     "msp": "PadmaMSP",
+     "signature": "2da14c74417f08d688408035b089c418",
+     "certFingerprint": "2da14c74417f08d6"
+    }
+   ],
+   "writes": [
+    {
+     "key": "curvehash:CURVE-MEGHNA-2026Q3",
+     "value": {
+      "bankMsp": "MeghnaMSP",
+      "hash": "c6853775659b05b7a54bcf85021b4df925edb8dbd8abb94b68e64a4cf241905e",
+      "at": 1770260400000,
+      "observedAt": 1770260400000
+     }
+    }
+   ],
+   "privateWrites": [
+    {
+     "collection": "rateCurves",
+     "key": "CURVE-MEGHNA-2026Q3",
+     "hash": "e6df142e216a72084947fae7981c7fb68bf3f6714cd9919960c7f40c90104c70",
+     "members": [
+      "MeghnaMSP"
+     ]
+    }
+   ]
+  },
+  {
+   "txId": "c9ce241c28321f98867b69f8e22b4351fae820fd1d17ac975ff3bc577b8dcfaa",
+   "blockNumber": 3,
+   "timestamp": 1750042800000,
+   "fn": "mintReceivable",
+   "submitter": "ManufacturerMSP",
+   "args": {
+    "invoiceId": "INV-00181",
+    "tokenId": "RCV-00181",
+    "manufacturerId": "mfr-shomota",
+    "buyerDid": "did:lamp:pharmacy:rahman-medical",
+    "declaredValue": 158700,
+    "termsDays": 45,
+    "cartonHashes": "[18 items]",
+    "lineItems": [
+     {
+      "sku": "SHM-PARA-500",
+      "name": "Paracetamol 500 mg",
+      "strength": "500 mg",
+      "quantity": 30000,
+      "cartons": 6,
+      "unitPrice": 1.2,
+      "lineValue": 36000
+     },
+     {
+      "sku": "SHM-SALB-INH",
+      "name": "Salbutamol 100 mcg",
+      "strength": "100 mcg",
+      "quantity": 180,
+      "cartons": 3,
+      "unitPrice": 195,
+      "lineValue": 35100
+     },
+     {
+      "sku": "SHM-CETI-10",
+      "name": "Cetirizine 10 mg",
+      "strength": "10 mg",
+      "quantity": 12000,
+      "cartons": 3,
+      "unitPrice": 1.8,
+      "lineValue": 21600
+     },
+     {
+      "sku": "SHM-AMOX-500",
+      "name": "Amoxicillin 500 mg",
+      "strength": "500 mg",
+      "quantity": 4500,
+      "cartons": 3,
+      "unitPrice": 6,
+      "lineValue": 27000
+     },
+     {
+      "sku": "SHM-ORS-SAC",
+      "name": "Oral Rehydration Salts 20.5 g",
+      "strength": "20.5 g",
+      "quantity": 6000,
+      "cartons": 3,
+      "unitPrice": 6.5,
+      "lineValue": 39000
+     }
+    ],
+    "lineItemsHash": "09e7537b4852930d14f6344bd50c254158063375789a741fe1fc4bfd1e739cce",
+    "assertedAt": 1750042800000
+   },
+   "policy": "AND('ManufacturerMSP.peer', OR('MeghnaMSP.peer','PadmaMSP.peer'))",
+   "status": "VALID",
+   "endorsements": [
+    {
+     "msp": "ManufacturerMSP",
+     "signature": "435d85962167f6b5e021c96c4c6d0994",
+     "certFingerprint": "435d85962167f6b5"
+    },
+    {
+     "msp": "MeghnaMSP",
+     "signature": "c66e3795d0574c92592e7bd2496443b2",
+     "certFingerprint": "c66e3795d0574c92"
+    },
+    {
+     "msp": "PadmaMSP",
+     "signature": "61d345f23436c42601c9733c59a97d1c",
+     "certFingerprint": "61d345f23436c426"
+    }
+   ],
+   "writes": [
+    {
+     "key": "token:RCV-00181",
+     "value": {
+      "tokenId": "RCV-00181",
+      "invoiceId": "INV-00181",
+      "manufacturerMsp": "ManufacturerMSP",
+      "manufacturerId": "mfr-shomota",
+      "buyerDid": "did:lamp:pharmacy:rahman-medical",
+      "declaredValue": 158700,
+      "currency": "BDT",
+      "termsDays": 45,
+      "issuedAt": 1750042800000,
+      "observedAt": 1750042800000,
+      "datesAsserted": true,
+      "dueDate": 1753930800000,
+      "cartonHashes": [
+       "6e0e695589acf31df6bb0ae0656a1dec18b6408ba3c90a3ecc820d2b4cbcda6a",
+       "eefc8dfcb0e33d8e75a78944183ffd45899ee78a9060799079ea0a375791b4c1",
+       "1e7bfc63943aafaa3c3d556309f4e6c45f7fc1227735cb3fd0e3c3e29ab7162e",
+       "11f092e0290fa0081cfc55e625dab67ffa09b80a2580cda7584787a8060d69c9",
+       "a3fe3358e9d4a3ad1384884297da4444e4fcda3f3d64e6e4b0cdc7b73eb87a56",
+       "fadbf423031bb505769491d04849b12ca24e4c3da1e366cbd0cd3f5f6036fbaf",
+       "8c9e5d8ccde23eefc9f67716131e659ddc2f34191fea3d1830874369d434617b",
+       "0501dcadb56701e4e8a443819fec83b948b1f54e7f269ad0ba3c2d8cede6cf53",
+       "f3355b34a03bcffe93797d35378213c89377e0e25558154c6b4122f385eef40d",
+       "1227c19f0c655f4b2cf1fedb0f857744e3f78eae3bcf03da827fa79fc5ef6bc0",
+       "feadb428524d61460f03a553612e29f3b8bb6d1bed7359910c48387b2734a8b6",
+       "74589587bd50a0fe337d3e2ffea4c3fb52eb37da93fb8b1ab7628101c7ed2192",
+       "29321a84a1439b6204faf5bf0cd433572f05ca8f0d7dcbfb15dd6be8d8e0c52b",
+       "f3765621da543e5a02705803ffa72864be8c0dfc18be58aeba15e8fb530c2cfe",
+       "0f629cf849a280710aeefbe608bdd1f0224c189eb207b329e1b299ee46a2f8b9",
+       "eea79e68f318eca3c08ff0cc65e63e03f35ea2171edc43173bc33c98b11cc6f7",
+       "8e013854d11f112ff2f93191a69ed83e25b2be754801c0cdfe268f416f70f25f",
+       "ee376b1a3d5e6f9d845b12ed55cd406c9cdbc0610b3737b6030f66edf9862074"
+      ],
+      "scannedHashes": [],
+      "deliveryRatio": 0,
+      "state": "CREATED",
+      "disputeWindowMs": 86400000,
+      "lineItemsHash": "09e7537b4852930d14f6344bd50c254158063375789a741fe1fc4bfd1e739cce"
+     }
+    },
+    {
+     "key": "invoice:INV-00181",
+     "value": "RCV-00181"
+    }
+   ],
+   "privateWrites": [
+    {
+     "collection": "invoiceLineItems",
+     "key": "RCV-00181",
+     "hash": "09e7537b4852930d14f6344bd50c254158063375789a741fe1fc4bfd1e739cce",
+     "members": [
+      "ManufacturerMSP"
+     ]
+    }
+   ]
+  },
+  {
+   "txId": "752c4339a087969af4208633f06e3b54c559b7929d3daf2842e90a9964b225da",
+   "blockNumber": 4,
+   "timestamp": 1750129200000,
+   "fn": "recordPoDBatch",
+   "submitter": "ManufacturerMSP",
+   "args": {
+    "tokenId": "RCV-00181",
+    "cartonHashes": "[18 items]",
+    "mpoSignature": "sig:LMP-DEV-4471",
+    "assertedAt": 1750129200000
+   },
+   "policy": "OR('ManufacturerMSP.peer')",
+   "status": "VALID",
+   "endorsements": [
+    {
+     "msp": "ManufacturerMSP",
+     "signature": "aa36ac771d909c090573cadee530268f",
+     "certFingerprint": "aa36ac771d909c09"
+    },
+    {
+     "msp": "MeghnaMSP",
+     "signature": "3f76867c5c5ea66af8e6b0043cb93560",
+     "certFingerprint": "3f76867c5c5ea66a"
+    },
+    {
+     "msp": "PadmaMSP",
+     "signature": "2e188325aed3b5262636fdcb55fb4f41",
+     "certFingerprint": "2e188325aed3b526"
+    }
+   ],
+   "writes": [
+    {
+     "key": "token:RCV-00181",
+     "value": {
+      "tokenId": "RCV-00181",
+      "invoiceId": "INV-00181",
+      "manufacturerMsp": "ManufacturerMSP",
+      "manufacturerId": "mfr-shomota",
+      "buyerDid": "did:lamp:pharmacy:rahman-medical",
+      "declaredValue": 158700,
+      "currency": "BDT",
+      "termsDays": 45,
+      "issuedAt": 1750042800000,
+      "observedAt": 1750042800000,
+      "datesAsserted": true,
+      "dueDate": 1753930800000,
+      "cartonHashes": [
+       "6e0e695589acf31df6bb0ae0656a1dec18b6408ba3c90a3ecc820d2b4cbcda6a",
+       "eefc8dfcb0e33d8e75a78944183ffd45899ee78a9060799079ea0a375791b4c1",
+       "1e7bfc63943aafaa3c3d556309f4e6c45f7fc1227735cb3fd0e3c3e29ab7162e",
+       "11f092e0290fa0081cfc55e625dab67ffa09b80a2580cda7584787a8060d69c9",
+       "a3fe3358e9d4a3ad1384884297da4444e4fcda3f3d64e6e4b0cdc7b73eb87a56",
+       "fadbf423031bb505769491d04849b12ca24e4c3da1e366cbd0cd3f5f6036fbaf",
+       "8c9e5d8ccde23eefc9f67716131e659ddc2f34191fea3d1830874369d434617b",
+       "0501dcadb56701e4e8a443819fec83b948b1f54e7f269ad0ba3c2d8cede6cf53",
+       "f3355b34a03bcffe93797d35378213c89377e0e25558154c6b4122f385eef40d",
+       "1227c19f0c655f4b2cf1fedb0f857744e3f78eae3bcf03da827fa79fc5ef6bc0",
+       "feadb428524d61460f03a553612e29f3b8bb6d1bed7359910c48387b2734a8b6",
+       "74589587bd50a0fe337d3e2ffea4c3fb52eb37da93fb8b1ab7628101c7ed2192",
+       "29321a84a1439b6204faf5bf0cd433572f05ca8f0d7dcbfb15dd6be8d8e0c52b",
+       "f3765621da543e5a02705803ffa72864be8c0dfc18be58aeba15e8fb530c2cfe",
+       "0f629cf849a280710aeefbe608bdd1f0224c189eb207b329e1b299ee46a2f8b9",
+       "eea79e68f318eca3c08ff0cc65e63e03f35ea2171edc43173bc33c98b11cc6f7",
+       "8e013854d11f112ff2f93191a69ed83e25b2be754801c0cdfe268f416f70f25f",
+       "ee376b1a3d5e6f9d845b12ed55cd406c9cdbc0610b3737b6030f66edf9862074"
+      ],
+      "scannedHashes": [
+       "6e0e695589acf31df6bb0ae0656a1dec18b6408ba3c90a3ecc820d2b4cbcda6a",
+       "eefc8dfcb0e33d8e75a78944183ffd45899ee78a9060799079ea0a375791b4c1",
+       "1e7bfc63943aafaa3c3d556309f4e6c45f7fc1227735cb3fd0e3c3e29ab7162e",
+       "11f092e0290fa0081cfc55e625dab67ffa09b80a2580cda7584787a8060d69c9",
+       "a3fe3358e9d4a3ad1384884297da4444e4fcda3f3d64e6e4b0cdc7b73eb87a56",
+       "fadbf423031bb505769491d04849b12ca24e4c3da1e366cbd0cd3f5f6036fbaf",
+       "8c9e5d8ccde23eefc9f67716131e659ddc2f34191fea3d1830874369d434617b",
+       "0501dcadb56701e4e8a443819fec83b948b1f54e7f269ad0ba3c2d8cede6cf53",
+       "f3355b34a03bcffe93797d35378213c89377e0e25558154c6b4122f385eef40d",
+       "1227c19f0c655f4b2cf1fedb0f857744e3f78eae3bcf03da827fa79fc5ef6bc0",
+       "feadb428524d61460f03a553612e29f3b8bb6d1bed7359910c48387b2734a8b6",
+       "74589587bd50a0fe337d3e2ffea4c3fb52eb37da93fb8b1ab7628101c7ed2192",
+       "29321a84a1439b6204faf5bf0cd433572f05ca8f0d7dcbfb15dd6be8d8e0c52b",
+       "f3765621da543e5a02705803ffa72864be8c0dfc18be58aeba15e8fb530c2cfe",
+       "0f629cf849a280710aeefbe608bdd1f0224c189eb207b329e1b299ee46a2f8b9",
+       "eea79e68f318eca3c08ff0cc65e63e03f35ea2171edc43173bc33c98b11cc6f7",
+       "8e013854d11f112ff2f93191a69ed83e25b2be754801c0cdfe268f416f70f25f",
+       "ee376b1a3d5e6f9d845b12ed55cd406c9cdbc0610b3737b6030f66edf9862074"
+      ],
+      "deliveryRatio": 1,
+      "state": "DELIVERED",
+      "disputeWindowMs": 86400000,
+      "lineItemsHash": "09e7537b4852930d14f6344bd50c254158063375789a741fe1fc4bfd1e739cce",
+      "podAt": 1750129200000,
+      "disputeWindowClosesAt": 1750215600000
+     }
+    }
+   ],
+   "privateWrites": []
+  },
+  {
+   "txId": "d5753fd4b705a326656fe0927918faf19c76b50fa7af32229986b1005a7f3af7",
+   "blockNumber": 5,
+   "timestamp": 1750302000000,
+   "fn": "matchAndAdvance",
+   "submitter": "ManufacturerMSP",
+   "args": {
+    "tokenId": "RCV-00181",
+    "assertedAt": 1750302000000
+   },
+   "policy": "AND('ManufacturerMSP.peer', OR('MeghnaMSP.peer','PadmaMSP.peer'))",
+   "status": "VALID",
+   "endorsements": [
+    {
+     "msp": "ManufacturerMSP",
+     "signature": "57498ef39a6b9c52bc51c152e2abad8a",
+     "certFingerprint": "57498ef39a6b9c52"
+    },
+    {
+     "msp": "MeghnaMSP",
+     "signature": "0ac5477762f70b4849b73e29dfd3d370",
+     "certFingerprint": "0ac5477762f70b48"
+    },
+    {
+     "msp": "PadmaMSP",
+     "signature": "fa2ffa3838a3dc867ab24d8f8c596a21",
+     "certFingerprint": "fa2ffa3838a3dc86"
+    }
+   ],
+   "writes": [
+    {
+     "key": "token:RCV-00181",
+     "value": {
+      "tokenId": "RCV-00181",
+      "invoiceId": "INV-00181",
+      "manufacturerMsp": "ManufacturerMSP",
+      "manufacturerId": "mfr-shomota",
+      "buyerDid": "did:lamp:pharmacy:rahman-medical",
+      "declaredValue": 158700,
+      "currency": "BDT",
+      "termsDays": 45,
+      "issuedAt": 1750042800000,
+      "observedAt": 1750042800000,
+      "datesAsserted": true,
+      "dueDate": 1753930800000,
+      "cartonHashes": [
+       "6e0e695589acf31df6bb0ae0656a1dec18b6408ba3c90a3ecc820d2b4cbcda6a",
+       "eefc8dfcb0e33d8e75a78944183ffd45899ee78a9060799079ea0a375791b4c1",
+       "1e7bfc63943aafaa3c3d556309f4e6c45f7fc1227735cb3fd0e3c3e29ab7162e",
+       "11f092e0290fa0081cfc55e625dab67ffa09b80a2580cda7584787a8060d69c9",
+       "a3fe3358e9d4a3ad1384884297da4444e4fcda3f3d64e6e4b0cdc7b73eb87a56",
+       "fadbf423031bb505769491d04849b12ca24e4c3da1e366cbd0cd3f5f6036fbaf",
+       "8c9e5d8ccde23eefc9f67716131e659ddc2f34191fea3d1830874369d434617b",
+       "0501dcadb56701e4e8a443819fec83b948b1f54e7f269ad0ba3c2d8cede6cf53",
+       "f3355b34a03bcffe93797d35378213c89377e0e25558154c6b4122f385eef40d",
+       "1227c19f0c655f4b2cf1fedb0f857744e3f78eae3bcf03da827fa79fc5ef6bc0",
+       "feadb428524d61460f03a553612e29f3b8bb6d1bed7359910c48387b2734a8b6",
+       "74589587bd50a0fe337d3e2ffea4c3fb52eb37da93fb8b1ab7628101c7ed2192",
+       "29321a84a1439b6204faf5bf0cd433572f05ca8f0d7dcbfb15dd6be8d8e0c52b",
+       "f3765621da543e5a02705803ffa72864be8c0dfc18be58aeba15e8fb530c2cfe",
+       "0f629cf849a280710aeefbe608bdd1f0224c189eb207b329e1b299ee46a2f8b9",
+       "eea79e68f318eca3c08ff0cc65e63e03f35ea2171edc43173bc33c98b11cc6f7",
+       "8e013854d11f112ff2f93191a69ed83e25b2be754801c0cdfe268f416f70f25f",
+       "ee376b1a3d5e6f9d845b12ed55cd406c9cdbc0610b3737b6030f66edf9862074"
+      ],
+      "scannedHashes": [
+       "6e0e695589acf31df6bb0ae0656a1dec18b6408ba3c90a3ecc820d2b4cbcda6a",
+       "eefc8dfcb0e33d8e75a78944183ffd45899ee78a9060799079ea0a375791b4c1",
+       "1e7bfc63943aafaa3c3d556309f4e6c45f7fc1227735cb3fd0e3c3e29ab7162e",
+       "11f092e0290fa0081cfc55e625dab67ffa09b80a2580cda7584787a8060d69c9",
+       "a3fe3358e9d4a3ad1384884297da4444e4fcda3f3d64e6e4b0cdc7b73eb87a56",
+       "fadbf423031bb505769491d04849b12ca24e4c3da1e366cbd0cd3f5f6036fbaf",
+       "8c9e5d8ccde23eefc9f67716131e659ddc2f34191fea3d1830874369d434617b",
+       "0501dcadb56701e4e8a443819fec83b948b1f54e7f269ad0ba3c2d8cede6cf53",
+       "f3355b34a03bcffe93797d35378213c89377e0e25558154c6b4122f385eef40d",
+       "1227c19f0c655f4b2cf1fedb0f857744e3f78eae3bcf03da827fa79fc5ef6bc0",
+       "feadb428524d61460f03a553612e29f3b8bb6d1bed7359910c48387b2734a8b6",
+       "74589587bd50a0fe337d3e2ffea4c3fb52eb37da93fb8b1ab7628101c7ed2192",
+       "29321a84a1439b6204faf5bf0cd433572f05ca8f0d7dcbfb15dd6be8d8e0c52b",
+       "f3765621da543e5a02705803ffa72864be8c0dfc18be58aeba15e8fb530c2cfe",
+       "0f629cf849a280710aeefbe608bdd1f0224c189eb207b329e1b299ee46a2f8b9",
+       "eea79e68f318eca3c08ff0cc65e63e03f35ea2171edc43173bc33c98b11cc6f7",
+       "8e013854d11f112ff2f93191a69ed83e25b2be754801c0cdfe268f416f70f25f",
+       "ee376b1a3d5e6f9d845b12ed55cd406c9cdbc0610b3737b6030f66edf9862074"
+      ],
+      "deliveryRatio": 1,
+      "state": "FINANCED",
+      "disputeWindowMs": 86400000,
+      "lineItemsHash": "09e7537b4852930d14f6344bd50c254158063375789a741fe1fc4bfd1e739cce",
+      "podAt": 1750129200000,
+      "disputeWindowClosesAt": 1750215600000,
+      "financing": {
+       "bankMsp": "MeghnaMSP",
+       "curveId": "CURVE-MEGHNA-2026Q3",
+       "advanceRatePct": 70,
+       "feePct": 9.5,
+       "advancedAmount": 111090,
+       "financedAt": 1750302000000,
+       "manufacturerRecoursePct": 100
+      }
+     }
+    },
+    {
+     "key": "financed:INV-00181",
+     "value": {
+      "tokenId": "RCV-00181",
+      "bankMsp": "MeghnaMSP",
+      "at": 1750302000000,
+      "observedAt": 1750302000000
+     }
+    }
+   ],
+   "privateWrites": []
+  },
+  {
+   "txId": "1046d8fa98afdc6432b174c1bc20d927b936b8720b50bb5c9886d68526ed7738",
+   "blockNumber": 6,
+   "timestamp": 1753585200000,
+   "fn": "settle",
+   "submitter": "ManufacturerMSP",
+   "args": {
+    "tokenId": "RCV-00181",
+    "paymentRef": "NAGAD-857319",
+    "method": "Nagad",
+    "amount": 158700,
+    "assertedAt": 1753585200000
+   },
+   "policy": "AND('ManufacturerMSP.peer', OR('MeghnaMSP.peer','PadmaMSP.peer'))",
+   "status": "VALID",
+   "endorsements": [
+    {
+     "msp": "ManufacturerMSP",
+     "signature": "1ee4687679318315702ffe527594d343",
+     "certFingerprint": "1ee4687679318315"
+    },
+    {
+     "msp": "MeghnaMSP",
+     "signature": "e244af2164be0ceb9eb1332831fa1215",
+     "certFingerprint": "e244af2164be0ceb"
+    },
+    {
+     "msp": "PadmaMSP",
+     "signature": "25efea407e516235eca7788c8bf62bed",
+     "certFingerprint": "25efea407e516235"
+    }
+   ],
+   "writes": [
+    {
+     "key": "token:RCV-00181",
+     "value": {
+      "tokenId": "RCV-00181",
+      "invoiceId": "INV-00181",
+      "manufacturerMsp": "ManufacturerMSP",
+      "manufacturerId": "mfr-shomota",
+      "buyerDid": "did:lamp:pharmacy:rahman-medical",
+      "declaredValue": 158700,
+      "currency": "BDT",
+      "termsDays": 45,
+      "issuedAt": 1750042800000,
+      "observedAt": 1750042800000,
+      "datesAsserted": true,
+      "dueDate": 1753930800000,
+      "cartonHashes": [
+       "6e0e695589acf31df6bb0ae0656a1dec18b6408ba3c90a3ecc820d2b4cbcda6a",
+       "eefc8dfcb0e33d8e75a78944183ffd45899ee78a9060799079ea0a375791b4c1",
+       "1e7bfc63943aafaa3c3d556309f4e6c45f7fc1227735cb3fd0e3c3e29ab7162e",
+       "11f092e0290fa0081cfc55e625dab67ffa09b80a2580cda7584787a8060d69c9",
+       "a3fe3358e9d4a3ad1384884297da4444e4fcda3f3d64e6e4b0cdc7b73eb87a56",
+       "fadbf423031bb505769491d04849b12ca24e4c3da1e366cbd0cd3f5f6036fbaf",
+       "8c9e5d8ccde23eefc9f67716131e659ddc2f34191fea3d1830874369d434617b",
+       "0501dcadb56701e4e8a443819fec83b948b1f54e7f269ad0ba3c2d8cede6cf53",
+       "f3355b34a03bcffe93797d35378213c89377e0e25558154c6b4122f385eef40d",
+       "1227c19f0c655f4b2cf1fedb0f857744e3f78eae3bcf03da827fa79fc5ef6bc0",
+       "feadb428524d61460f03a553612e29f3b8bb6d1bed7359910c48387b2734a8b6",
+       "74589587bd50a0fe337d3e2ffea4c3fb52eb37da93fb8b1ab7628101c7ed2192",
+       "29321a84a1439b6204faf5bf0cd433572f05ca8f0d7dcbfb15dd6be8d8e0c52b",
+       "f3765621da543e5a02705803ffa72864be8c0dfc18be58aeba15e8fb530c2cfe",
+       "0f629cf849a280710aeefbe608bdd1f0224c189eb207b329e1b299ee46a2f8b9",
+       "eea79e68f318eca3c08ff0cc65e63e03f35ea2171edc43173bc33c98b11cc6f7",
+       "8e013854d11f112ff2f93191a69ed83e25b2be754801c0cdfe268f416f70f25f",
+       "ee376b1a3d5e6f9d845b12ed55cd406c9cdbc0610b3737b6030f66edf9862074"
+      ],
+      "scannedHashes": [
+       "6e0e695589acf31df6bb0ae0656a1dec18b6408ba3c90a3ecc820d2b4cbcda6a",
+       "eefc8dfcb0e33d8e75a78944183ffd45899ee78a9060799079ea0a375791b4c1",
+       "1e7bfc63943aafaa3c3d556309f4e6c45f7fc1227735cb3fd0e3c3e29ab7162e",
+       "11f092e0290fa0081cfc55e625dab67ffa09b80a2580cda7584787a8060d69c9",
+       "a3fe3358e9d4a3ad1384884297da4444e4fcda3f3d64e6e4b0cdc7b73eb87a56",
+       "fadbf423031bb505769491d04849b12ca24e4c3da1e366cbd0cd3f5f6036fbaf",
+       "8c9e5d8ccde23eefc9f67716131e659ddc2f34191fea3d1830874369d434617b",
+       "0501dcadb56701e4e8a443819fec83b948b1f54e7f269ad0ba3c2d8cede6cf53",
+       "f3355b34a03bcffe93797d35378213c89377e0e25558154c6b4122f385eef40d",
+       "1227c19f0c655f4b2cf1fedb0f857744e3f78eae3bcf03da827fa79fc5ef6bc0",
+       "feadb428524d61460f03a553612e29f3b8bb6d1bed7359910c48387b2734a8b6",
+       "74589587bd50a0fe337d3e2ffea4c3fb52eb37da93fb8b1ab7628101c7ed2192",
+       "29321a84a1439b6204faf5bf0cd433572f05ca8f0d7dcbfb15dd6be8d8e0c52b",
+       "f3765621da543e5a02705803ffa72864be8c0dfc18be58aeba15e8fb530c2cfe",
+       "0f629cf849a280710aeefbe608bdd1f0224c189eb207b329e1b299ee46a2f8b9",
+       "eea79e68f318eca3c08ff0cc65e63e03f35ea2171edc43173bc33c98b11cc6f7",
+       "8e013854d11f112ff2f93191a69ed83e25b2be754801c0cdfe268f416f70f25f",
+       "ee376b1a3d5e6f9d845b12ed55cd406c9cdbc0610b3737b6030f66edf9862074"
+      ],
+      "deliveryRatio": 1,
+      "state": "SETTLED",
+      "disputeWindowMs": 86400000,
+      "lineItemsHash": "09e7537b4852930d14f6344bd50c254158063375789a741fe1fc4bfd1e739cce",
+      "podAt": 1750129200000,
+      "disputeWindowClosesAt": 1750215600000,
+      "financing": {
+       "bankMsp": "MeghnaMSP",
+       "curveId": "CURVE-MEGHNA-2026Q3",
+       "advanceRatePct": 70,
+       "feePct": 9.5,
+       "advancedAmount": 111090,
+       "financedAt": 1750302000000,
+       "manufacturerRecoursePct": 100
+      },
+      "settlement": {
+       "settledAt": 1753585200000,
+       "amount": 158700,
+       "method": "Nagad",
+       "paymentRef": "NAGAD-857319",
+       "onTime": true
+      }
+     }
+    },
+    {
+     "key": "credit:did:lamp:pharmacy:rahman-medical",
+     "value": {
+      "pharmacyDid": "did:lamp:pharmacy:rahman-medical",
+      "cycles": [
+       {
+        "tokenId": "RCV-00181",
+        "invoiceId": "INV-00181",
+        "value": 158700,
+        "dueDate": 1753930800000,
+        "settledAt": 1753585200000,
+        "observedAt": 1753585200000,
+        "onTime": true,
+        "daysLate": 0
+       }
+      ],
+      "tier": "NEW",
+      "onTimeCount": 1,
+      "lateCount": 0,
+      "defaultCount": 0
+     }
+    }
+   ],
+   "privateWrites": []
+  },
+  {
+   "txId": "f52cfbde7ceecc4761f26177e247a0ba8a80fb5262e6be4e58e78225c8a8edfc",
+   "blockNumber": 7,
+   "timestamp": 1755399600000,
+   "fn": "mintReceivable",
+   "submitter": "ManufacturerMSP",
+   "args": {
+    "invoiceId": "INV-00182",
+    "tokenId": "RCV-00182",
+    "manufacturerId": "mfr-shomota",
+    "buyerDid": "did:lamp:pharmacy:rahman-medical",
+    "declaredValue": 334200,
+    "termsDays": 45,
+    "cartonHashes": "[27 items]",
+    "lineItems": [
+     {
+      "sku": "SHM-OMEP-20",
+      "name": "Omeprazole 20 mg",
+      "strength": "20 mg",
+      "quantity": 22500,
+      "cartons": 9,
+      "unitPrice": 3.6,
+      "lineValue": 81000
+     },
+     {
+      "sku": "SHM-METF-500",
+      "name": "Metformin HCl 500 mg",
+      "strength": "500 mg",
+      "quantity": 18000,
+      "cartons": 6,
+      "unitPrice": 2.4,
+      "lineValue": 43200
+     },
+     {
+      "sku": "SHM-CEFT-1G",
+      "name": "Ceftriaxone 1 g",
+      "strength": "1 g",
+      "quantity": 1200,
+      "cartons": 6,
+      "unitPrice": 145,
+      "lineValue": 174000
+     },
+     {
+      "sku": "SHM-PARA-500",
+      "name": "Paracetamol 500 mg",
+      "strength": "500 mg",
+      "quantity": 30000,
+      "cartons": 6,
+      "unitPrice": 1.2,
+      "lineValue": 36000
+     }
+    ],
+    "lineItemsHash": "16888dd26f28936ea45c085da87551d08e001a24afc21870778ac4de880cea1a",
+    "assertedAt": 1755399600000
+   },
+   "policy": "AND('ManufacturerMSP.peer', OR('MeghnaMSP.peer','PadmaMSP.peer'))",
+   "status": "VALID",
+   "endorsements": [
+    {
+     "msp": "ManufacturerMSP",
+     "signature": "de9dc224d104093d7c9f77dc54e206e2",
+     "certFingerprint": "de9dc224d104093d"
+    },
+    {
+     "msp": "MeghnaMSP",
+     "signature": "c01fd23d1e64cfcd8858a5248e7b8889",
+     "certFingerprint": "c01fd23d1e64cfcd"
+    },
+    {
+     "msp": "PadmaMSP",
+     "signature": "21a86dcf7e9c0176a7078860fd949bfd",
+     "certFingerprint": "21a86dcf7e9c0176"
+    }
+   ],
+   "writes": [
+    {
+     "key": "token:RCV-00182",
+     "value": {
+      "tokenId": "RCV-00182",
+      "invoiceId": "INV-00182",
+      "manufacturerMsp": "ManufacturerMSP",
+      "manufacturerId": "mfr-shomota",
+      "buyerDid": "did:lamp:pharmacy:rahman-medical",
+      "declaredValue": 334200,
+      "currency": "BDT",
+      "termsDays": 45,
+      "issuedAt": 1755399600000,
+      "observedAt": 1755399600000,
+      "datesAsserted": true,
+      "dueDate": 1759287600000,
+      "cartonHashes": [
+       "f1b3d7d9ca554c44b86b11d19aeda188487d189cedbc9da2712e75fc15e078a5",
+       "cc794e92b0014eca5e9370558fbe9af5d26aa135c1d769e4b01b95234e777e8b",
+       "5627a34a3b2a7db16b41276de6248cb13934bb67d9e18225e116513ed32e1ba5",
+       "63fa30ae2b0801b6059ab13c23c4db14dc954d05cd1268a5fcb623a771613672",
+       "993832ee67d48f99d9c2630911d313291d68cd3d30bf01db84b3411cec5d90e1",
+       "67086e58b237ad3e199ffa094afa400f12ddb3ae5cee440d1a6d509181b32cbe",
+       "726e08e5c83e021b5914a80047f57808d1db431004540f85566a84f76b5751cb",
+       "7e9d312a8c565105a555aa2cf0ade69eb8abb90b7ad15fe622c2200352e7414d",
+       "979071422be87079febc11e347598adc49977b7e191785e31ed1bbea41746359",
+       "373bf3116c61bafd32c17dbd66be3c6c1c61f231af1c1d4cf78bda2dccc5684d",
+       "87f62b81cebed1d885cc6a3dccfbc68d8b7ec4075172fe4b04a7d98fab4101c0",
+       "2d068b2f8300d666590231ae6968e1bdc8e7e72bcf397b95fe133f43a5cfd76b",
+       "dcc712e75d8516324a36b03b7392e5f1351f77dc3e45bf84975e60c5aba59a84",
+       "67c1514c14d7b4072355a34d166ec8b1133b5671e8fefe5991145e814589139c",
+       "8b64217317309186b9bc6f53d987dcb81f875e4a52766a23a81c1139b661708e",
+       "16e2f5b97dad0838beb64cff5797e0c02a0f2057ea40c8e687781ae171ae3462",
+       "b0d15af5e7e872ed3f436daaca444388ef00dd95f34f4c3ebd203c29dbd5e51b",
+       "529cf6e275399a94eac4d0b3d7ddc2f2cc5c145f80e3a41f5055de18ae1e87a4",
+       "6fa059f8c6232cbaa39ae3bc3e53cdc848274bf6cd533d357cca76baad5c1f91",
+       "6d1976dc68aa1fa31214ce422e77880f20489efbeb89d53cd86f64e5d7cbe877",
+       "9be70c374699ab96e6bd9f0b6977c5efc7eb0b83247ab4bf4f7756d3b6c20dd2",
+       "3ba13e00b930bca3ee705faf6e90ff9dd84a3093d216f3d9ce96d052874c043a",
+       "4bdd46b81f4ffe10cf83b63a6b38b3e59395cf514fcd8b1c1c98b4fa14ebfd33",
+       "14b4c2668083804fe9ab02242218348bbbf982e1293eea50db58e8c61795aa9b",
+       "0cd5e29f6700074c7f4a9405cb02269e930c4e84337d0101f85305ad4eb98df4",
+       "82504f550083d61c61c719ead6e362ac66ec87ea9d1cfa1559168a8adaa26555",
+       "a38c91b831eaf209d9a35f590a5c143cba57177642a5c650941ae27ba07f5e33"
+      ],
+      "scannedHashes": [],
+      "deliveryRatio": 0,
+      "state": "CREATED",
+      "disputeWindowMs": 86400000,
+      "lineItemsHash": "16888dd26f28936ea45c085da87551d08e001a24afc21870778ac4de880cea1a"
+     }
+    },
+    {
+     "key": "invoice:INV-00182",
+     "value": "RCV-00182"
+    }
+   ],
+   "privateWrites": [
+    {
+     "collection": "invoiceLineItems",
+     "key": "RCV-00182",
+     "hash": "16888dd26f28936ea45c085da87551d08e001a24afc21870778ac4de880cea1a",
+     "members": [
+      "ManufacturerMSP"
+     ]
+    }
+   ]
+  },
+  {
+   "txId": "f30a4ed4e2466fa3242d4e6b1d33c27faef41047efa4c40d1b394eb8a11e96a2",
+   "blockNumber": 8,
+   "timestamp": 1755486000000,
+   "fn": "recordPoDBatch",
+   "submitter": "ManufacturerMSP",
+   "args": {
+    "tokenId": "RCV-00182",
+    "cartonHashes": "[27 items]",
+    "mpoSignature": "sig:LMP-DEV-4471",
+    "assertedAt": 1755486000000
+   },
+   "policy": "OR('ManufacturerMSP.peer')",
+   "status": "VALID",
+   "endorsements": [
+    {
+     "msp": "ManufacturerMSP",
+     "signature": "de9e88a394a961ca3787bb16890fd2ce",
+     "certFingerprint": "de9e88a394a961ca"
+    },
+    {
+     "msp": "MeghnaMSP",
+     "signature": "81eb9daf3e80d3518b10acd4b140e6e5",
+     "certFingerprint": "81eb9daf3e80d351"
+    },
+    {
+     "msp": "PadmaMSP",
+     "signature": "af7ef55dc123b9f74749e2e0a205928e",
+     "certFingerprint": "af7ef55dc123b9f7"
+    }
+   ],
+   "writes": [
+    {
+     "key": "token:RCV-00182",
+     "value": {
+      "tokenId": "RCV-00182",
+      "invoiceId": "INV-00182",
+      "manufacturerMsp": "ManufacturerMSP",
+      "manufacturerId": "mfr-shomota",
+      "buyerDid": "did:lamp:pharmacy:rahman-medical",
+      "declaredValue": 334200,
+      "currency": "BDT",
+      "termsDays": 45,
+      "issuedAt": 1755399600000,
+      "observedAt": 1755399600000,
+      "datesAsserted": true,
+      "dueDate": 1759287600000,
+      "cartonHashes": [
+       "f1b3d7d9ca554c44b86b11d19aeda188487d189cedbc9da2712e75fc15e078a5",
+       "cc794e92b0014eca5e9370558fbe9af5d26aa135c1d769e4b01b95234e777e8b",
+       "5627a34a3b2a7db16b41276de6248cb13934bb67d9e18225e116513ed32e1ba5",
+       "63fa30ae2b0801b6059ab13c23c4db14dc954d05cd1268a5fcb623a771613672",
+       "993832ee67d48f99d9c2630911d313291d68cd3d30bf01db84b3411cec5d90e1",
+       "67086e58b237ad3e199ffa094afa400f12ddb3ae5cee440d1a6d509181b32cbe",
+       "726e08e5c83e021b5914a80047f57808d1db431004540f85566a84f76b5751cb",
+       "7e9d312a8c565105a555aa2cf0ade69eb8abb90b7ad15fe622c2200352e7414d",
+       "979071422be87079febc11e347598adc49977b7e191785e31ed1bbea41746359",
+       "373bf3116c61bafd32c17dbd66be3c6c1c61f231af1c1d4cf78bda2dccc5684d",
+       "87f62b81cebed1d885cc6a3dccfbc68d8b7ec4075172fe4b04a7d98fab4101c0",
+       "2d068b2f8300d666590231ae6968e1bdc8e7e72bcf397b95fe133f43a5cfd76b",
+       "dcc712e75d8516324a36b03b7392e5f1351f77dc3e45bf84975e60c5aba59a84",
+       "67c1514c14d7b4072355a34d166ec8b1133b5671e8fefe5991145e814589139c",
+       "8b64217317309186b9bc6f53d987dcb81f875e4a52766a23a81c1139b661708e",
+       "16e2f5b97dad0838beb64cff5797e0c02a0f2057ea40c8e687781ae171ae3462",
+       "b0d15af5e7e872ed3f436daaca444388ef00dd95f34f4c3ebd203c29dbd5e51b",
+       "529cf6e275399a94eac4d0b3d7ddc2f2cc5c145f80e3a41f5055de18ae1e87a4",
+       "6fa059f8c6232cbaa39ae3bc3e53cdc848274bf6cd533d357cca76baad5c1f91",
+       "6d1976dc68aa1fa31214ce422e77880f20489efbeb89d53cd86f64e5d7cbe877",
+       "9be70c374699ab96e6bd9f0b6977c5efc7eb0b83247ab4bf4f7756d3b6c20dd2",
+       "3ba13e00b930bca3ee705faf6e90ff9dd84a3093d216f3d9ce96d052874c043a",
+       "4bdd46b81f4ffe10cf83b63a6b38b3e59395cf514fcd8b1c1c98b4fa14ebfd33",
+       "14b4c2668083804fe9ab02242218348bbbf982e1293eea50db58e8c61795aa9b",
+       "0cd5e29f6700074c7f4a9405cb02269e930c4e84337d0101f85305ad4eb98df4",
+       "82504f550083d61c61c719ead6e362ac66ec87ea9d1cfa1559168a8adaa26555",
+       "a38c91b831eaf209d9a35f590a5c143cba57177642a5c650941ae27ba07f5e33"
+      ],
+      "scannedHashes": [
+       "f1b3d7d9ca554c44b86b11d19aeda188487d189cedbc9da2712e75fc15e078a5",
+       "cc794e92b0014eca5e9370558fbe9af5d26aa135c1d769e4b01b95234e777e8b",
+       "5627a34a3b2a7db16b41276de6248cb13934bb67d9e18225e116513ed32e1ba5",
+       "63fa30ae2b0801b6059ab13c23c4db14dc954d05cd1268a5fcb623a771613672",
+       "993832ee67d48f99d9c2630911d313291d68cd3d30bf01db84b3411cec5d90e1",
+       "67086e58b237ad3e199ffa094afa400f12ddb3ae5cee440d1a6d509181b32cbe",
+       "726e08e5c83e021b5914a80047f57808d1db431004540f85566a84f76b5751cb",
+       "7e9d312a8c565105a555aa2cf0ade69eb8abb90b7ad15fe622c2200352e7414d",
+       "979071422be87079febc11e347598adc49977b7e191785e31ed1bbea41746359",
+       "373bf3116c61bafd32c17dbd66be3c6c1c61f231af1c1d4cf78bda2dccc5684d",
+       "87f62b81cebed1d885cc6a3dccfbc68d8b7ec4075172fe4b04a7d98fab4101c0",
+       "2d068b2f8300d666590231ae6968e1bdc8e7e72bcf397b95fe133f43a5cfd76b",
+       "dcc712e75d8516324a36b03b7392e5f1351f77dc3e45bf84975e60c5aba59a84",
+       "67c1514c14d7b4072355a34d166ec8b1133b5671e8fefe5991145e814589139c",
+       "8b64217317309186b9bc6f53d987dcb81f875e4a52766a23a81c1139b661708e",
+       "16e2f5b97dad0838beb64cff5797e0c02a0f2057ea40c8e687781ae171ae3462",
+       "b0d15af5e7e872ed3f436daaca444388ef00dd95f34f4c3ebd203c29dbd5e51b",
+       "529cf6e275399a94eac4d0b3d7ddc2f2cc5c145f80e3a41f5055de18ae1e87a4",
+       "6fa059f8c6232cbaa39ae3bc3e53cdc848274bf6cd533d357cca76baad5c1f91",
+       "6d1976dc68aa1fa31214ce422e77880f20489efbeb89d53cd86f64e5d7cbe877",
+       "9be70c374699ab96e6bd9f0b6977c5efc7eb0b83247ab4bf4f7756d3b6c20dd2",
+       "3ba13e00b930bca3ee705faf6e90ff9dd84a3093d216f3d9ce96d052874c043a",
+       "4bdd46b81f4ffe10cf83b63a6b38b3e59395cf514fcd8b1c1c98b4fa14ebfd33",
+       "14b4c2668083804fe9ab02242218348bbbf982e1293eea50db58e8c61795aa9b",
+       "0cd5e29f6700074c7f4a9405cb02269e930c4e84337d0101f85305ad4eb98df4",
+       "82504f550083d61c61c719ead6e362ac66ec87ea9d1cfa1559168a8adaa26555",
+       "a38c91b831eaf209d9a35f590a5c143cba57177642a5c650941ae27ba07f5e33"
+      ],
+      "deliveryRatio": 1,
+      "state": "DELIVERED",
+      "disputeWindowMs": 86400000,
+      "lineItemsHash": "16888dd26f28936ea45c085da87551d08e001a24afc21870778ac4de880cea1a",
+      "podAt": 1755486000000,
+      "disputeWindowClosesAt": 1755572400000
+     }
+    }
+   ],
+   "privateWrites": []
+  },
+  {
+   "txId": "708432fd940e9c5f138af37fd057d1c6c87d6a4c95f7290ed113c5879c78fe9a",
+   "blockNumber": 197,
+   "timestamp": 1787551897191,
+   "fn": "recordPoD",
+   "submitter": "ManufacturerMSP",
+   "args": {
+    "assertedAt": 1787551897190,
+    "tokenId": "RCV-00235",
+    "cartonHash": "4f5cc03b462e9af0792bb597add6f2f855ab05d6c685f86be2f175baac5ae04f",
+    "mpoSignature": "sig:LMP-DEV-4471"
+   },
+   "policy": "OR('ManufacturerMSP.peer')",
+   "status": "CHAINCODE_ERROR",
+   "message": "Product does not belong to this invoice.",
+   "endorsements": [
+    {
+     "msp": "ManufacturerMSP",
+     "signature": "a255a3c74263ad95a6e782c3ee26bbf1",
+     "certFingerprint": "a255a3c74263ad95"
+    },
+    {
+     "msp": "MeghnaMSP",
+     "signature": "660543012f4bb6140287470628eed4a2",
+     "certFingerprint": "660543012f4bb614"
+    },
+    {
+     "msp": "PadmaMSP",
+     "signature": "a5968c1150f2f2f9f179a6ce69a75423",
+     "certFingerprint": "a5968c1150f2f2f9"
+    }
+   ],
+   "writes": [],
+   "privateWrites": []
+  }
+ ],
+ "invoices": [
+  {
+   "invoiceId": "INV-00181",
+   "tokenId": "RCV-00181",
+   "manufacturerId": "mfr-shomota",
+   "pharmacyDid": "did:lamp:pharmacy:rahman-medical",
+   "lineItems": [
+    {
+     "sku": "SHM-PARA-500",
+     "name": "Paracetamol 500 mg",
+     "strength": "500 mg",
+     "quantity": 30000,
+     "cartons": 6,
+     "unitPrice": 1.2,
+     "lineValue": 36000
+    },
+    {
+     "sku": "SHM-SALB-INH",
+     "name": "Salbutamol 100 mcg",
+     "strength": "100 mcg",
+     "quantity": 180,
+     "cartons": 3,
+     "unitPrice": 195,
+     "lineValue": 35100
+    },
+    {
+     "sku": "SHM-CETI-10",
+     "name": "Cetirizine 10 mg",
+     "strength": "10 mg",
+     "quantity": 12000,
+     "cartons": 3,
+     "unitPrice": 1.8,
+     "lineValue": 21600
+    },
+    {
+     "sku": "SHM-AMOX-500",
+     "name": "Amoxicillin 500 mg",
+     "strength": "500 mg",
+     "quantity": 4500,
+     "cartons": 3,
+     "unitPrice": 6,
+     "lineValue": 27000
+    },
+    {
+     "sku": "SHM-ORS-SAC",
+     "name": "Oral Rehydration Salts 20.5 g",
+     "strength": "20.5 g",
+     "quantity": 6000,
+     "cartons": 3,
+     "unitPrice": 6.5,
+     "lineValue": 39000
+    }
+   ],
+   "value": 158700,
+   "termsDays": 45,
+   "issuedAt": 1750042800000,
+   "dueDate": 1753930800000,
+   "cartonCount": 18
+  },
+  {
+   "invoiceId": "INV-00182",
+   "tokenId": "RCV-00182",
+   "manufacturerId": "mfr-shomota",
+   "pharmacyDid": "did:lamp:pharmacy:rahman-medical",
+   "lineItems": [
+    {
+     "sku": "SHM-OMEP-20",
+     "name": "Omeprazole 20 mg",
+     "strength": "20 mg",
+     "quantity": 22500,
+     "cartons": 9,
+     "unitPrice": 3.6,
+     "lineValue": 81000
+    },
+    {
+     "sku": "SHM-METF-500",
+     "name": "Metformin HCl 500 mg",
+     "strength": "500 mg",
+     "quantity": 18000,
+     "cartons": 6,
+     "unitPrice": 2.4,
+     "lineValue": 43200
+    },
+    {
+     "sku": "SHM-CEFT-1G",
+     "name": "Ceftriaxone 1 g",
+     "strength": "1 g",
+     "quantity": 1200,
+     "cartons": 6,
+     "unitPrice": 145,
+     "lineValue": 174000
+    },
+    {
+     "sku": "SHM-PARA-500",
+     "name": "Paracetamol 500 mg",
+     "strength": "500 mg",
+     "quantity": 30000,
+     "cartons": 6,
+     "unitPrice": 1.2,
+     "lineValue": 36000
+    }
+   ],
+   "value": 334200,
+   "termsDays": 45,
+   "issuedAt": 1755399600000,
+   "dueDate": 1759287600000,
+   "cartonCount": 27
+  },
+  {
+   "invoiceId": "INV-00235",
+   "tokenId": "RCV-00235",
+   "manufacturerId": "mfr-shomota",
+   "pharmacyDid": "did:lamp:pharmacy:rahman-medical",
+   "lineItems": [
+    {
+     "sku": "SHM-ORS-SAC",
+     "name": "Oral Rehydration Salts 20.5 g",
+     "strength": "20.5 g",
+     "quantity": 14000,
+     "cartons": 7,
+     "unitPrice": 6.5,
+     "lineValue": 91000
+    },
+    {
+     "sku": "SHM-CEFT-1G",
+     "name": "Ceftriaxone 1 g",
+     "strength": "1 g",
+     "quantity": 1200,
+     "cartons": 6,
+     "unitPrice": 145,
+     "lineValue": 174000
+    },
+    {
+     "sku": "SHM-OMEP-20",
+     "name": "Omeprazole 20 mg",
+     "strength": "20 mg",
+     "quantity": 15000,
+     "cartons": 6,
+     "unitPrice": 3.6,
+     "lineValue": 54000
+    },
+    {
+     "sku": "SHM-ESOM-20",
+     "name": "Esomeprazole 20 mg",
+     "strength": "20 mg",
+     "quantity": 7200,
+     "cartons": 6,
+     "unitPrice": 7.5,
+     "lineValue": 54000
+    }
+   ],
+   "value": 373000,
+   "termsDays": 45,
+   "issuedAt": 1787526000000,
+   "dueDate": 1791414000000,
+   "cartonCount": 25
+  }
+ ],
+ "deliveries": [
+  {
+   "id": "DLV-RCV-00181",
+   "invoiceId": "INV-00181",
+   "tokenId": "RCV-00181",
+   "mpoId": "mpo-kamrul",
+   "pharmacyDid": "did:lamp:pharmacy:rahman-medical",
+   "status": "COMPLETED",
+   "sequence": 181,
+   "cartons": [
+    {
+     "cartonId": "INV-00181-SHM-PARA-500-001810001",
+     "gs1": "01089012340010111727072810B-4009-J\u001d21001810001",
+     "sku": "SHM-PARA-500",
+     "batch": "B-4009-J",
+     "expiry": "2027-07-28",
+     "hash": "6e0e695589acf31df6bb0ae0656a1dec18b6408ba3c90a3ecc820d2b4cbcda6a",
+     "scannedAt": 1750129200000
+    },
+    {
+     "cartonId": "INV-00181-SHM-PARA-500-001810002",
+     "gs1": "01089012340010111726122810B-4898-O\u001d21001810002",
+     "sku": "SHM-PARA-500",
+     "batch": "B-4898-O",
+     "expiry": "2026-12-28",
+     "hash": "eefc8dfcb0e33d8e75a78944183ffd45899ee78a9060799079ea0a375791b4c1",
+     "scannedAt": 1750129200000
+    },
+    {
+     "cartonId": "INV-00181-SHM-PARA-500-001810003",
+     "gs1": "01089012340010111727062810B-4441-Z\u001d21001810003",
+     "sku": "SHM-PARA-500",
+     "batch": "B-4441-Z",
+     "expiry": "2027-06-28",
+     "hash": "1e7bfc63943aafaa3c3d556309f4e6c45f7fc1227735cb3fd0e3c3e29ab7162e",
+     "scannedAt": 1750129200000
+    },
+    {
+     "cartonId": "INV-00181-SHM-PARA-500-001810004",
+     "gs1": "01089012340010111727042810B-4742-O\u001d21001810004",
+     "sku": "SHM-PARA-500",
+     "batch": "B-4742-O",
+     "expiry": "2027-04-28",
+     "hash": "11f092e0290fa0081cfc55e625dab67ffa09b80a2580cda7584787a8060d69c9",
+     "scannedAt": 1750129200000
+    },
+    {
+     "cartonId": "INV-00181-SHM-PARA-500-001810005",
+     "gs1": "01089012340010111727062810B-4668-S\u001d21001810005",
+     "sku": "SHM-PARA-500",
+     "batch": "B-4668-S",
+     "expiry": "2027-06-28",
+     "hash": "a3fe3358e9d4a3ad1384884297da4444e4fcda3f3d64e6e4b0cdc7b73eb87a56",
+     "scannedAt": 1750129200000
+    },
+    {
+     "cartonId": "INV-00181-SHM-PARA-500-001810006",
+     "gs1": "01089012340010111726102810B-4721-T\u001d21001810006",
+     "sku": "SHM-PARA-500",
+     "batch": "B-4721-T",
+     "expiry": "2026-10-28",
+     "hash": "fadbf423031bb505769491d04849b12ca24e4c3da1e366cbd0cd3f5f6036fbaf",
+     "scannedAt": 1750129200000
+    },
+    {
+     "cartonId": "INV-00181-SHM-SALB-INH-001810007",
+     "gs1": "01089012340015611726112810B-4262-C\u001d21001810007",
+     "sku": "SHM-SALB-INH",
+     "batch": "B-4262-C",
+     "expiry": "2026-11-28",
+     "hash": "8c9e5d8ccde23eefc9f67716131e659ddc2f34191fea3d1830874369d434617b",
+     "scannedAt": 1750129200000
+    },
+    {
+     "cartonId": "INV-00181-SHM-SALB-INH-001810008",
+     "gs1": "01089012340015611727072810B-4651-B\u001d21001810008",
+     "sku": "SHM-SALB-INH",
+     "batch": "B-4651-B",
+     "expiry": "2027-07-28",
+     "hash": "0501dcadb56701e4e8a443819fec83b948b1f54e7f269ad0ba3c2d8cede6cf53",
+     "scannedAt": 1750129200000
+    },
+    {
+     "cartonId": "INV-00181-SHM-SALB-INH-001810009",
+     "gs1": "01089012340015611727042810B-4482-O\u001d21001810009",
+     "sku": "SHM-SALB-INH",
+     "batch": "B-4482-O",
+     "expiry": "2027-04-28",
+     "hash": "f3355b34a03bcffe93797d35378213c89377e0e25558154c6b4122f385eef40d",
+     "scannedAt": 1750129200000
+    },
+    {
+     "cartonId": "INV-00181-SHM-CETI-10-001810010",
+     "gs1": "01089012340014931726092810B-4876-S\u001d21001810010",
+     "sku": "SHM-CETI-10",
+     "batch": "B-4876-S",
+     "expiry": "2026-09-28",
+     "hash": "1227c19f0c655f4b2cf1fedb0f857744e3f78eae3bcf03da827fa79fc5ef6bc0",
+     "scannedAt": 1750129200000
+    },
+    {
+     "cartonId": "INV-00181-SHM-CETI-10-001810011",
+     "gs1": "01089012340014931726122810B-4327-P\u001d21001810011",
+     "sku": "SHM-CETI-10",
+     "batch": "B-4327-P",
+     "expiry": "2026-12-28",
+     "hash": "feadb428524d61460f03a553612e29f3b8bb6d1bed7359910c48387b2734a8b6",
+     "scannedAt": 1750129200000
+    },
+    {
+     "cartonId": "INV-00181-SHM-CETI-10-001810012",
+     "gs1": "01089012340014931726112810B-4038-M\u001d21001810012",
+     "sku": "SHM-CETI-10",
+     "batch": "B-4038-M",
+     "expiry": "2026-11-28",
+     "hash": "74589587bd50a0fe337d3e2ffea4c3fb52eb37da93fb8b1ab7628101c7ed2192",
+     "scannedAt": 1750129200000
+    },
+    {
+     "cartonId": "INV-00181-SHM-AMOX-500-001810013",
+     "gs1": "01089012340013251727082810B-4576-E\u001d21001810013",
+     "sku": "SHM-AMOX-500",
+     "batch": "B-4576-E",
+     "expiry": "2027-08-28",
+     "hash": "29321a84a1439b6204faf5bf0cd433572f05ca8f0d7dcbfb15dd6be8d8e0c52b",
+     "scannedAt": 1750129200000
+    },
+    {
+     "cartonId": "INV-00181-SHM-AMOX-500-001810014",
+     "gs1": "01089012340013251727012810B-4245-L\u001d21001810014",
+     "sku": "SHM-AMOX-500",
+     "batch": "B-4245-L",
+     "expiry": "2027-01-28",
+     "hash": "f3765621da543e5a02705803ffa72864be8c0dfc18be58aeba15e8fb530c2cfe",
+     "scannedAt": 1750129200000
+    },
+    {
+     "cartonId": "INV-00181-SHM-AMOX-500-001810015",
+     "gs1": "01089012340013251726112810B-4016-Q\u001d21001810015",
+     "sku": "SHM-AMOX-500",
+     "batch": "B-4016-Q",
+     "expiry": "2026-11-28",
+     "hash": "0f629cf849a280710aeefbe608bdd1f0224c189eb207b329e1b299ee46a2f8b9",
+     "scannedAt": 1750129200000
+    },
+    {
+     "cartonId": "INV-00181-SHM-ORS-SAC-001810016",
+     "gs1": "01089012340016391727082810B-4233-Z\u001d21001810016",
+     "sku": "SHM-ORS-SAC",
+     "batch": "B-4233-Z",
+     "expiry": "2027-08-28",
+     "hash": "eea79e68f318eca3c08ff0cc65e63e03f35ea2171edc43173bc33c98b11cc6f7",
+     "scannedAt": 1750129200000
+    },
+    {
+     "cartonId": "INV-00181-SHM-ORS-SAC-001810017",
+     "gs1": "01089012340016391727052810B-4604-G\u001d21001810017",
+     "sku": "SHM-ORS-SAC",
+     "batch": "B-4604-G",
+     "expiry": "2027-05-28",
+     "hash": "8e013854d11f112ff2f93191a69ed83e25b2be754801c0cdfe268f416f70f25f",
+     "scannedAt": 1750129200000
+    },
+    {
+     "cartonId": "INV-00181-SHM-ORS-SAC-001810018",
+     "gs1": "01089012340016391727072810B-4542-W\u001d21001810018",
+     "sku": "SHM-ORS-SAC",
+     "batch": "B-4542-W",
+     "expiry": "2027-07-28",
+     "hash": "ee376b1a3d5e6f9d845b12ed55cd406c9cdbc0610b3737b6030f66edf9862074",
+     "scannedAt": 1750129200000
+    }
+   ],
+   "startedAt": 1750129200000,
+   "completedAt": 1750131720000,
+   "signatureRef": "offchain://signatures/RCV-00181.png",
+   "photoRefs": [
+    "offchain://pod/RCV-00181-01.jpg"
+   ]
+  },
+  {
+   "id": "DLV-RCV-00182",
+   "invoiceId": "INV-00182",
+   "tokenId": "RCV-00182",
+   "mpoId": "mpo-kamrul",
+   "pharmacyDid": "did:lamp:pharmacy:rahman-medical",
+   "status": "COMPLETED",
+   "sequence": 182,
+   "cartons": [
+    {
+     "cartonId": "INV-00182-SHM-OMEP-20-001820001",
+     "gs1": "01089012340019431728022810B-4508-O\u001d21001820001",
+     "sku": "SHM-OMEP-20",
+     "batch": "B-4508-O",
+     "expiry": "2028-02-28",
+     "hash": "f1b3d7d9ca554c44b86b11d19aeda188487d189cedbc9da2712e75fc15e078a5",
+     "scannedAt": 1755486000000
+    },
+    {
+     "cartonId": "INV-00182-SHM-OMEP-20-001820002",
+     "gs1": "01089012340019431727052810B-4556-K\u001d21001820002",
+     "sku": "SHM-OMEP-20",
+     "batch": "B-4556-K",
+     "expiry": "2027-05-28",
+     "hash": "cc794e92b0014eca5e9370558fbe9af5d26aa135c1d769e4b01b95234e777e8b",
+     "scannedAt": 1755486000000
+    },
+    {
+     "cartonId": "INV-00182-SHM-OMEP-20-001820003",
+     "gs1": "01089012340019431726102810B-4556-K\u001d21001820003",
+     "sku": "SHM-OMEP-20",
+     "batch": "B-4556-K",
+     "expiry": "2026-10-28",
+     "hash": "5627a34a3b2a7db16b41276de6248cb13934bb67d9e18225e116513ed32e1ba5",
+     "scannedAt": 1755486000000
+    },
+    {
+     "cartonId": "INV-00182-SHM-OMEP-20-001820004",
+     "gs1": "01089012340019431728012810B-4329-R\u001d21001820004",
+     "sku": "SHM-OMEP-20",
+     "batch": "B-4329-R",
+     "expiry": "2028-01-28",
+     "hash": "63fa30ae2b0801b6059ab13c23c4db14dc954d05cd1268a5fcb623a771613672",
+     "scannedAt": 1755486000000
+    },
+    {
+     "cartonId": "INV-00182-SHM-OMEP-20-001820005",
+     "gs1": "01089012340019431726102810B-4407-R\u001d21001820005",
+     "sku": "SHM-OMEP-20",
+     "batch": "B-4407-R",
+     "expiry": "2026-10-28",
+     "hash": "993832ee67d48f99d9c2630911d313291d68cd3d30bf01db84b3411cec5d90e1",
+     "scannedAt": 1755486000000
+    },
+    {
+     "cartonId": "INV-00182-SHM-OMEP-20-001820006",
+     "gs1": "01089012340019431727062810B-4883-Z\u001d21001820006",
+     "sku": "SHM-OMEP-20",
+     "batch": "B-4883-Z",
+     "expiry": "2027-06-28",
+     "hash": "67086e58b237ad3e199ffa094afa400f12ddb3ae5cee440d1a6d509181b32cbe",
+     "scannedAt": 1755486000000
+    },
+    {
+     "cartonId": "INV-00182-SHM-OMEP-20-001820007",
+     "gs1": "01089012340019431727022810B-4490-W\u001d21001820007",
+     "sku": "SHM-OMEP-20",
+     "batch": "B-4490-W",
+     "expiry": "2027-02-28",
+     "hash": "726e08e5c83e021b5914a80047f57808d1db431004540f85566a84f76b5751cb",
+     "scannedAt": 1755486000000
+    },
+    {
+     "cartonId": "INV-00182-SHM-OMEP-20-001820008",
+     "gs1": "01089012340019431727112810B-4777-X\u001d21001820008",
+     "sku": "SHM-OMEP-20",
+     "batch": "B-4777-X",
+     "expiry": "2027-11-28",
+     "hash": "7e9d312a8c565105a555aa2cf0ade69eb8abb90b7ad15fe622c2200352e7414d",
+     "scannedAt": 1755486000000
+    },
+    {
+     "cartonId": "INV-00182-SHM-OMEP-20-001820009",
+     "gs1": "01089012340019431727052810B-4842-K\u001d21001820009",
+     "sku": "SHM-OMEP-20",
+     "batch": "B-4842-K",
+     "expiry": "2027-05-28",
+     "hash": "979071422be87079febc11e347598adc49977b7e191785e31ed1bbea41746359",
+     "scannedAt": 1755486000000
+    },
+    {
+     "cartonId": "INV-00182-SHM-METF-500-001820010",
+     "gs1": "01089012340012571727042810B-4164-I\u001d21001820010",
+     "sku": "SHM-METF-500",
+     "batch": "B-4164-I",
+     "expiry": "2027-04-28",
+     "hash": "373bf3116c61bafd32c17dbd66be3c6c1c61f231af1c1d4cf78bda2dccc5684d",
+     "scannedAt": 1755486000000
+    },
+    {
+     "cartonId": "INV-00182-SHM-METF-500-001820011",
+     "gs1": "01089012340012571727062810B-4614-Q\u001d21001820011",
+     "sku": "SHM-METF-500",
+     "batch": "B-4614-Q",
+     "expiry": "2027-06-28",
+     "hash": "87f62b81cebed1d885cc6a3dccfbc68d8b7ec4075172fe4b04a7d98fab4101c0",
+     "scannedAt": 1755486000000
+    },
+    {
+     "cartonId": "INV-00182-SHM-METF-500-001820012",
+     "gs1": "01089012340012571726112810B-4753-Z\u001d21001820012",
+     "sku": "SHM-METF-500",
+     "batch": "B-4753-Z",
+     "expiry": "2026-11-28",
+     "hash": "2d068b2f8300d666590231ae6968e1bdc8e7e72bcf397b95fe133f43a5cfd76b",
+     "scannedAt": 1755486000000
+    },
+    {
+     "cartonId": "INV-00182-SHM-METF-500-001820013",
+     "gs1": "01089012340012571727042810B-4433-R\u001d21001820013",
+     "sku": "SHM-METF-500",
+     "batch": "B-4433-R",
+     "expiry": "2027-04-28",
+     "hash": "dcc712e75d8516324a36b03b7392e5f1351f77dc3e45bf84975e60c5aba59a84",
+     "scannedAt": 1755486000000
+    },
+    {
+     "cartonId": "INV-00182-SHM-METF-500-001820014",
+     "gs1": "01089012340012571727102810B-4818-M\u001d21001820014",
+     "sku": "SHM-METF-500",
+     "batch": "B-4818-M",
+     "expiry": "2027-10-28",
+     "hash": "67c1514c14d7b4072355a34d166ec8b1133b5671e8fefe5991145e814589139c",
+     "scannedAt": 1755486000000
+    },
+    {
+     "cartonId": "INV-00182-SHM-METF-500-001820015",
+     "gs1": "01089012340012571726112810B-4749-V\u001d21001820015",
+     "sku": "SHM-METF-500",
+     "batch": "B-4749-V",
+     "expiry": "2026-11-28",
+     "hash": "8b64217317309186b9bc6f53d987dcb81f875e4a52766a23a81c1139b661708e",
+     "scannedAt": 1755486000000
+    },
+    {
+     "cartonId": "INV-00182-SHM-CEFT-1G-001820016",
+     "gs1": "01089012340017071727032810B-4341-D\u001d21001820016",
+     "sku": "SHM-CEFT-1G",
+     "batch": "B-4341-D",
+     "expiry": "2027-03-28",
+     "hash": "16e2f5b97dad0838beb64cff5797e0c02a0f2057ea40c8e687781ae171ae3462",
+     "scannedAt": 1755486000000
+    },
+    {
+     "cartonId": "INV-00182-SHM-CEFT-1G-001820017",
+     "gs1": "01089012340017071728022810B-4684-I\u001d21001820017",
+     "sku": "SHM-CEFT-1G",
+     "batch": "B-4684-I",
+     "expiry": "2028-02-28",
+     "hash": "b0d15af5e7e872ed3f436daaca444388ef00dd95f34f4c3ebd203c29dbd5e51b",
+     "scannedAt": 1755486000000
+    },
+    {
+     "cartonId": "INV-00182-SHM-CEFT-1G-001820018",
+     "gs1": "01089012340017071727052810B-4476-I\u001d21001820018",
+     "sku": "SHM-CEFT-1G",
+     "batch": "B-4476-I",
+     "expiry": "2027-05-28",
+     "hash": "529cf6e275399a94eac4d0b3d7ddc2f2cc5c145f80e3a41f5055de18ae1e87a4",
+     "scannedAt": 1755486000000
+    },
+    {
+     "cartonId": "INV-00182-SHM-CEFT-1G-001820019",
+     "gs1": "01089012340017071726122810B-4679-D\u001d21001820019",
+     "sku": "SHM-CEFT-1G",
+     "batch": "B-4679-D",
+     "expiry": "2026-12-28",
+     "hash": "6fa059f8c6232cbaa39ae3bc3e53cdc848274bf6cd533d357cca76baad5c1f91",
+     "scannedAt": 1755486000000
+    },
+    {
+     "cartonId": "INV-00182-SHM-CEFT-1G-001820020",
+     "gs1": "01089012340017071727022810B-4361-X\u001d21001820020",
+     "sku": "SHM-CEFT-1G",
+     "batch": "B-4361-X",
+     "expiry": "2027-02-28",
+     "hash": "6d1976dc68aa1fa31214ce422e77880f20489efbeb89d53cd86f64e5d7cbe877",
+     "scannedAt": 1755486000000
+    },
+    {
+     "cartonId": "INV-00182-SHM-CEFT-1G-001820021",
+     "gs1": "01089012340017071727072810B-4224-Q\u001d21001820021",
+     "sku": "SHM-CEFT-1G",
+     "batch": "B-4224-Q",
+     "expiry": "2027-07-28",
+     "hash": "9be70c374699ab96e6bd9f0b6977c5efc7eb0b83247ab4bf4f7756d3b6c20dd2",
+     "scannedAt": 1755486000000
+    },
+    {
+     "cartonId": "INV-00182-SHM-PARA-500-001820022",
+     "gs1": "01089012340010111727112810B-4808-C\u001d21001820022",
+     "sku": "SHM-PARA-500",
+     "batch": "B-4808-C",
+     "expiry": "2027-11-28",
+     "hash": "3ba13e00b930bca3ee705faf6e90ff9dd84a3093d216f3d9ce96d052874c043a",
+     "scannedAt": 1755486000000
+    },
+    {
+     "cartonId": "INV-00182-SHM-PARA-500-001820023",
+     "gs1": "01089012340010111727042810B-4097-T\u001d21001820023",
+     "sku": "SHM-PARA-500",
+     "batch": "B-4097-T",
+     "expiry": "2027-04-28",
+     "hash": "4bdd46b81f4ffe10cf83b63a6b38b3e59395cf514fcd8b1c1c98b4fa14ebfd33",
+     "scannedAt": 1755486000000
+    },
+    {
+     "cartonId": "INV-00182-SHM-PARA-500-001820024",
+     "gs1": "01089012340010111727102810B-4433-R\u001d21001820024",
+     "sku": "SHM-PARA-500",
+     "batch": "B-4433-R",
+     "expiry": "2027-10-28",
+     "hash": "14b4c2668083804fe9ab02242218348bbbf982e1293eea50db58e8c61795aa9b",
+     "scannedAt": 1755486000000
+    },
+    {
+     "cartonId": "INV-00182-SHM-PARA-500-001820025",
+     "gs1": "01089012340010111727012810B-4778-Y\u001d21001820025",
+     "sku": "SHM-PARA-500",
+     "batch": "B-4778-Y",
+     "expiry": "2027-01-28",
+     "hash": "0cd5e29f6700074c7f4a9405cb02269e930c4e84337d0101f85305ad4eb98df4",
+     "scannedAt": 1755486000000
+    },
+    {
+     "cartonId": "INV-00182-SHM-PARA-500-001820026",
+     "gs1": "01089012340010111727082810B-4663-N\u001d21001820026",
+     "sku": "SHM-PARA-500",
+     "batch": "B-4663-N",
+     "expiry": "2027-08-28",
+     "hash": "82504f550083d61c61c719ead6e362ac66ec87ea9d1cfa1559168a8adaa26555",
+     "scannedAt": 1755486000000
+    },
+    {
+     "cartonId": "INV-00182-SHM-PARA-500-001820027",
+     "gs1": "01089012340010111727022810B-4804-Y\u001d21001820027",
+     "sku": "SHM-PARA-500",
+     "batch": "B-4804-Y",
+     "expiry": "2027-02-28",
+     "hash": "a38c91b831eaf209d9a35f590a5c143cba57177642a5c650941ae27ba07f5e33",
+     "scannedAt": 1755486000000
+    }
+   ],
+   "startedAt": 1755486000000,
+   "completedAt": 1755488520000,
+   "signatureRef": "offchain://signatures/RCV-00182.png",
+   "photoRefs": [
+    "offchain://pod/RCV-00182-01.jpg"
+   ]
+  },
+  {
+   "id": "DLV-RCV-00235",
+   "invoiceId": "INV-00235",
+   "tokenId": "RCV-00235",
+   "mpoId": "mpo-kamrul",
+   "pharmacyDid": "did:lamp:pharmacy:rahman-medical",
+   "status": "COMPLETED",
+   "sequence": 1,
+   "cartons": [
+    {
+     "cartonId": "INV-00235-SHM-ORS-SAC-002350001",
+     "gs1": "01089012340016391728052810B-4110-G\u001d21002350001",
+     "sku": "SHM-ORS-SAC",
+     "batch": "B-4110-G",
+     "expiry": "2028-05-28",
+     "hash": "ac4536697871611163e8698f45738fe5ee360b70fbb0e1ae34a49300ab4d3a1d"
+    },
+    {
+     "cartonId": "INV-00235-SHM-ORS-SAC-002350002",
+     "gs1": "01089012340016391728062810B-4385-V\u001d21002350002",
+     "sku": "SHM-ORS-SAC",
+     "batch": "B-4385-V",
+     "expiry": "2028-06-28",
+     "hash": "f0f4b02eddcc54907119991ae26ccd3f3823da9d59c5d7abaf6bdfdccb276c9c"
+    },
+    {
+     "cartonId": "INV-00235-SHM-ORS-SAC-002350003",
+     "gs1": "01089012340016391728042810B-4150-U\u001d21002350003",
+     "sku": "SHM-ORS-SAC",
+     "batch": "B-4150-U",
+     "expiry": "2028-04-28",
+     "hash": "93d399d7b3fe998a8f2a68bbf9d92613042653054fd068247cbaf53a0001bf29"
+    },
+    {
+     "cartonId": "INV-00235-SHM-ORS-SAC-002350004",
+     "gs1": "01089012340016391728022810B-4025-Z\u001d21002350004",
+     "sku": "SHM-ORS-SAC",
+     "batch": "B-4025-Z",
+     "expiry": "2028-02-28",
+     "hash": "0786c496929888266d8d3aa1bdca22a779653fad6af691eaa8a49d5d0e3fa6b9"
+    },
+    {
+     "cartonId": "INV-00235-SHM-ORS-SAC-002350005",
+     "gs1": "01089012340016391729012810B-4481-N\u001d21002350005",
+     "sku": "SHM-ORS-SAC",
+     "batch": "B-4481-N",
+     "expiry": "2029-01-28",
+     "hash": "01436cc9c90f6924d2fa783776a15ee706ca23757fc56f4ad6113a430a9611a9"
+    },
+    {
+     "cartonId": "INV-00235-SHM-ORS-SAC-002350006",
+     "gs1": "01089012340016391729012810B-4723-V\u001d21002350006",
+     "sku": "SHM-ORS-SAC",
+     "batch": "B-4723-V",
+     "expiry": "2029-01-28",
+     "hash": "ed0bf30d4f49be0bd008cc0579dba6d229e88b3259c318fdcd7faf7e17c08a2d"
+    },
+    {
+     "cartonId": "INV-00235-SHM-ORS-SAC-002350007",
+     "gs1": "01089012340016391728022810B-4633-J\u001d21002350007",
+     "sku": "SHM-ORS-SAC",
+     "batch": "B-4633-J",
+     "expiry": "2028-02-28",
+     "hash": "09377ffb57e741ed902385480c90c0138960ea52e3201ad4795e95ed0f145ed2"
+    },
+    {
+     "cartonId": "INV-00235-SHM-CEFT-1G-002350008",
+     "gs1": "01089012340017071727102810B-4832-A\u001d21002350008",
+     "sku": "SHM-CEFT-1G",
+     "batch": "B-4832-A",
+     "expiry": "2027-10-28",
+     "hash": "60633496b21d53664fbaa065de2e9973e118a4e60662280bdf52f3bf01aca986"
+    },
+    {
+     "cartonId": "INV-00235-SHM-CEFT-1G-002350009",
+     "gs1": "01089012340017071727102810B-4521-B\u001d21002350009",
+     "sku": "SHM-CEFT-1G",
+     "batch": "B-4521-B",
+     "expiry": "2027-10-28",
+     "hash": "42bafbe8d776aaf5e92239b8dc27aa7e4c5f373ccd082fb58d8c61002df9189d"
+    },
+    {
+     "cartonId": "INV-00235-SHM-CEFT-1G-002350010",
+     "gs1": "01089012340017071727112810B-4859-B\u001d21002350010",
+     "sku": "SHM-CEFT-1G",
+     "batch": "B-4859-B",
+     "expiry": "2027-11-28",
+     "hash": "63ac6f56367709e347518bdcb08d1b04ece6783cc1fe2f2caf6f3d016a211f17"
+    },
+    {
+     "cartonId": "INV-00235-SHM-CEFT-1G-002350011",
+     "gs1": "01089012340017071728052810B-4496-C\u001d21002350011",
+     "sku": "SHM-CEFT-1G",
+     "batch": "B-4496-C",
+     "expiry": "2028-05-28",
+     "hash": "c2ea68a218c026112cd8a29a5b5c497ddc958f696f411ffe1dd611cb4967cfc6"
+    },
+    {
+     "cartonId": "INV-00235-SHM-CEFT-1G-002350012",
+     "gs1": "01089012340017071728032810B-4018-S\u001d21002350012",
+     "sku": "SHM-CEFT-1G",
+     "batch": "B-4018-S",
+     "expiry": "2028-03-28",
+     "hash": "abaa9feeb73f89c2e8f0b8dc11e72ed4ce6e68115df8f5cd630ee23d578105b5"
+    },
+    {
+     "cartonId": "INV-00235-SHM-CEFT-1G-002350013",
+     "gs1": "01089012340017071727122810B-4784-E\u001d21002350013",
+     "sku": "SHM-CEFT-1G",
+     "batch": "B-4784-E",
+     "expiry": "2027-12-28",
+     "hash": "56f70ea46002f0c116e30fd306e033e50f1ec7665f9f60464d4235758f155618"
+    },
+    {
+     "cartonId": "INV-00235-SHM-OMEP-20-002350014",
+     "gs1": "01089012340019431728112810B-4650-A\u001d21002350014",
+     "sku": "SHM-OMEP-20",
+     "batch": "B-4650-A",
+     "expiry": "2028-11-28",
+     "hash": "c97967f37a86ec1051ad75a779663c66b45848d080d6912b3d36a44d921b3132"
+    },
+    {
+     "cartonId": "INV-00235-SHM-OMEP-20-002350015",
+     "gs1": "01089012340019431728092810B-4792-M\u001d21002350015",
+     "sku": "SHM-OMEP-20",
+     "batch": "B-4792-M",
+     "expiry": "2028-09-28",
+     "hash": "58ad4b7e29319ec1dd56a5e68e100744211163a36b99d9ea9d22d9d84cb0d7cf"
+    },
+    {
+     "cartonId": "INV-00235-SHM-OMEP-20-002350016",
+     "gs1": "01089012340019431728092810B-4860-C\u001d21002350016",
+     "sku": "SHM-OMEP-20",
+     "batch": "B-4860-C",
+     "expiry": "2028-09-28",
+     "hash": "7eb2a7cfbc7ea211ea72adeb5c503eceb2a75e954800ae4112f09ab9c1849efb"
+    },
+    {
+     "cartonId": "INV-00235-SHM-OMEP-20-002350017",
+     "gs1": "01089012340019431729022810B-4048-W\u001d21002350017",
+     "sku": "SHM-OMEP-20",
+     "batch": "B-4048-W",
+     "expiry": "2029-02-28",
+     "hash": "64e42ff86e8a8a5b03f4306d602d0648fa8e7a060935c89f81427fff8da1fc11"
+    },
+    {
+     "cartonId": "INV-00235-SHM-OMEP-20-002350018",
+     "gs1": "01089012340019431728042810B-4487-T\u001d21002350018",
+     "sku": "SHM-OMEP-20",
+     "batch": "B-4487-T",
+     "expiry": "2028-04-28",
+     "hash": "41470d69c4762af6f952877e722bd9749e1d4373ff757f1d8516a25557baff11"
+    },
+    {
+     "cartonId": "INV-00235-SHM-OMEP-20-002350019",
+     "gs1": "01089012340019431728022810B-4585-N\u001d21002350019",
+     "sku": "SHM-OMEP-20",
+     "batch": "B-4585-N",
+     "expiry": "2028-02-28",
+     "hash": "5c9d8550f6ceb2bdb1800ee95f232e42152bb958d8606fc6c9f6ac6fec2829b6"
+    },
+    {
+     "cartonId": "INV-00235-SHM-ESOM-20-002350020",
+     "gs1": "01089012340011891728102810B-4010-K\u001d21002350020",
+     "sku": "SHM-ESOM-20",
+     "batch": "B-4010-K",
+     "expiry": "2028-10-28",
+     "hash": "ed486367b559bf243ee4ee0ae3c0e72da3c2645dfcdd9325b0f19792ed1a973f"
+    },
+    {
+     "cartonId": "INV-00235-SHM-ESOM-20-002350021",
+     "gs1": "01089012340011891728022810B-4252-S\u001d21002350021",
+     "sku": "SHM-ESOM-20",
+     "batch": "B-4252-S",
+     "expiry": "2028-02-28",
+     "hash": "d3262ae6f276a52c91884c996152714e9cf27cf74dfa204170b094250709fcb3"
+    },
+    {
+     "cartonId": "INV-00235-SHM-ESOM-20-002350022",
+     "gs1": "01089012340011891728052810B-4823-R\u001d21002350022",
+     "sku": "SHM-ESOM-20",
+     "batch": "B-4823-R",
+     "expiry": "2028-05-28",
+     "hash": "05622ffe450ba1858d48fdf8bea8a323e8bac54bb03d6c60e6dda26cc02fe466"
+    },
+    {
+     "cartonId": "INV-00235-SHM-ESOM-20-002350023",
+     "gs1": "01089012340011891728122810B-4834-C\u001d21002350023",
+     "sku": "SHM-ESOM-20",
+     "batch": "B-4834-C",
+     "expiry": "2028-12-28",
+     "hash": "7233c0a2f5d12f32bc2766216868aa62d3b1cae156c8294104fdceb4bf6f1be8"
+    },
+    {
+     "cartonId": "INV-00235-SHM-ESOM-20-002350024",
+     "gs1": "01089012340011891728012810B-4371-H\u001d21002350024",
+     "sku": "SHM-ESOM-20",
+     "batch": "B-4371-H",
+     "expiry": "2028-01-28",
+     "hash": "7f5aabe0d03dabad774f2902d8df5293f919e303e6d45b8f68dc753efc766449"
+    },
+    {
+     "cartonId": "INV-00235-SHM-ESOM-20-002350025",
+     "gs1": "01089012340011891728072810B-4133-D\u001d21002350025",
+     "sku": "SHM-ESOM-20",
+     "batch": "B-4133-D",
+     "expiry": "2028-07-28",
+     "hash": "0005ebe61a44b4f35adaa4aa7b20c54b9a15fa8d96e642fc1242a6641fbe4305"
+    }
+   ],
+   "completedAt": 1788525915049,
+   "signatureRef": "offchain://signatures/RCV-00235.png"
+  }
+ ]
+}

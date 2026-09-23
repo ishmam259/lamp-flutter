@@ -1,4 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- The shared ledger lives on a server (LAMP_API_URL). Debug builds get
+         this permission from the debug manifest; a release build needs it
+         here or every read fails. -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <!-- Carton scanning reads the GS1 code off the box. -->
     <uses-permission android:name="android.permission.CAMERA" />
     <!-- A device with no camera can still run the app on the scan cascade. -->
