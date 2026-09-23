@@ -59,8 +59,13 @@ class LaMPTheme {
         brightness: brightness,
         primary: p.brand,
         onPrimary: p.onBrand,
-        secondary: p.verified,
+        // Not `verified`: Material paints selected segments, chips and
+        // toggles from `secondary`, and mint is reserved for what the
+        // ledger confirmed. A selected control is a choice, not a fact.
+        secondary: p.brand,
         onSecondary: p.onBrand,
+        secondaryContainer: p.brandSoft,
+        onSecondaryContainer: p.ink,
         surface: p.surface,
         onSurface: p.ink,
         surfaceContainerHighest: p.surfaceAlt,

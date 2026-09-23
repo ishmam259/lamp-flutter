@@ -346,14 +346,30 @@ class LampEyebrow extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.lamp;
     final label = Text(text.toUpperCase(),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: LaMPType.label.copyWith(color: c.inkFaint));
     if (trailing == null) return label;
-    return Row(children: [
-      label,
-      const SizedBox(width: Gap.md),
-      Expanded(child: Divider(height: 1, thickness: 1, color: c.line)),
-      const SizedBox(width: Gap.md),
-      Text(trailing!, style: LaMPType.monoCaption.copyWith(color: c.inkFaint)),
-    ]);
+    // Each side keeps its natural width up to a cap and ellipsises past it;
+    // the hairline takes whatever is left. Splitting the width by flex
+    // squeezed a long label even beside a two-character count.
+    return LayoutBuilder(builder: (context, box) {
+      return Row(children: [
+        ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: box.maxWidth * 0.62),
+          child: label,
+        ),
+        const SizedBox(width: Gap.md),
+        Expanded(child: Divider(height: 1, thickness: 1, color: c.line)),
+        const SizedBox(width: Gap.md),
+        ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: box.maxWidth * 0.3),
+          child: Text(trailing!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: LaMPType.monoCaption.copyWith(color: c.inkFaint)),
+        ),
+      ]);
+    });
   }
 }

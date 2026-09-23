@@ -3,6 +3,11 @@ import '../core/constants/palette.dart';
 import '../core/constants/typography.dart';
 import '../core/models/domain_models.dart';
 
+/// Where an invoice is in its life: issued, delivered, financed, paid.
+///
+/// Four equal columns with the label under each step, so all four fit a
+/// 360dp card. It used to lay the steps out in one scrolling row with the
+/// labels beside them, which cut "Financed" to "Fi" at the card's edge.
 class LifecycleRail extends StatelessWidget {
   final TokenState state;
   final bool isFinanced;
@@ -13,86 +18,89 @@ class LifecycleRail extends StatelessWidget {
     this.isFinanced = false,
   });
 
+  static const _labels = ['Issued', 'Delivered', 'Financed', 'Paid'];
+
   @override
   Widget build(BuildContext context) {
-    final steps = [
-      {'id': TokenState.created, 'label': 'Issued'},
-      {'id': TokenState.delivered, 'label': 'Delivered'},
-      {'id': TokenState.financed, 'label': 'Financed'},
-      {'id': TokenState.settled, 'label': 'Paid'},
-    ];
+    final c = context.lamp;
 
-    int activeIndex = 0;
+    int reached = 0;
     if (state == TokenState.settled) {
-      activeIndex = 3;
+      reached = 3;
     } else if (state == TokenState.financed || isFinanced) {
-      activeIndex = 2;
-    } else if (state == TokenState.delivered || state == TokenState.partiallyFulfilled) {
-      activeIndex = 1;
+      reached = 2;
+    } else if (state == TokenState.delivered) {
+      reached = 1;
     }
+    final disputed = state == TokenState.disputed;
 
-    final isDisputed = state == TokenState.disputed;
-
-    // This rail sits on a dark portal card and on a light field card. Ask the
-    // ambient theme which, rather than assuming the field palette.
-    final surface = context.lamp;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      decoration: BoxDecoration(
-        color: surface.surfaceAlt,
-        borderRadius: BorderRadius.circular(LaMPRadius.card),
-        border: Border.all(color: surface.line),
-      ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (int i = 0; i < steps.length; i++) ...[
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 26,
-                    height: 26,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: i <= activeIndex
-                          ? (isDisputed && i == activeIndex ? surface.dispute : surface.verified)
-                          : surface.surfaceSunken,
-                      border: Border.all(
-                        color: i == activeIndex ? surface.brand : Colors.transparent,
-                        width: 2,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (int i = 0; i < _labels.length; i++)
+          Expanded(
+            child: Column(
+              children: [
+                SizedBox(
+                  height: 24,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: i == 0
+                            ? const SizedBox()
+                            : Container(
+                                height: 2,
+                                color: i <= reached ? c.verified : c.line,
+                              ),
                       ),
-                    ),
-                    child: Center(
-                      child: i < activeIndex
-                          ? Icon(Icons.check, size: 14, color: surface.onBrand)
-                          : Text(
-                              '${i + 1}',
-                              style: LaMPType.caption.copyWith(fontWeight: FontWeight.w600, color: i <= activeIndex ? surface.onBrand : surface.inkFaint),
-                            ),
-                    ),
+                      _dot(context, i, reached, disputed),
+                      Expanded(
+                        child: i == _labels.length - 1
+                            ? const SizedBox()
+                            : Container(
+                                height: 2,
+                                color: i < reached ? c.verified : c.line,
+                              ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  Text(
-                    steps[i]['label'] as String,
-                    style: LaMPType.caption.copyWith(fontWeight: i == activeIndex ? FontWeight.w600 : FontWeight.w500, color: i <= activeIndex ? surface.ink : surface.inkFaint),
-                  ),
-                ],
-              ),
-              if (i < steps.length - 1)
-                Container(
-                  width: 24,
-                  height: 2,
-                  margin: const EdgeInsets.symmetric(horizontal: 8),
-                  color: i < activeIndex ? surface.verified : surface.surfaceSunken,
                 ),
-            ],
-          ],
-        ),
+                const SizedBox(height: Gap.xs),
+                Text(
+                  _labels[i],
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: LaMPType.caption.copyWith(
+                    color: i <= reached ? c.ink : c.inkFaint,
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _dot(BuildContext context, int i, int reached, bool disputed) {
+    final c = context.lamp;
+    final done = i <= reached;
+    // The step after the last one reached is what is being waited on; a
+    // dispute stops the rail there, in refused red.
+    final next = i == reached + 1;
+    final Color ring = done
+        ? c.verified
+        : next
+            ? (disputed ? c.dispute : c.pending)
+            : c.lineStrong;
+    return Container(
+      width: 22,
+      height: 22,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: done ? c.verified : Colors.transparent,
+        border: Border.all(color: ring, width: 2),
       ),
+      child: done ? Icon(Icons.check, size: 14, color: c.bg) : null,
     );
   }
 }

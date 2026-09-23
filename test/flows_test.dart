@@ -178,7 +178,8 @@ void main() {
       final target =
           state.tokenViews.firstWhere((v) => v.token.isFinanceable(state.now));
 
-      expect(find.text('Eligible for financing'), findsOneWidget);
+      // Section titles are eyebrows, set in capitals.
+      expect(find.text('READY TO FINANCE'), findsOneWidget);
       expect(
         find.textContaining('Finance ', findRichText: true),
         findsWidgets,
@@ -198,7 +199,13 @@ void main() {
         state.tokenViews.where((v) => v.token.isFinanceable(state.now)).length,
         before - 1,
       );
-      expect(find.text('Recently financed'), findsOneWidget);
+      // Below the fold in a lazily built list: scroll to it as a person would.
+      await tester.scrollUntilVisible(
+        find.text('RECENTLY FINANCED'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('RECENTLY FINANCED'), findsOneWidget);
     });
 
     testWidgets('an undelivered receivable is not in the queue at all',

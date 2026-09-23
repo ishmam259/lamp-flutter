@@ -143,7 +143,11 @@ Future<List<String>> _sweep(
 
   for (var i = 0; i < tabCount; i++) {
     if (i > 0) {
-      final tabs = find.byType(Tab);
+      // Top tabs where a seat still has them, otherwise the bottom nav —
+      // which is what every seat is moving to. Before this, a seat with a
+      // bottom nav was only ever checked on its first tab.
+      final top = find.byType(Tab);
+      final tabs = top.evaluate().isNotEmpty ? top : find.byType(NavigationDestination);
       if (tabs.evaluate().length > i) {
         await tester.tap(tabs.at(i), warnIfMissed: false);
         try {
