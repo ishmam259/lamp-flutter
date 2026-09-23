@@ -32,7 +32,11 @@ import '../../widgets/ui/lamp_ui.dart';
 /// counter, and four scrollable tabs pinned under the status bar are the
 /// furthest possible place from a thumb.
 class PharmacyScreen extends StatefulWidget {
-  const PharmacyScreen({super.key});
+  /// Which pharmacy this is: the signed-in account's. Null opens the first
+  /// pharmacy in the seed, which is what tests and previews use.
+  final String? pharmacyDid;
+
+  const PharmacyScreen({super.key, this.pharmacyDid});
 
   @override
   State<PharmacyScreen> createState() => _PharmacyScreenState();
@@ -55,9 +59,14 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
   /// `state.demoTokenId` no matter what was on screen.
   String? _payTokenId;
 
+  /// The signed-in pharmacy.
+  Pharmacy get _pharmacy => SeedData.pharmacies.firstWhere(
+        (p) => p.did == widget.pharmacyDid,
+        orElse: () => SeedData.pharmacies.first,
+      );
+
   /// The receivables this pharmacy still owes, nearest due date first.
-  List<TokenView> _open(LaMPState state) =>
-      state.openForPharmacy(SeedData.pharmacies[0].did);
+  List<TokenView> _open(LaMPState state) => state.openForPharmacy(_pharmacy.did);
 
   /// The one the Pay tab acts on: the chosen invoice if it is still payable,
   /// otherwise the first that is.
@@ -83,16 +92,27 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
   Widget _buildScaffold(BuildContext context) {
     final state = context.watch<LaMPState>();
     final c = context.lamp;
-    final pharmacy = SeedData.pharmacies[0];
-    // Read the pharmacy's own key off the ledger rather than the single
-    // cached history, which only ever held the demo counterparty's.
-    final credit = state.creditFor(pharmacy.did) ?? state.creditHistory;
+    final pharmacy = _pharmacy;
 
-    if (credit == null) {
+    if (!state.isInitialized) {
       // The world is still seeding. A skeleton in the shape of this screen
       // rather than a spinner in the middle of nothing.
       return const LampLoadingScreen();
     }
+
+    // This pharmacy's own record on the ledger. It used to fall back to the
+    // one cached history, which belongs to the first pharmacy, so a pharmacy
+    // with no cycles yet would have been shown someone else's. No record is
+    // an honest empty one: no cycles, the New tier.
+    final credit = state.creditFor(pharmacy.did) ??
+        CreditHistory(
+          pharmacyDid: pharmacy.did,
+          cycles: const [],
+          tier: RecourseTier.newTier,
+          onTimeCount: 0,
+          lateCount: 0,
+          defaultCount: 0,
+        );
 
     return Scaffold(
       // Both ends of the screen are glass, so the list has to run underneath
@@ -169,7 +189,7 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
       0.0,
       (sum, TokenView v) => sum + v.token.declaredValue,
     );
-    final recent = state.forPharmacy(SeedData.pharmacies[0].did).take(5).toList();
+    final recent = state.forPharmacy(_pharmacy.did).take(5).toList();
 
     return ListView(
       padding: lumaScrollPadding(context, top: Gap.lg),
@@ -905,7 +925,7 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
                     if (open.isEmpty) return;
                     await state.raiseDispute(
                       open.first.tokenId,
-                      'Damaged seals reported by ${SeedData.pharmacies[0].name}',
+                      'Damaged seals reported by ${_pharmacy.name}',
                     );
                     if (!context.mounted) return;
                     LumaHaptics.reject();

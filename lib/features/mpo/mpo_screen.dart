@@ -34,7 +34,11 @@ import '../../core/constants/typography.dart';
 /// as 25 ticks rather than a percentage — so the refused carton shows in its
 /// own position.
 class MpoScreen extends StatefulWidget {
-  const MpoScreen({super.key});
+  /// Whose round this is: the signed-in officer. Null opens the first
+  /// officer in the seed, which is what tests and previews use.
+  final String? mpoId;
+
+  const MpoScreen({super.key, this.mpoId});
 
   @override
   State<MpoScreen> createState() => _MpoScreenState();
@@ -65,9 +69,11 @@ class _MpoScreenState extends State<MpoScreen> {
   /// newly minted one appeared nowhere.
   String? _activeTokenId;
 
-  /// This device's officer. One seat, but read from the seed rather than
-  /// re-typed as a literal in five places.
-  Mpo get _me => SeedData.mpos[0];
+  /// The signed-in officer.
+  Mpo get _me => SeedData.mpos.firstWhere(
+        (m) => m.id == widget.mpoId,
+        orElse: () => SeedData.mpos.first,
+      );
 
   /// Today's remaining stops, nearest in sequence first.
   List<TokenView> _route(LaMPState state) => state.routeFor(_me.id);

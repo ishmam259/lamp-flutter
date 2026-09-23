@@ -372,11 +372,18 @@ void main() {
       }
 
       final tokensBefore = state.tokenViews.length;
-      final routeBefore = state.routeFor(SeedData.mpos[0].id).length;
+      // The new consignment goes to the officer who covers the pharmacy's
+      // territory.
+      final buyer = SeedData.pharmacies[1];
+      final officer = SeedData.mpos.firstWhere(
+        (m) => m.territory == buyer.territory,
+        orElse: () => SeedData.mpos.first,
+      );
+      final routeBefore = state.routeFor(officer.id).length;
 
       final product = SeedData.products.first;
       final res = await state.mintInvoice(
-        pharmacyDid: SeedData.pharmacies[1].did,
+        pharmacyDid: buyer.did,
         termsDays: 30,
         lineItems: [
           LineItem(
@@ -394,7 +401,7 @@ void main() {
 
       // Before this, minting inserted rows nothing ever read.
       expect(state.tokenViews.length, tokensBefore + 1);
-      expect(state.routeFor(SeedData.mpos[0].id).length, routeBefore + 1);
+      expect(state.routeFor(officer.id).length, routeBefore + 1);
     });
 
     test('minted invoice ids are monotonic and never collide', () async {

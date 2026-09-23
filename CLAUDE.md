@@ -31,99 +31,90 @@ Rules: `docs/DESIGN_SYSTEM.md`. Enforced by `test/design_lint_test.dart`.
 - **This is a real app for real users, not a demo.** Copy is plain language: no chaincode names, MSP ids, tx ids or raw errors on screen — use `LedgerLabels` (`lib/core/constants/ledger_labels.dart`). Testing tools sit behind `kDemoTools` (`app_mode.dart`), off in release builds. See `docs/DESIGN_SYSTEM.md` §3a.
 - A new screen follows the checklist in `docs/DESIGN_SYSTEM.md` §6.
 
-## Toolchain layout (read this before running anything)
+## Toolchain (read this before running anything)
 
-The Flutter SDK, JDK, and Android SDK were all installed outside the project
-(`C:\Users\Lenovo\scoop\apps\...`) but **copied into the project** at the
-following paths, because the bash sandbox blocks references to `C:\Users\...`:
+The current development machine uses a normal install; nothing is copied into
+the project.
 
-| Tool         | Path inside the project                       |
-| ------------ | --------------------------------------------- |
-| Flutter SDK  | `.flutter/`                                   |
-| JDK 21       | `.jdk/`                                       |
-| Android SDK  | `.android-sdk/` (cmdline-tools, platforms, …) |
+| Tool        | Where                                                        |
+| ----------- | ------------------------------------------------------------ |
+| Flutter SDK | `C:\Users\16IRL8\flutter` (3.35.7 stable, Dart 3.9.2), on PATH |
+| JDK 21      | Android Studio's bundled JBR: `C:\Program Files\Android\Android Studio\jbr` |
+| Android SDK | `C:\Users\16IRL8\AppData\Local\Android\sdk` (platform 36.1, build-tools 36.1.0) |
+| adb         | `C:\Users\16IRL8\AppData\Local\Android\sdk\platform-tools\adb.exe` |
 
-If you need to invoke them, use the project-local paths:
-
-```bash
-FLUTTER=./.flutter/bin/flutter
-JAVA_HOME=./.jdk
-ANDROID_HOME=./.android-sdk
-```
-
-`android/local.properties` already points at the in-project SDK locations:
+`android/local.properties` is machine-specific and not committed. On this
+machine it holds:
 
 ```
-flutter.sdk=D:\\VSCODE\\Blockchain Olympiad\\lamp-flutter\\.flutter
-sdk.dir=D:/VSCODE/Blockchain Olympiad/lamp-flutter/.android-sdk
+flutter.sdk=C:\Users\16IRL8\flutter
+sdk.dir=C:\Users\16IRL8\AppData\Local\Android\sdk
 ```
 
-## One-time configuration that already happened
+`flutter doctor` finds the JDK through Android Studio, so no `JAVA_HOME` is
+needed.
 
-```bash
-./.flutter/bin/flutter config --android-studio-dir=     # cleared (was bogus "none")
-yes | sdkmanager --licenses                              # accepted (10 packages)
-sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
-```
-
-The `--jdk-dir` config setting was problematic — passing the path through
-`flutter config` got the bash sandbox to choke on the space in `D:\VSCODE\...`.
-Set `JAVA_HOME` inline instead and leave `flutter config --jdk-dir` empty.
+**The earlier machine** (`D:\VSCODE\Blockchain Olympiad\lamp-flutter`, Flutter
+3.47) had the SDKs copied into the project as `.flutter/`, `.jdk/` and
+`.android-sdk/`, and needed an absolute Windows-style `JAVA_HOME` for Gradle. If
+you work there, those paths still apply; they don't exist on this machine.
 
 ## How to run
 
-### Static analysis
-
 ```bash
-cd "D:/VSCODE/Blockchain Olympiad/lamp-flutter"
-JAVA_HOME=./.jdk ./$FLUTTER_BIN/flutter analyze
+flutter analyze        # must be clean
+flutter test           # 152 tests, all passing (breakdown under "Tests reference")
+flutter run -d chrome  # quick smoke test in a browser
 ```
 
-Must be clean. Currently is.
+### On a phone (wireless debugging)
 
-### Tests (unit + widget + layout)
+The test phone is a Samsung SM-S721B connected over **wireless debugging**. It
+shows up in `flutter devices` as `SM S721B (wireless)`. It drops off whenever
+the phone's Wi-Fi sleeps; re-enable *Developer options → Wireless debugging*
+and it reappears.
 
-```bash
-JAVA_HOME=./.jdk ./$FLUTTER_BIN/flutter test
-```
-
-133 total, all passing: 24 chaincode, 20 world/query, 11 UI flow, 78 layout.
-
-### Run on Chrome for quick smoke-testing
+`flutter run` sometimes loses the connection during install over Wi-Fi. What
+works reliably is to install with adb, launch the app, and attach:
 
 ```bash
-JAVA_HOME=./.jdk ./$FLUTTER_BIN/flutter run -d chrome
+flutter build apk --debug
+adb install -r build/app/outputs/flutter-apk/app-debug.apk
+adb shell am start -n com.lamp.bcolbd.lamp_flutter/.MainActivity
+flutter attach -d <device id from flutter devices>
 ```
 
-### Build a release APK (for sideloading to a phone)
+Screenshots from the phone: `adb exec-out screencap -p > shot.png`.
 
-**`JAVA_HOME` has to be absolute here, and Windows-style.** The relative
-`./.jdk` that works for `analyze` and `test` never reaches Gradle, which
-forks its own daemon with its own working directory and reports
-`JAVA_HOME is set to an invalid directory: ./.jdk`. The space in the path is
-fine as long as the value is quoted.
+### Release APK (for sideloading)
 
 ```bash
-cd "D:/VSCODE/Blockchain Olympiad/lamp-flutter"
-JAVA_HOME='D:\VSCODE\Blockchain Olympiad\lamp-flutter\.jdk' \
-ANDROID_HOME='D:\VSCODE\Blockchain Olympiad\lamp-flutter\.android-sdk' \
-ANDROID_SDK_ROOT='D:\VSCODE\Blockchain Olympiad\lamp-flutter\.android-sdk' \
-  ./.flutter/bin/flutter build apk --release --android-skip-build-dependency-validation
+flutter build apk --release
 ```
 
-Output: `build/app/outputs/flutter-apk/app-release.apk` (~70 MB).
+Output: `build/app/outputs/flutter-apk/app-release.apk`. It's signed with the
+debug keystore (`android/app/build.gradle.kts`) for sideload convenience;
+replace that with a real signing config for the Play Store. A release build
+hides the testing tools (`kDemoTools`, see the design section).
 
-Piping the build through `tail` swallows Gradle's exit code, so check for
-the `Built build\app\outputs...` line rather than trusting `$?`.
+Piping the build through `tail` swallows Gradle's exit code, so check for the
+`Built build\app\outputs...` line rather than trusting `$?`.
 
-The APK is signed with the debug keystore (`android/app/build.gradle.kts` is
-configured this way for sideload convenience). For Play Store, replace with a
-real signing config.
+### Launcher icons
+
+Masters are in `assets/app_icon/` (not bundled). Regenerate with
+`dart run flutter_launcher_icons`, then **revert**
+`ios/Runner.xcodeproj/project.pbxproj`, which the tool corrupts
+(`…SWIFT_ASSET_SYMBOL_EXTENSIONS = AppIcon`). The web icons are copied from the
+masters by hand.
 
 ## Non-obvious build knobs (and why)
 
 These are the things that took the most time to figure out. Do not "simplify"
-them without understanding the failure mode:
+them without understanding the failure mode. They were found on the earlier
+D:-drive machine with Flutter 3.47; on this machine (Flutter 3.35.7) the
+current settings build without `--android-skip-build-dependency-validation`,
+but leave the other knobs alone.
 
 ### 1. `kotlin.incremental=false` in `android/gradle.properties`
 
@@ -308,35 +299,40 @@ other's membership test.
 - **`core/state/theme_controller.dart`** — `cycle()` captures the starting
   mode before mutation, so two rapid taps no longer advance two steps.
 
-## How to test the demo (manual, on a phone or in Chrome)
+## How to test by hand (on the phone)
 
-The five reported defects, in the order they were reported:
+The app opens on **Sign in**. Pick an account and set a 4-digit PIN the first
+time (on the test phone, Kamrul Hasan's PIN is 1234). In a debug build the
+"⋯" menu has **Switch account** (no PIN) and **Demo controls** (move the clock,
+reset the world) for walking the whole flow on one phone.
 
-1. **Pharmacy, at demo start** — no **Pay now**. The hero consignment is
-   CREATED, so the card reads "Payable once the delivery is confirmed on the
-   ledger."
-2. **MPO → Route** — three stops, not one. Tap one to select it; its manifest
-   opens beneath.
-3. **MPO → Sign, before scanning** — the submit button is disabled and says
-   "Scan all N cartons before signing".
-4. **MPO → Scan → Auto Cascade**, then **Sign** — the gate opens. Sign, and the
-   stop leaves the route; the next one becomes stop 1.
-5. **Bank** — the consignment appears under *Awaiting dispute window*. Advance
-   the clock 24h from the demo director; it moves to *Eligible*. Finance it; it
-   moves to *Recently financed*, with no Finance button.
-6. **Pharmacy** — still **Pay now**, because financing does not discharge the
-   debt. Pay it: it leaves "Due now", appears under Recent deliveries, and the
-   credit ring gains a cycle.
-7. **Manufacturer → Mint** — the new invoice appears on the MPO's route and on
-   the manufacturer's book. Before this pass it appeared nowhere.
+1. **Pharmacy (Abdur Rahman)**: no pay button at the start. The hero invoice is
+   issued but not delivered, so the card reads "You can pay once the delivery is
+   confirmed."
+2. **Delivery officer (Kamrul Hasan) → Route**: stop 1 is open, and the other
+   stops are listed under "Next". Tap one to open it.
+3. **→ Sign, before scanning**: the button is disabled and says "Scan all N
+   cartons before signing".
+4. **→ Scan → Scan all**, then **Sign**: the gate opens. Sign, and the stop
+   leaves the route.
+5. **Bank (Meghna)**: the invoice appears under *Dispute window open*. Move the
+   clock +24h from Demo controls and it moves to *Ready to finance*. Finance
+   it and it moves to *Recently financed*, with no button.
+6. **Pharmacy**: still **Pay ৳…**, because financing doesn't discharge the
+   debt. Pay it: it leaves "Due now", appears under Recent, and the credit ring
+   gains a cycle.
+7. **Manufacturer → New invoice**: the new invoice appears on the officer's
+   route and in the manufacturer's book.
 
-Still worth checking by hand:
+Also worth checking:
 
-- Carton 14 of the hero consignment is the planted misroute; the cascade submits
-  a foreign payload and the chaincode refuses it for real.
-- Theme toggle cycles Light → Dark → System without skipping.
+- Carton 14 of the hero consignment is the planted wrong carton (debug builds
+  only). "Scan next" presents a foreign code there and the ledger refuses it;
+  the refusal shows on the carton's row, and in the Regulator seat as an open
+  flag.
+- The theme toggle cycles Light → Dark → Seat default without skipping.
 - Kill the app right after launch on a populated store; relaunch shows the same
-  blocks.
+  records and the same signed-in account.
 
 ## Tests reference
 
@@ -357,19 +353,27 @@ seven tokens, unique carton hashes), the predicates every screen filters on,
 the 90% confirmation threshold, the MPO route dropping a signed-for stop, and
 minting reaching both the route and the book.
 
-`test/flows_test.dart` — 11 tests: the five reported defects asserted on screen
+`test/flows_test.dart` — 12 tests: the five reported defects asserted on screen,
+plus a second pharmacy seeing only its own invoices,
 at 360x800, rather than in the model. If one of these fails, a user can see it.
 
-`test/layout_test.dart` (78 tests): golden-style layout tests for every screen
-at multiple device sizes (iPhone SE, iPhone 15 Pro, Android 360×800) in both
-light and dark mode. These guard against overflow regressions.
+`test/layout_test.dart` (54 tests): layout checks for sign-in and every seat,
+on every tab, at three device sizes (iPhone SE, iPhone 15 Pro, Android
+360×800) in light and dark. These guard against overflow regressions.
 
 `test/design_lint_test.dart` (7 tests): fails on raw colours, inline font
 sizes, bold, raw `TextStyle(`, inline `fontFamily` and `brightness ==`
 branches in `lib/features` and `lib/widgets`. See `docs/DESIGN_SYSTEM.md`.
 
-`test/widget_test.dart` (a few tests): persona launcher smoke test and
-back-button behavior.
+`test/widget_test.dart` (4 tests): sign-in lists every account, the first
+sign-in sets a PIN and opens the account's own seat, a wrong PIN doesn't sign
+in, and a fast load never flashes the splash.
+
+`test/palette_test.dart` (21 tests, one per widget file): no screen reads a
+fixed world palette. `test/luma_design_test.dart` (10 tests): the Luma
+widgets.
+
+Total: 152.
 
 ## If you break something
 

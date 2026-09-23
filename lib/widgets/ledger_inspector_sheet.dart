@@ -10,7 +10,9 @@ import '../core/constants/typography.dart';
 import 'ui/lamp_ledger_ui.dart';
 import 'ui/lamp_ui.dart';
 
-class LedgerInspectorSheet extends StatelessWidget {
+/// Every record on the ledger, newest first, in plain words — filterable to
+/// what was recorded, what was refused, and what carries private data.
+class LedgerInspectorSheet extends StatefulWidget {
   const LedgerInspectorSheet({super.key});
 
   static void show(BuildContext context) {
@@ -19,6 +21,33 @@ class LedgerInspectorSheet extends StatelessWidget {
       builder: (_) => const LedgerInspectorSheet(),
     );
   }
+
+  @override
+  State<LedgerInspectorSheet> createState() => _LedgerInspectorSheetState();
+}
+
+/// Which records the list shows.
+enum _Filter {
+  all('All'),
+  recorded('Recorded'),
+  refused('Refused'),
+  private('Private');
+
+  final String label;
+  const _Filter(this.label);
+
+  bool matches(ChainTx tx) => switch (this) {
+        _Filter.all => true,
+        _Filter.recorded => tx.status == TxStatus.valid,
+        _Filter.refused => tx.status != TxStatus.valid,
+        // Records whose details are withheld from everyone but the parties —
+        // an invoice's line items, for instance.
+        _Filter.private => tx.privateWrites.isNotEmpty,
+      };
+}
+
+class _LedgerInspectorSheetState extends State<LedgerInspectorSheet> {
+  _Filter _filter = _Filter.all;
 
   /// Which invoice a record is about, when it names one.
   static String? _invoiceFor(LaMPState state, ChainTx tx) {
@@ -30,22 +59,49 @@ class LedgerInspectorSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = context.watch<LaMPState>();
-    final txs = state.txs.reversed.toList();
-    final refused = txs.where((t) => t.status != TxStatus.valid).length;
+    final all = state.txs.reversed.toList();
+    final refused = all.where((t) => t.status != TxStatus.valid).length;
+    final txs = all.where(_filter.matches).toList();
 
     return LumaSheetShell(
       title: 'Ledger',
       subtitle: refused == 0
-          ? '${txs.length} records'
-          : '${txs.length} records · $refused refused',
+          ? '${all.length} records'
+          : '${all.length} records · $refused refused',
       child: Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.lg, 0),
+            child: SizedBox(
+              width: double.infinity,
+              child: SegmentedButton<_Filter>(
+                segments: [
+                  for (final f in _Filter.values)
+                    ButtonSegment(
+                      value: f,
+                      // Counts are in the subtitle; in the segments they made
+                      // one label shrink to fit and the row read unevenly.
+                      label: FittedBox(fit: BoxFit.scaleDown, child: Text(f.label)),
+                    ),
+                ],
+                selected: {_filter},
+                showSelectedIcon: false,
+                onSelectionChanged: (s) => setState(() => _filter = s.first),
+              ),
+            ),
+          ),
           Expanded(
             child: txs.isEmpty
-                ? const LampEmpty(
+                ? LampEmpty(
                     icon: Icons.receipt_long_outlined,
-                    title: 'Nothing recorded yet',
-                    message: 'Records appear here as soon as anything is written.',
+                    title: all.isEmpty ? 'Nothing recorded yet' : 'Nothing here',
+                    message: all.isEmpty
+                        ? 'Records appear here as soon as anything is written.'
+                        : switch (_filter) {
+                            _Filter.refused => 'The ledger has refused nothing.',
+                            _Filter.private => 'No record carries private details.',
+                            _ => 'No records match.',
+                          },
                   )
                 : ListView.separated(
                     padding: const EdgeInsets.all(Gap.lg),

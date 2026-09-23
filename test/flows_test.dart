@@ -166,6 +166,33 @@ void main() {
     });
   });
 
+  group('Signed-in seat', () {
+    testWidgets("a second pharmacy sees its own invoices, not the first one's",
+        (tester) async {
+      final probe = LaMPState();
+      await tester.runAsync(() async {
+        while (!probe.isInitialized) {
+          await Future<void>.delayed(const Duration(milliseconds: 20));
+        }
+      });
+      // Any pharmacy other than the first that owes something.
+      final other = SeedData.pharmacies.skip(1).firstWhere(
+            (p) => probe.openForPharmacy(p.did).isNotEmpty,
+          );
+
+      final state = await _pump(
+        tester,
+        () => PharmacyScreen(pharmacyDid: other.did),
+      );
+      final own = state.openForPharmacy(other.did).first.token.invoiceId;
+      final first = state.openForPharmacy(SeedData.pharmacies[0].did).first.token.invoiceId;
+
+      expect(find.text(other.name), findsOneWidget);
+      expect(find.text(own), findsWidgets);
+      expect(find.text(first), findsNothing);
+    });
+  });
+
   group('Bank', () {
     testWidgets('a financed receivable leaves the financing queue (report #3)',
         (tester) async {

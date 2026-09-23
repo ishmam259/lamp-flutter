@@ -216,8 +216,8 @@ class _MainShellState extends State<MainShell> {
       key: ValueKey('app-${account?.id}'),
       child: switch (account?.seat) {
         null => const SignInScreen(),
-        PersonaId.mpo => const MpoScreen(),
-        PersonaId.pharmacy => const PharmacyScreen(),
+        PersonaId.mpo => MpoScreen(mpoId: account!.mpoId),
+        PersonaId.pharmacy => PharmacyScreen(pharmacyDid: account!.pharmacyDid),
         PersonaId.manufacturer => const ManufacturerScreen(),
         PersonaId.bank => BankScreen(initialBank: account!.bank),
         PersonaId.regulator => const RegulatorScreen(),

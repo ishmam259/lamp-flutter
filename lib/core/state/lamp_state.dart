@@ -305,6 +305,18 @@ class LaMPState extends ChangeNotifier {
     return out;
   }
 
+  /// The delivery officer for a pharmacy: whoever covers its territory.
+  String _officerFor(String pharmacyDid) {
+    String? territory;
+    for (final p in SeedData.pharmacies) {
+      if (p.did == pharmacyDid) territory = p.territory;
+    }
+    for (final m in SeedData.mpos) {
+      if (m.territory == territory) return m.id;
+    }
+    return SeedData.mpos.first.id;
+  }
+
   Future<CreditHistory?> fetchCredit(String did) async {
     final raw = await ledger.readWorld('credit:$did');
     if (raw == null) return creditHistory;
@@ -496,10 +508,13 @@ class LaMPState extends ChangeNotifier {
       nowTimestamp: clock.now,
     );
 
-    // Refresh credit history cache
-    final updated = await fetchCredit(SeedData.pharmacies[0].did);
-    if (updated != null) {
-      creditHistory = updated;
+    // Refresh the cached history only when it is this buyer's. Screens read
+    // each pharmacy's own record through `creditFor`; the cache is the first
+    // pharmacy's, and overwriting it with another buyer's would mix the two.
+    final buyer = viewFor(tokenId)?.token.buyerDid;
+    if (buyer != null && buyer == creditHistory?.pharmacyDid) {
+      final updated = await fetchCredit(buyer);
+      if (updated != null) creditHistory = updated;
     }
 
     // Re-read the token so screens that filter on state (pharmacy "Due now",
@@ -659,7 +674,9 @@ class LaMPState extends ChangeNotifier {
         id: 'del-00$invoiceNum',
         invoiceId: invoiceId,
         tokenId: tokenId,
-        mpoId: SeedData.mpos[0].id,
+        // The officer who covers the pharmacy's territory, so a new invoice
+        // lands on the right round. The first officer covers anywhere else.
+        mpoId: _officerFor(pharmacyDid),
         pharmacyDid: pharmacyDid,
         status: DeliveryStatus.pending,
         sequence: deliveries.length + 1,

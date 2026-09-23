@@ -24,6 +24,12 @@ class Account {
   /// For a bank account, which bank's desk the Financing seat opens on.
   final Msp? bank;
 
+  /// For a pharmacy account, which pharmacy the seat shows.
+  final String? pharmacyDid;
+
+  /// For a delivery officer, whose round the seat shows.
+  final String? mpoId;
+
   const Account({
     required this.id,
     required this.name,
@@ -31,6 +37,8 @@ class Account {
     required this.role,
     required this.seat,
     this.bank,
+    this.pharmacyDid,
+    this.mpoId,
   });
 
   /// Field seats run on a phone at a pharmacy door; desk seats at a desk.
@@ -38,21 +46,28 @@ class Account {
 }
 
 class Accounts {
+  /// Every officer and every pharmacy the world is seeded with, then the
+  /// desks. Each field account carries the id its seat reads, so a second
+  /// pharmacy sees its own invoices and credit, not the first one's.
   static final List<Account> all = [
-    Account(
-      id: SeedData.mpos[0].id,
-      name: SeedData.mpos[0].name,
-      org: SeedData.manufacturer.name,
-      role: 'Delivery officer · ${SeedData.mpos[0].territory}',
-      seat: PersonaId.mpo,
-    ),
-    Account(
-      id: 'pharmacy-${SeedData.pharmacies[0].did.split(':').last}',
-      name: SeedData.pharmacies[0].ownerName,
-      org: SeedData.pharmacies[0].name,
-      role: 'Pharmacy owner · ${SeedData.pharmacies[0].territory}',
-      seat: PersonaId.pharmacy,
-    ),
+    for (final m in SeedData.mpos)
+      Account(
+        id: m.id,
+        name: m.name,
+        org: SeedData.manufacturer.name,
+        role: 'Delivery officer · ${m.territory}',
+        seat: PersonaId.mpo,
+        mpoId: m.id,
+      ),
+    for (final p in SeedData.pharmacies)
+      Account(
+        id: 'pharmacy-${p.did.split(':').last}',
+        name: p.ownerName,
+        org: p.name,
+        role: 'Pharmacy owner · ${p.territory}',
+        seat: PersonaId.pharmacy,
+        pharmacyDid: p.did,
+      ),
     Account(
       id: 'mfr-shomota',
       name: 'Receivables desk',
