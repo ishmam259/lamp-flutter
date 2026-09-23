@@ -661,10 +661,12 @@ class _BankScreenState extends State<BankScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: _price(context, 'Advanced to date',
+                    child: _price(context, 'Advanced',
                         LaMPFormatters.formatBDTCompact(advanced)),
                   ),
+                  const SizedBox(width: Gap.md),
                   Expanded(child: _price(context, 'Repaid', '$repaid of ${ours.length}')),
+                  const SizedBox(width: Gap.md),
                   Expanded(
                     child: _price(context, 'Defaults', '$defaults', end: true),
                   ),

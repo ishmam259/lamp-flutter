@@ -656,7 +656,7 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
                 ),
                 const SizedBox(width: Gap.sm),
                 Text(
-                  LaMPFormatters.formatBDTCompact(cycle.value),
+                  LaMPFormatters.formatBDT(cycle.value),
                   style: LaMPType.monoCaption.copyWith(color: c.ink),
                 ),
               ],
@@ -757,11 +757,11 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
 
         const LampEyebrow('Pay with'),
         const SizedBox(height: Gap.md),
-        _payOption('bKash', 'Instant', LaMPColors.bKash),
+        _payOption(context, 'bKash', 'Instant', LaMPColors.bKash),
         const SizedBox(height: Gap.sm),
-        _payOption('Nagad', 'Instant', LaMPColors.nagad),
+        _payOption(context, 'Nagad', 'Instant', LaMPColors.nagad),
         const SizedBox(height: Gap.sm),
-        _payOption('Bank transfer', 'Next business day', c.brand),
+        _payOption(context, 'Bank transfer', 'Next business day', c.brand),
 
         const SizedBox(height: Gap.xl),
         SizedBox(
@@ -779,7 +779,11 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
     );
   }
 
-  Widget _payOption(String name, String speed, Color accent) {
+  /// Takes the build context under this seat's Theme. It read the State's
+  /// own context, which sits above that Theme — so in the light field theme
+  /// it drew the dark palette's near-white ink on a white card, and the
+  /// payment names were invisible.
+  Widget _payOption(BuildContext context, String name, String speed, Color accent) {
     final c = context.lamp;
     final selected = _payMethod == name;
 

@@ -101,7 +101,7 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> {
       extendBody: true,
       appBar: LumaAppBar(
         title: Msp.manufacturerMSP.shortName,
-        subtitle: 'Receivables · ${SeedData.manufacturer.depot}',
+        subtitle: SeedData.manufacturer.depot,
         actions: [
           LampBlockPip(onTap: () => LedgerInspectorSheet.show(context)),
           const LampSeatMenu(),
@@ -595,8 +595,7 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> {
         else ...[
           LampEyebrow(
             'On the road',
-            trailing: '${inTransit.length} '
-                '${inTransit.length == 1 ? 'consignment' : 'consignments'}',
+            trailing: '${inTransit.length}',
           ),
           const SizedBox(height: Gap.md),
           for (final v in inTransit) ...[

@@ -624,6 +624,10 @@ class _MpoScreenState extends State<MpoScreen> {
                       ],
                     ),
                   ),
+                  // Testing only: simulates losing signal so the offline
+                  // queue can be exercised. A real device's connectivity is
+                  // not something to toggle by hand.
+                  if (kDemoTools) ...[
                   Text(
                     _offlineMode ? 'OFFLINE' : 'ONLINE',
                     style: LaMPType.label.copyWith(
@@ -640,6 +644,7 @@ class _MpoScreenState extends State<MpoScreen> {
                       }
                     },
                   ),
+                  ],
                 ],
               ),
               const SizedBox(height: Gap.md),

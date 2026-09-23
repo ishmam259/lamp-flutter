@@ -91,7 +91,7 @@ class _SignaturePadState extends State<SignaturePad> {
                 visualDensity: VisualDensity.compact,
                 padding: const EdgeInsets.symmetric(horizontal: 8),
               ),
-              child: Text('Clear Signature', style: LaMPType.caption),
+              child: const Text('Clear'),
             ),
           ],
         ),

@@ -46,10 +46,12 @@ class LampApi {
     );
   }
 
-  /// The ledger's height: a small read, polled to know when to read [state].
+  /// The ledger's height, polled to know when to read [state]. The server
+  /// answers it from a small row of its own, so polling does not pull the
+  /// ledger out of its database each time.
   Future<int> height() async {
     final res = await _http
-        .get(Uri.parse('$baseUrl/api/chain/txs?limit=1'))
+        .get(Uri.parse('$baseUrl/api/mobile/height'))
         .timeout(_timeout);
     if (res.statusCode != 200) {
       throw LampApiException('The server answered ${res.statusCode}.');

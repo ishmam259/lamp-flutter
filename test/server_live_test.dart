@@ -45,7 +45,7 @@ void main() {
     expect(officer.getDelivery('RCV-00235')!.cartons.first.scannedAt, isNotNull);
 
     // The other phone sees it at its next poll.
-    await until(() => bank.viewFor('RCV-00235')?.token.scanned == 1, seconds: 10);
+    await until(() => bank.viewFor('RCV-00235')?.token.scanned == 1, seconds: 25);
 
     final foreign = await officer.scanCarton(
       'RCV-00235',

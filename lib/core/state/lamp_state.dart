@@ -169,7 +169,10 @@ class LaMPState extends ChangeNotifier {
 
   Timer? _pollTimer;
   bool _pulling = false;
-  static const Duration _pollEvery = Duration(seconds: 3);
+  /// How often to ask whether the ledger moved. Someone else's write shows up
+  /// within this long; the phone's own writes show at once, since each one is
+  /// followed by a read.
+  static const Duration _pollEvery = Duration(seconds: 10);
 
   LaMPState({LampApi? api}) : api = api ?? LampApi.configured() {
     initWorld();
