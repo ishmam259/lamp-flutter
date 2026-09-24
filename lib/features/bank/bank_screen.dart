@@ -13,6 +13,7 @@ import '../../widgets/ledger_inspector_sheet.dart';
 import '../../widgets/recourse_dial.dart';
 import '../../widgets/ui/lamp_ui.dart';
 import '../../widgets/lamp_mark.dart';
+import 'verify_anchor_sheet.dart';
 import '../../core/constants/typography.dart';
 
 class BankScreen extends StatefulWidget {
@@ -372,13 +373,20 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
     final confirmed = ratio >= LaMPContract.confirmationThreshold;
     final windowClosed = token.disputeWindowClosed(now);
     final notFinanced = token.financing == null;
+    final documentAnchored = token.documentHash != null;
     final remaining = token.millisUntilWindowCloses(now);
 
     final advanceAmount = band == null
         ? 0.0
         : (token.declaredValue * band.advanceRatePct / 100.0).roundToDouble();
 
-    final canFinance = eligible && band != null && !_isAdvancing;
+    // The Finance button is gated on documentHash being set — the chaincode
+    // refuses an advance without an anchored PDF, so the UI must surface the
+    // same precondition or the button would appear enabled and silently throw.
+    final canFinance = eligible &&
+        band != null &&
+        documentAnchored &&
+        !_isAdvancing;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -475,6 +483,15 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
                 ? 'Window closed'
                 : 'Closes in ${LaMPFormatters.formatDuration(remaining)}',
             isPassed: windowClosed,
+          ),
+          _checkItem(
+            context,
+            label: 'Invoice document anchored',
+            detail: documentAnchored
+                ? 'SHA-256 ${token.documentHash!.substring(0, 12)}… '
+                    '(${token.documentByteLength ?? 0} bytes)'
+                : 'Run "Verify & download PDF" to anchor.',
+            isPassed: documentAnchored,
           ),
 
           const SizedBox(height: 20),
@@ -573,7 +590,58 @@ class _BankScreenState extends State<BankScreen> with SingleTickerProviderStateM
               style: TextStyle(fontSize: 11, color: c.inkFaint),
             ),
           ],
+
+          const SizedBox(height: 12),
+          // Anchored-PDF verify / download affordance. Opens the modal sheet
+          // that walks the financier through pick → hash → match verdict →
+          // optional anchor → download. Available regardless of `eligible` so
+          // the bank can pre-anchor before the dispute window closes.
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              key: ValueKey('verify-pdf-${token.tokenId}'),
+              icon: const Icon(Icons.verified_outlined, size: 16),
+              label: Text(
+                token.documentHash == null
+                    ? 'Verify & download PDF'
+                    : 'Re-verify & download PDF',
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: c.brand,
+                side: BorderSide(color: c.lineStrong),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+              ),
+              onPressed: () => _openVerifySheet(state, token.tokenId),
+            ),
+          ),
         ],
+      ),
+    );
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Verify / Anchor / Download sheet                                        */
+  /* ---------------------------------------------------------------------- */
+
+  /// Open the verify modal bottom sheet for the given token.
+  ///
+  /// The sheet hosts the file picker, the SHA-256 comparison verdict, the
+  /// optional anchor-on-channel button, and the share-sheet download. Stays
+  /// modal so the financier can't finance from behind it; dismissal returns
+  /// to the opportunity card with the new `documentHash` already populated.
+  void _openVerifySheet(LaMPState state, String tokenId) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: context.lamp.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (sheetContext) => VerifyAndAnchorSheet(
+        state: state,
+        tokenId: tokenId,
+        activeBank: _activeBank,
       ),
     );
   }

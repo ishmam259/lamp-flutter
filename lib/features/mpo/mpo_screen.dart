@@ -30,20 +30,9 @@ class MpoScreen extends StatefulWidget {
 }
 
 class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMixin {
-  /// A carton belonging to no consignment in this world.
-  ///
-  /// The scan cascade substitutes this at position 14, and the same payload is
-  /// offered as a scannable code so the camera path can be refused too. It has
-  /// to be one string: two literals that drifted apart would leave the camera
-  /// demo quietly accepting what the tap demo refuses.
-  static const String _misroutedGs1 =
-      '(01)08901234001019(17)280824(10)BCH-FOREIGN(21)SN-9999';
-
   late TabController _tabController;
   bool _offlineMode = false;
   final List<String> _offlineQueue = [];
-  bool _autoScanning = false;
-  Timer? _autoTimer;
   String? _scanBannerError;
   bool _hasSignature = false;
 
@@ -83,7 +72,6 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
 
   @override
   void dispose() {
-    _autoTimer?.cancel();
     _tabController.dispose();
     super.dispose();
   }
@@ -442,22 +430,31 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
             // spaceBetween they claimed their natural widths and
             // overflowed a 360dp phone by 62 pixels; LampStat scales
             // its figure down rather than pushing its neighbours off.
+            // Widths follow the text (9 / 4 / 10 characters) so the
+            // invoice number is not squeezed against the carton count,
+            // and a gap keeps a scaled-to-fit figure off its neighbour.
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
+                  flex: 9,
                   child: LampStat(label: 'Invoice', value: token.invoiceId),
                 ),
+                const SizedBox(width: 12),
                 Expanded(
+                  flex: 5,
                   child: LampStat(
                     label: 'Cartons',
                     value: '$scanned/$declared',
                   ),
                 ),
+                const SizedBox(width: 12),
                 Expanded(
+                  flex: 10,
                   child: LampStat(
                     label: 'Value',
                     value: LaMPFormatters.formatBDT(token.declaredValue),
+                    align: CrossAxisAlignment.end,
                   ),
                 ),
               ],
@@ -530,7 +527,10 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                 for (final line in view.invoice!.lineItems)
                   _manifestRow(
                     context,
-                    '${line.name} ${line.strength} (${line.sku})',
+                    // The SKU code made the name wrap onto a second line and
+                    // pushed the counts around; the name and strength are
+                    // enough to identify the line on the manifest.
+                    '${line.name} ${line.strength}...',
                     '${line.cartons} cartons',
                     '${LaMPFormatters.formatBDTPlain(line.quantity)} units',
                   ),
@@ -549,7 +549,12 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Expanded(
-            child: Text(name, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+            child: Text(
+              name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+            ),
           ),
           Text(cartons, style: const TextStyle(fontSize: 12, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, fontWeight: FontWeight.bold)),
           const SizedBox(width: 8),
@@ -700,9 +705,10 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                   Expanded(
                     child: cameraScanningSupported
                         ? OutlinedButton.icon(
-                            onPressed: () => _scanNextCarton(state, delivery),
-                            icon: const Icon(Icons.touch_app_outlined, size: 18),
-                            label: const Text('Scan Next Carton'),
+                            onPressed: () =>
+                                _openCameraScanner(state, delivery),
+                            icon: const Icon(Icons.qr_code_scanner, size: 18),
+                            label: const Text('Open camera scanner'),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: c.brand,
                               side: BorderSide(color: c.brand),
@@ -710,9 +716,10 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                             ),
                           )
                         : ElevatedButton.icon(
-                            onPressed: () => _scanNextCarton(state, delivery),
-                            icon: const Icon(Icons.touch_app_outlined, size: 18),
-                            label: const Text('Scan Next Carton'),
+                            onPressed: () =>
+                                _openCameraScanner(state, delivery),
+                            icon: const Icon(Icons.qr_code_scanner, size: 18),
+                            label: const Text('Open camera scanner'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: c.brand,
                               foregroundColor: c.onBrand,
@@ -722,21 +729,6 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                               ),
                             ),
                           ),
-                  ),
-                  const SizedBox(width: 8),
-                  OutlinedButton(
-                    onPressed: () => _toggleAutoScan(state, delivery),
-                    style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: _autoScanning ? c.dispute : c.brand),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                    ),
-                    child: Text(
-                      _autoScanning ? 'Stop Auto' : 'Auto Cascade',
-                      style: TextStyle(
-                        color: _autoScanning ? c.dispute : c.brand,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
                   ),
                 ],
               ),
@@ -753,7 +745,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
               ],
               const SizedBox(height: 16),
 
-              // List of 25 Cartons
+              // The consignment's cartons
               Text(
                 'Cartons',
                 style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: c.ink),
@@ -768,7 +760,11 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                   final carton = delivery.cartons[i];
                   final isScanned = carton.scannedAt != null;
                   final isRejected = carton.rejected == true;
-                  final isPlant = (i == 13); // Carton 14 (0-indexed 13)
+                  // Carton 14 (index 13) on a full-size consignment. A short
+                  // one, like the 5-carton hero, has no index 13, so the
+                  // marker goes midway instead of vanishing.
+                  final isPlant =
+                      i == (delivery.cartons.length > 13 ? 13 : delivery.cartons.length ~/ 2);
 
                   return Container(
                     padding: const EdgeInsets.all(8),
@@ -867,9 +863,6 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
   /// against the manifest first — so a carton from another invoice is refused
   /// by `recordPoD`'s own membership test, on camera, for real.
   Future<void> _openCameraScanner(LaMPState state, Delivery delivery) async {
-    _autoTimer?.cancel();
-    if (_autoScanning) setState(() => _autoScanning = false);
-
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         fullscreenDialog: true,
@@ -885,22 +878,28 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
             );
 
             if (!res.ok) {
+              // A refused payload is still useful to identify — show the
+              // foreign carton's id/sku so the operator can tell it apart
+              // from a transient glitch.
               return CartonScanResult(
                 accepted: false,
                 message: res.error ??
                     'Chaincode refused this carton for ${delivery.invoiceId}.',
+                matched: SeedData.foreignCarton(),
               );
             }
 
             final hash = LaMPCrypto.sha256Hex(payload);
             final match = delivery.cartons.where((c) => c.hash == hash);
-            final label = match.isEmpty ? 'Carton' : match.first.cartonId;
+            final carton = match.isEmpty ? null : match.first;
+            final label = carton?.cartonId ?? 'Carton';
             final done =
                 delivery.cartons.where((c) => c.scannedAt != null).length;
 
             return CartonScanResult(
               accepted: true,
               message: '$label recorded — $done of ${delivery.cartons.length}',
+              matched: carton,
             );
           },
         ),
@@ -932,7 +931,7 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
                 style: TextStyle(fontSize: 12, height: 1.4, color: c.inkMuted),
               ),
               const SizedBox(height: 12),
-              const CartonCodeView(gs1: _misroutedGs1, size: 200),
+              const CartonCodeView(gs1: SeedData.foreignCartonGs1, size: 200),
             ],
           ),
         ),
@@ -972,101 +971,6 @@ class _MpoScreenState extends State<MpoScreen> with SingleTickerProviderStateMix
         ],
       ),
     );
-  }
-
-  /// The next carton still to be handed over on this consignment.
-  ///
-  /// A carton sitting in the offline queue counts as taken. Without that the
-  /// cascade re-queued the same carton every tick, because a queued scan is
-  /// deliberately not marked on the row until the chaincode accepts the batch.
-  int _nextCartonIndex(Delivery delivery) {
-    for (int i = 0; i < delivery.cartons.length; i++) {
-      final carton = delivery.cartons[i];
-      if (carton.scannedAt != null) continue;
-      if (_offlineQueue.contains(carton.gs1)) continue;
-      return i;
-    }
-    return -1;
-  }
-
-  void _scanNextCarton(LaMPState state, Delivery delivery) async {
-    final unscannedIndex = _nextCartonIndex(delivery);
-    if (unscannedIndex == -1) {
-      _autoTimer?.cancel();
-      if (mounted) setState(() => _autoScanning = false);
-      return;
-    }
-
-    final targetCarton = delivery.cartons[unscannedIndex];
-
-    // Check if this is the planted foreign carton (#14 -> index 13)
-    // On the real demo, Carton 14 is presented with a foreign payload
-    if (unscannedIndex == 13 && targetCarton.rejected != true) {
-      // Send foreign barcode to trigger genuine chaincode refusal!
-      final res =
-          await state.scanCarton(delivery.tokenId, _misroutedGs1, _me.deviceId);
-      // The refused payload hashes to nothing in this manifest, so
-      // `scanCarton` has no row to mark. Flag the carton the officer was
-      // holding through LaMPState rather than mutating it from inside this
-      // widget's setState, which left every other seat unaware of it.
-      state.markCartonRejected(
-        delivery.tokenId,
-        targetCarton.cartonId,
-        res.error ?? 'Carton does not belong to this invoice.',
-      );
-      if (!mounted) return;
-      setState(() {
-        _scanBannerError =
-            'CHAINCODE REFUSED: Carton does not belong to invoice '
-            '${delivery.invoiceId}. Product rejected!';
-      });
-      return;
-    }
-
-    if (_offlineMode) {
-      // Queued, not recorded. The row is deliberately left unscanned: the
-      // chaincode has not seen this carton yet, and `drainScanQueue` only
-      // marks rows once it accepts the batch. Marking it here made a refused
-      // batch leave every queued carton reading as verified.
-      _offlineQueue.add(targetCarton.gs1);
-      if (!mounted) return;
-      setState(() {});
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Queued · ${_offlineQueue.length} offline'),
-          duration: const Duration(milliseconds: 700),
-        ),
-      );
-    } else {
-      await state.scanCarton(delivery.tokenId, targetCarton.gs1, _me.deviceId);
-    }
-  }
-
-  void _toggleAutoScan(LaMPState state, Delivery delivery) {
-    if (_autoScanning) {
-      _autoTimer?.cancel();
-      setState(() => _autoScanning = false);
-    } else {
-      setState(() => _autoScanning = true);
-      _autoTimer = Timer.periodic(const Duration(milliseconds: 650), (t) {
-        // Re-resolve the stop each tick. The timer used to close over the
-        // delivery captured when the tab was built, so a stop change — or a
-        // world reset — left it cascading through a detached object.
-        final active = _activeStop(state);
-        final current = active?.delivery;
-        if (!mounted || current == null || current.tokenId != delivery.tokenId) {
-          t.cancel();
-          if (mounted) setState(() => _autoScanning = false);
-          return;
-        }
-        if (_nextCartonIndex(current) == -1) {
-          t.cancel();
-          setState(() => _autoScanning = false);
-        } else {
-          _scanNextCarton(state, current);
-        }
-      });
-    }
   }
 
   void _drainQueue(LaMPState state, String tokenId) async {

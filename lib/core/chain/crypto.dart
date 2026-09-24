@@ -1,9 +1,17 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:crypto/crypto.dart' as crypto;
 
 class LaMPCrypto {
   static String sha256Hex(String input) {
     final bytes = utf8.encode(input);
+    final digest = crypto.sha256.convert(bytes);
+    return digest.toString();
+  }
+
+  /// Hash of arbitrary bytes — used for the invoice PDF (and any future
+  /// binary document) where utf-8 encoding the input is wrong.
+  static String sha256HexBytes(Uint8List bytes) {
     final digest = crypto.sha256.convert(bytes);
     return digest.toString();
   }

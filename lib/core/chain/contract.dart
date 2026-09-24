@@ -30,6 +30,7 @@ class ChainKeys {
   static String credit(String did) => 'credit:$did';
   static String curveHash(String curveId) => 'curvehash:$curveId';
   static String financedIndex(String invoiceId) => 'financed:$invoiceId';
+  static String document(String sha256) => 'doc:$sha256';
 }
 
 class LaMPContract {
@@ -295,6 +296,17 @@ class LaMPContract {
       final remainingH = (remainingMs / 3600000).toStringAsFixed(1);
       throw ChaincodeException(
         'Dispute window is still open (${remainingH}h remaining). Financing opens after window closes.',
+      );
+    }
+
+    // Document anchor guard. A financier must verify the bytes they have
+    // against the live ledger before advancing against the receivable. The
+    // anchor fires from the bank identity; until that transaction is on the
+    // channel, `matchAndAdvance` refuses to fire — mirroring the TS Fabric
+    // port at `LaMP/lib/chain/contract.ts:470-473`.
+    if (token.documentHash == null) {
+      throw ChaincodeException(
+        'Receivable $tokenId has no anchored invoice document. Anchor the PDF before financing.',
       );
     }
 
@@ -605,7 +617,106 @@ class LaMPContract {
   }
 
   /* ---------------------------------------------------------------------- */
-  /* 9. confirmReceipt (pharmacy signs to acknowledge delivery)              */
+  /* 9. anchorInvoiceDocument (bank writes the PDF hash to the channel)     */
+  /* ---------------------------------------------------------------------- */
+
+  /// Anchor an invoice PDF (or any document) to a receivable.
+  ///
+  /// The financier hashes the document bytes off-chain, submits the digest,
+  /// byte length, and filename here, and the channel keeps the receipt under
+  /// `ChainKeys.document(sha256)`. Subsequent financiers must produce bytes
+  /// whose SHA-256 matches the digest they see on the channel before
+  /// `matchAndAdvance` will accept their financing.
+  ///
+  /// Bank-submitter only: mirrors the TS Fabric port's
+  /// `anchorInvoiceDocument` and the endorsement policy
+  /// `AND('ManufacturerMSP.peer', OR('MeghnaMSP.peer','PadmaMSP.peer'))`.
+  /// The submitter is the bank; the manufacturer peer co-signs as the issuer
+  /// of the invoice.
+  static Future<Map<String, dynamic>> anchorInvoiceDocument(
+    ChainCtx ctx, {
+    required String tokenId,
+    required String sha256,
+    required int byteLength,
+    required String filename,
+  }) async {
+    final raw = await ctx.get(ChainKeys.token(tokenId));
+    if (raw == null) {
+      throw ChaincodeException('Token $tokenId not found.');
+    }
+    final token = ReceivableToken.fromJson(Map<String, dynamic>.from(raw as Map));
+
+    if (sha256.isEmpty ||
+        sha256.length != 64 ||
+        !RegExp(r'^[0-9a-fA-F]+$').hasMatch(sha256)) {
+      throw ChaincodeException(
+        'anchorInvoiceDocument $tokenId: sha256 must be a 64-char hex string.',
+      );
+    }
+    if (byteLength <= 0) {
+      throw ChaincodeException(
+        'anchorInvoiceDocument $tokenId: byteLength must be positive (got $byteLength).',
+      );
+    }
+    if (filename.isEmpty) {
+      throw ChaincodeException(
+        'anchorInvoiceDocument $tokenId: filename must not be empty.',
+      );
+    }
+
+    // Refuse replacement once anchored. A second bank cannot "re-anchor" with
+    // a different digest; that would let one financier quietly swap the PDF
+    // they expect another to verify against.
+    if (token.documentHash != null &&
+        token.documentHash!.toLowerCase() != sha256.toLowerCase()) {
+      throw ChaincodeException(
+        'anchorInvoiceDocument $tokenId refused: token already anchored to ${token.documentHash!.substring(0, 12)}…',
+      );
+    }
+
+    final normalizedSha = sha256.toLowerCase();
+
+    // Public anchor index — anyone can read which digest belongs to which
+    // token, which is what makes the verify flow honest.
+    await ctx.put(ChainKeys.document(normalizedSha), {
+      'tokenId': tokenId,
+      'invoiceId': token.invoiceId,
+      'sha256': normalizedSha,
+      'byteLength': byteLength,
+      'filename': filename,
+      'anchoredAt': ctx.now,
+      'anchoredBy': ctx.submitter,
+    });
+
+    token.documentHash = normalizedSha;
+    token.documentAnchoredAt = ctx.now;
+    token.documentAnchoredBy = ctx.submitter;
+    token.documentByteLength = byteLength;
+    token.documentFilename = filename;
+    await ctx.put(ChainKeys.token(tokenId), token.toJson());
+
+    ctx.emit('InvoiceDocumentAnchored', {
+      'tokenId': tokenId,
+      'invoiceId': token.invoiceId,
+      'sha256': normalizedSha,
+      'byteLength': byteLength,
+      'filename': filename,
+      'anchoredBy': ctx.submitter,
+    });
+
+    return {
+      'tokenId': tokenId,
+      'invoiceId': token.invoiceId,
+      'sha256': normalizedSha,
+      'byteLength': byteLength,
+      'filename': filename,
+      'anchoredAt': ctx.now,
+      'anchoredBy': ctx.submitter,
+    };
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* 10. confirmReceipt (pharmacy signs to acknowledge delivery)             */
   /* ---------------------------------------------------------------------- */
 
   /// The pharmacy's signature on a delivered consignment.

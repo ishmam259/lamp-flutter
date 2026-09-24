@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
 import '../../core/constants/app_theme.dart';
 import '../../core/constants/palette.dart';
 import '../../core/constants/formatters.dart';
+import '../../core/invoice/invoice_artifacts.dart';
 import '../../core/models/domain_models.dart';
 import '../../core/state/lamp_state.dart';
 import '../../core/world/queries.dart';
@@ -277,18 +281,24 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Wrap(
-                      alignment: WrapAlignment.spaceBetween,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      runSpacing: 4,
+                    // A Row, not a Wrap: inside this start-aligned column a Wrap
+                    // shrinks to its content, so spaceBetween had no slack to
+                    // spread and the channel name sat against the title.
+                    Row(
                       children: [
                         Text(
                           'On the ledger',
                           style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: c.ink),
                         ),
-                        Text(
-                          'lamp-channel',
-                          style: TextStyle(fontSize: 10, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, color: c.inkFaint),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'lamp-channel',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.end,
+                            style: TextStyle(fontSize: 10, fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback, color: c.inkFaint),
+                          ),
                         ),
                       ],
                     ),
@@ -375,6 +385,7 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
           LifecycleRail(
             state: _tokenStateFor(view),
             isFinanced: token.financing != null,
+            isDocumentAnchored: token.documentHash != null,
           ),
 
           const SizedBox(height: 12),
@@ -382,6 +393,15 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
           // straight into each other — "RCV-00235Terms: 45
           // days" — because spaceBetween distributes slack it
           // does not have and clips nothing.
+          // Anchored-invoice-document download affordances. The manufacturer
+          // emits both the QR-codes ZIP and the invoice PDF; the bank anchors
+          // the PDF hash against `token.documentHash`. Both buttons only show
+          // for tokens the manufacturer still owns (CREATED or DELIVERED),
+          // since a SETTLED or FINANCED token no longer needs the artifacts.
+          if (token.state == TokenState.created ||
+              token.state == TokenState.delivered ||
+              token.state == TokenState.partiallyFulfilled)
+            _manufacturerActions(context, token.tokenId),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -417,6 +437,127 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> with SingleTick
         ],
       ),
     );
+  }
+
+  /// Two-button row: "Download QR codes" and "Download invoice PDF".
+  ///
+  /// Each handler renders the artifact, drops the bytes into a temp file via
+  /// `path_provider`, and hands the path to the platform share sheet. The PDF
+  /// path also stages the bytes off-chain via `state.stageInvoicePdf` so the
+  /// bank's later `anchorInvoiceDocument` has something to verify against.
+  /// A snackbar reports progress or failure rather than letting exceptions
+  /// bubble to the framework.
+  Widget _manufacturerActions(BuildContext context, String tokenId) {
+    final c = context.lamp;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Expanded(
+            // Short one-line labels: "Download QR codes" and "Download
+            // invoice PDF" wrapped to two lines each at half a card's width,
+            // leaving the icon stranded beside a ragged pair of words. The
+            // tooltip keeps the full wording.
+            child: Tooltip(
+              message: 'Download QR codes',
+              child: OutlinedButton.icon(
+                key: ValueKey('dl-zip-$tokenId'),
+                icon: const Icon(Icons.qr_code_2, size: 18),
+                label: const Text('QR codes', maxLines: 1),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: c.brand,
+                  side: BorderSide(color: c.lineStrong),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                  textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+                onPressed: () => _downloadQrZip(context, tokenId),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Tooltip(
+              message: 'Download invoice PDF',
+              child: OutlinedButton.icon(
+                key: ValueKey('dl-pdf-$tokenId'),
+                icon: const Icon(Icons.picture_as_pdf, size: 18),
+                label: const Text('Invoice PDF', maxLines: 1),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: c.brand,
+                  side: BorderSide(color: c.lineStrong),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                  textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+                onPressed: () => _downloadInvoicePdf(context, tokenId),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _downloadQrZip(BuildContext context, String tokenId) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final state = context.read<LaMPState>();
+    try {
+      final bytes = await state.generateQrZip(tokenId);
+      final invoice = state.invoices.firstWhere(
+        (inv) => inv.tokenId == tokenId,
+        orElse: () => state.invoices.first,
+      );
+      final filename = InvoiceArtifacts.zipFilename(invoice.invoiceId);
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/$filename');
+      await file.writeAsBytes(bytes);
+      await Share.shareXFiles(
+        [XFile(file.path, name: filename, mimeType: 'application/zip')],
+        subject: 'LaMP QR codes for $filename',
+      );
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('$filename sent — open on a second device to scan.'),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Could not build QR ZIP: $e')),
+      );
+    }
+  }
+
+  Future<void> _downloadInvoicePdf(BuildContext context, String tokenId) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final state = context.read<LaMPState>();
+    try {
+      final pdf = await state.generateInvoicePdf(tokenId);
+      await state.stageInvoicePdf(
+        tokenId,
+        pdf.bytes,
+        filename: pdf.filename,
+      );
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/${pdf.filename}');
+      await file.writeAsBytes(pdf.bytes);
+      await Share.shareXFiles(
+        [XFile(file.path, name: pdf.filename, mimeType: 'application/pdf')],
+        subject: 'LaMP invoice ${pdf.filename}',
+      );
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            '${pdf.filename} shared. SHA-256: ${pdf.sha256.substring(0, 16)}… — '
+            'send to the financier to anchor.',
+          ),
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Could not render invoice PDF: $e')),
+      );
+    }
   }
 
   Widget _buildMetricCard(BuildContext context, String label, String value, String sub, Color color) {

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lamp_flutter/core/chain/crypto.dart';
 import 'package:lamp_flutter/core/chain/ledger.dart';
 import 'package:lamp_flutter/core/chain/policy.dart';
 import 'package:lamp_flutter/core/models/domain_models.dart';
@@ -58,7 +59,7 @@ void main() {
       expect(tokenJson, isNotNull);
       final token = ReceivableToken.fromJson(Map<String, dynamic>.from(tokenJson as Map));
       expect(token.invoiceId, equals('INV-00235'));
-      expect(token.cartonHashes.length, equals(25));
+      expect(token.cartonHashes.length, equals(5));
       expect(token.state, equals(TokenState.created));
     });
 
@@ -101,6 +102,21 @@ void main() {
 
       // Advance clock +24h to close dispute window
       clock.advanceHours(25);
+
+      // Anchor the invoice document before any bank can finance.
+      final anchorSha = LaMPCrypto.sha256Hex('pdf-bytes-for-${token.tokenId}');
+      final anchorRes = await ledger.submit(
+        fn: 'anchorInvoiceDocument',
+        args: {
+          'tokenId': token.tokenId,
+          'sha256': anchorSha,
+          'byteLength': 4096,
+          'filename': '${token.invoiceId}.pdf',
+        },
+        asMsp: Msp.meghnaMSP,
+        nowTimestamp: clock.now,
+      );
+      expect(anchorRes.ok, isTrue, reason: anchorRes.error);
 
       // Match and advance by Meghna Bank
       final finRes = await ledger.submit(
@@ -173,7 +189,7 @@ void main() {
       expect(tokenJson, isNotNull);
       final token = ReceivableToken.fromJson(Map<String, dynamic>.from(tokenJson as Map));
       expect(token.invoiceId, equals('INV-00235'));
-      expect(token.cartonHashes.length, equals(25));
+      expect(token.cartonHashes.length, equals(5));
 
       // Private data keeps its membership, so a non-member still reads a seal.
       final asOutsider = await restored.readPrivate(
@@ -301,6 +317,23 @@ void main() {
 
       // Advance past the 24h dispute window.
       clock.advanceHours(25);
+
+      // Anchor the invoice document so `matchAndAdvance` will accept the
+      // subsequent finance call. The chaincode refuses to advance without a
+      // anchored document; tests that exercise financing need it present.
+      final anchorSha = LaMPCrypto.sha256Hex('pdf-bytes-for-$tokenId');
+      final anchorRes = await ledger.submit(
+        fn: 'anchorInvoiceDocument',
+        args: {
+          'tokenId': tokenId,
+          'sha256': anchorSha,
+          'byteLength': 4096,
+          'filename': '$invoiceId.pdf',
+        },
+        asMsp: Msp.meghnaMSP,
+        nowTimestamp: clock.now,
+      );
+      expect(anchorRes.ok, isTrue, reason: anchorRes.error);
 
       final raw = await ledger.readWorld('token:$tokenId');
       final token = ReceivableToken.fromJson(Map<String, dynamic>.from(raw as Map));
@@ -753,6 +786,163 @@ void main() {
         PolicyParser.satisfies("WRONG('m.peer')", const ['m']),
         isFalse,
       );
+    });
+
+    test('T14 anchorInvoiceDocument writes the digest to world state', () async {
+      await SeedData.buildWorld(ledger, clock);
+      final raw = await ledger.readWorld('token:RCV-00235');
+      final token = ReceivableToken.fromJson(Map<String, dynamic>.from(raw as Map));
+      final sha = LaMPCrypto.sha256Hex('demo-pdf-content');
+
+      final res = await ledger.submit(
+        fn: 'anchorInvoiceDocument',
+        args: {
+          'tokenId': token.tokenId,
+          'sha256': sha,
+          'byteLength': 8192,
+          'filename': '${token.invoiceId}.pdf',
+        },
+        asMsp: Msp.meghnaMSP,
+        nowTimestamp: clock.now,
+      );
+      expect(res.ok, isTrue, reason: res.error);
+
+      // The token now carries the digest.
+      final updatedRaw = await ledger.readWorld('token:${token.tokenId}');
+      final updated = ReceivableToken.fromJson(
+          Map<String, dynamic>.from(updatedRaw as Map));
+      expect(updated.documentHash, equals(sha.toLowerCase()));
+      expect(updated.documentAnchoredBy, equals(Msp.meghnaMSP.id));
+      expect(updated.documentFilename, equals('${token.invoiceId}.pdf'));
+
+      // The public anchor index is also there.
+      final anchorRaw = await ledger.readWorld('doc:${sha.toLowerCase()}');
+      expect(anchorRaw, isNotNull);
+      expect((anchorRaw as Map)['tokenId'], equals(token.tokenId));
+      expect(anchorRaw['sha256'], equals(sha.toLowerCase()));
+    });
+
+    test('T15 anchorInvoiceDocument refuses to overwrite a different digest', () async {
+      await SeedData.buildWorld(ledger, clock);
+      final raw = await ledger.readWorld('token:RCV-00235');
+      final token = ReceivableToken.fromJson(Map<String, dynamic>.from(raw as Map));
+      final first = LaMPCrypto.sha256Hex('first-pdf');
+      final second = LaMPCrypto.sha256Hex('second-pdf');
+
+      final firstRes = await ledger.submit(
+        fn: 'anchorInvoiceDocument',
+        args: {
+          'tokenId': token.tokenId,
+          'sha256': first,
+          'byteLength': 8192,
+          'filename': '${token.invoiceId}.pdf',
+        },
+        asMsp: Msp.meghnaMSP,
+        nowTimestamp: clock.now,
+      );
+      expect(firstRes.ok, isTrue);
+
+      final secondRes = await ledger.submit(
+        fn: 'anchorInvoiceDocument',
+        args: {
+          'tokenId': token.tokenId,
+          'sha256': second,
+          'byteLength': 16384,
+          'filename': '${token.invoiceId}.pdf',
+        },
+        asMsp: Msp.padmaMSP,
+        nowTimestamp: clock.now,
+      );
+      expect(secondRes.ok, isFalse);
+      expect(secondRes.error, contains('refused'));
+      expect(secondRes.error, contains('already anchored'));
+    });
+
+    test('T16 anchorInvoiceDocument rejects malformed digest and zero length',
+        () async {
+      await SeedData.buildWorld(ledger, clock);
+      final raw = await ledger.readWorld('token:RCV-00235');
+      final token = ReceivableToken.fromJson(Map<String, dynamic>.from(raw as Map));
+
+      // Wrong length
+      final tooShort = await ledger.submit(
+        fn: 'anchorInvoiceDocument',
+        args: {
+          'tokenId': token.tokenId,
+          'sha256': 'abc123',
+          'byteLength': 1024,
+          'filename': 'x.pdf',
+        },
+        asMsp: Msp.meghnaMSP,
+        nowTimestamp: clock.now,
+      );
+      expect(tooShort.ok, isFalse);
+      expect(tooShort.error, contains('64-char hex'));
+
+      // Zero byte length
+      final zeroLen = await ledger.submit(
+        fn: 'anchorInvoiceDocument',
+        args: {
+          'tokenId': token.tokenId,
+          'sha256': LaMPCrypto.sha256Hex('some-bytes'),
+          'byteLength': 0,
+          'filename': 'x.pdf',
+        },
+        asMsp: Msp.meghnaMSP,
+        nowTimestamp: clock.now,
+      );
+      expect(zeroLen.ok, isFalse);
+      expect(zeroLen.error, contains('byteLength'));
+    });
+
+    test('T17 matchAndAdvance refuses to finance an unanchored token', () async {
+      // Mint + scan + wait out the dispute window WITHOUT anchoring.
+      await SeedData.buildWorld(ledger, clock);
+      final tokenId = 'RCV-UNANCHORED-${clock.now}';
+      final invoiceId = 'INV-UNANCHORED-${clock.now}';
+      final hashes = ['u-a', 'u-b', 'u-c', 'u-d', 'u-e'];
+      await ledger.submit(
+        fn: 'mintReceivable',
+        args: {
+          'tokenId': tokenId,
+          'invoiceId': invoiceId,
+          'manufacturerId': 'mfr-shomota',
+          'buyerDid': 'did:lamp:pharmacy:test-17',
+          'declaredValue': 5000.0,
+          'termsDays': 45,
+          'issuedAt': clock.now,
+          'dueDate': clock.now + 45 * SeedData.day,
+          'cartonHashes': hashes,
+          'lineItems': [
+            LineItem(
+              sku: 'T', name: 'T', strength: 'T',
+              quantity: 1, cartons: 1, unitPrice: 1000, lineValue: 1000,
+            ).toJson(),
+          ],
+        },
+        asMsp: Msp.manufacturerMSP,
+        nowTimestamp: clock.now,
+      );
+      await ledger.submit(
+        fn: 'recordPoDBatch',
+        args: {
+          'tokenId': tokenId,
+          'cartonHashes': hashes,
+          'mpoSignature': 'sig:t17',
+        },
+        asMsp: Msp.manufacturerMSP,
+        nowTimestamp: clock.now,
+      );
+      clock.advanceHours(25);
+
+      final res = await ledger.submit(
+        fn: 'matchAndAdvance',
+        args: {'tokenId': tokenId},
+        asMsp: Msp.meghnaMSP,
+        nowTimestamp: clock.now,
+      );
+      expect(res.ok, isFalse);
+      expect(res.error, contains('anchored invoice document'));
     });
   });
 }

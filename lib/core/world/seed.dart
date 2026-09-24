@@ -697,50 +697,58 @@ class SeedData {
     }
 
     // 3. Create the Main Demo Consignment: INV-00235
-    // 25 cartons for Rahman Medical Hall
+    // 5 cartons for Rahman Medical Hall. Kept small on purpose: this is the
+    // invoice shown to the judges, and every carton is scanned by hand on
+    // camera. Quantities are cartons x the catalogue's units per carton
+    // (5,000 / 1,200 / 3,000) and values use the catalogue unit prices.
     final demoInvoiceId = 'INV-00235';
     final demoTokenId = 'RCV-00235';
-    final demoCartonCount = 25;
 
     final demoLineItems = [
       LineItem(
         sku: 'SHM-PARA-500',
         name: 'Paracetamol',
         strength: '500 mg',
-        quantity: 50000,
-        cartons: 10,
+        quantity: 10000,
+        cartons: 2,
         unitPrice: 1.2,
-        lineValue: 60000.0,
+        lineValue: 12000.0,
       ),
       LineItem(
         sku: 'SHM-ESOM-20',
         name: 'Esomeprazole',
         strength: '20 mg',
-        quantity: 9600,
-        cartons: 8,
+        quantity: 2400,
+        cartons: 2,
         unitPrice: 7.5,
-        lineValue: 72000.0,
+        lineValue: 18000.0,
       ),
       LineItem(
         sku: 'SHM-METF-500',
         name: 'Metformin HCl',
         strength: '500 mg',
-        quantity: 21000,
-        cartons: 7,
+        quantity: 3000,
+        cartons: 1,
         unitPrice: 2.4,
-        lineValue: 50400.0,
+        lineValue: 7200.0,
       ),
     ];
 
     final demoDeclaredValue = demoLineItems.fold<double>(0.0, (s, l) => s + l.lineValue);
+    final demoCartonCount = demoLineItems.fold<int>(0, (s, l) => s + l.cartons);
+    // Each carton's SKU follows the line items, so the two cannot disagree.
+    final demoCartonSkus = <String>[
+      for (final l in demoLineItems) ...List.filled(l.cartons, l.sku),
+    ];
 
-    // Build the 25 cartons + plant Carton #14 from another invoice
+    // Build the cartons. The misrouted carton is not one of them: it belongs
+    // to another invoice (`foreignCarton`) and is presented separately.
     final demoCartons = <Carton>[];
     final demoCartonHashes = <String>[];
 
     for (int i = 1; i <= demoCartonCount; i++) {
       final cid = 'CTN-$i';
-      final sku = i <= 10 ? 'SHM-PARA-500' : (i <= 18 ? 'SHM-ESOM-20' : 'SHM-METF-500');
+      final sku = demoCartonSkus[i - 1];
       final gtin = products.firstWhere((p) => p.sku == sku).gtin;
       final gs1 = GS1Barcode.encodeGs1(
         gtin: gtin,
@@ -815,5 +823,37 @@ class SeedData {
       'demoTokenId': demoTokenId,
       'demoInvoiceId': demoInvoiceId,
     };
+  }
+
+  /// The GS1 payload used as the "stray carton" for the misroute-rejection
+  /// beat. It deliberately belongs to no invoice in the seeded world; when a
+  /// scanner reads it the chaincode throws and the UI surfaces the dispute
+  /// banner.
+  ///
+  /// Replaces the duplicated `_misroutedGs1` literal that previously lived on
+  /// `mpo_screen.dart`. Both the MPO scan flow and the manufacturer QR-ZIP
+  /// download now read from this single source — the carton's hash is also
+  /// captured here so the chaincode's `cartonHashes` membership test fails
+  /// for the same reason everywhere.
+  static const String foreignCartonGs1 =
+      '(01)08901234001019(17)280824(10)BCH-FOREIGN(21)SN-9999';
+  static const String foreignCartonSku = 'BCH-FOREIGN';
+  static const String foreignCartonBatch = 'BX-9999';
+  static const String foreignCartonExpiry = '280824';
+  static const String foreignCartonId = 'FOREIGN-9999';
+
+  /// The full foreign carton as a `Carton`, with `rejected: true` set so the
+  /// UI shows it as already-known-bad without a fresh chaincode round-trip.
+  static Carton foreignCarton() {
+    return Carton(
+      cartonId: foreignCartonId,
+      gs1: foreignCartonGs1,
+      hash: LaMPCrypto.sha256Hex(foreignCartonGs1),
+      sku: foreignCartonSku,
+      batch: foreignCartonBatch,
+      expiry: foreignCartonExpiry,
+      rejected: true,
+      rejectReason: 'Does not belong to any invoice on the channel.',
+    );
   }
 }

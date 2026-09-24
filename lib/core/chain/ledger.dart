@@ -74,6 +74,7 @@ class LocalLedger {
     'recordPoDBatch': "'ManufacturerMSP.peer'",
     'registerRateCurve': "OR('MeghnaMSP.peer', 'PadmaMSP.peer')",
     'matchAndAdvance': "AND('ManufacturerMSP.peer', OR('MeghnaMSP.peer', 'PadmaMSP.peer'))",
+    'anchorInvoiceDocument': "AND('ManufacturerMSP.peer', OR('MeghnaMSP.peer', 'PadmaMSP.peer'))",
     'settle': "AND('ManufacturerMSP.peer', OR('MeghnaMSP.peer', 'PadmaMSP.peer'))",
     'raiseDispute': "'ManufacturerMSP.peer'",
     'resolveDispute': "AND('ManufacturerMSP.peer', OR('MeghnaMSP.peer', 'PadmaMSP.peer'))",
@@ -270,6 +271,16 @@ class LocalLedger {
           result = await LaMPContract.matchAndAdvance(
             ctx,
             tokenId: args['tokenId'] as String,
+          );
+          break;
+
+        case 'anchorInvoiceDocument':
+          result = await LaMPContract.anchorInvoiceDocument(
+            ctx,
+            tokenId: args['tokenId'] as String,
+            sha256: args['sha256'] as String,
+            byteLength: (args['byteLength'] as num).toInt(),
+            filename: args['filename'] as String,
           );
           break;
 

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../core/constants/colors.dart';
+import '../core/models/domain_models.dart';
 import 'ui/lamp_skeleton.dart';
 
 /// What the chaincode made of a scanned payload.
@@ -12,7 +13,17 @@ class CartonScanResult {
   final bool accepted;
   final String message;
 
-  const CartonScanResult({required this.accepted, required this.message});
+  /// The carton this scan matched against the consignment manifest, when the
+  /// caller has already resolved it. Used by the scanner sheet to render the
+  /// product info card (name, sku, batch, expiry). Null on a refusal or when
+  /// the caller hasn't resolved the match yet.
+  final Carton? matched;
+
+  const CartonScanResult({
+    required this.accepted,
+    required this.message,
+    this.matched,
+  });
 }
 
 /// Is there a camera worth offering on this platform?
@@ -161,6 +172,10 @@ class _CartonScannerSheetState extends State<CartonScannerSheet> {
                 ),
                 const Spacer(),
                 if (last != null) _ResultBanner(result: last),
+                if (last?.matched != null) ...[
+                  const SizedBox(height: 8),
+                  _ProductInfoCard(carton: last!.matched!, accepted: last.accepted),
+                ],
                 const SizedBox(height: 12),
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 24),
@@ -351,8 +366,7 @@ class _CameraUnavailable extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             denied
-                ? 'Grant camera access in system settings, or close this and use '
-                    'the on-screen cascade instead.'
+                ? 'Grant camera access in system settings, or close this and try again.'
                 : error.errorDetails?.message ?? 'No camera could be started.',
             textAlign: TextAlign.center,
             style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
@@ -361,6 +375,93 @@ class _CameraUnavailable extends StatelessWidget {
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The product info card surfaced under the result banner on every accepted
+/// scan. Mirrors the JS web app's `ScanTarget` display: the operator points
+/// the camera, the camera fires, and the operator immediately sees the
+/// cartonId / sku / batch / expiry of what was just recorded. The optional
+/// `name` is omitted (the Dart `Carton` model doesn't carry a friendly name
+/// — that would require a SKU → product join, which the demo hasn't wired).
+class _ProductInfoCard extends StatelessWidget {
+  final Carton carton;
+  final bool accepted;
+
+  const _ProductInfoCard({required this.carton, required this.accepted});
+
+  @override
+  Widget build(BuildContext context) {
+    final colour = accepted ? LaMPColors.verified : LaMPColors.dispute;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.95),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: colour, width: 2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                accepted ? Icons.qr_code_2 : Icons.qr_code_2,
+                color: colour,
+                size: 18,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  carton.cartonId,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: Color(0xFF111111),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          _row('SKU', carton.sku),
+          _row('Batch', carton.batch),
+          _row('Expiry', carton.expiry),
+        ],
+      ),
+    );
+  }
+
+  Widget _row(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 2),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 60,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 11,
+                color: Color(0xFF555555),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 12,
+                color: Color(0xFF111111),
+              ),
+            ),
           ),
         ],
       ),

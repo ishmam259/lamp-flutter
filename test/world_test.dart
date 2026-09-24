@@ -187,7 +187,14 @@ void main() {
       // Whitepaper 4.2. The Dart port required every last carton, which left
       // `confirmationThreshold` dead and disagreed with the figure the bank's
       // eligibility checklist prints.
-      final view = viewOf('RCV-00235');
+      //
+      // Not the 5-carton hero: 90% of 5 rounds up to all 5, so it cannot show
+      // a delivery confirmed with cartons still unscanned. Use a seeded
+      // in-flight consignment big enough to have a gap (10 to 24 cartons).
+      final view = views().firstWhere((v) =>
+          v.token.state == TokenState.created &&
+          v.tokenId != 'RCV-00235' &&
+          (v.delivery?.cartons.length ?? 0) >= 10);
       final cartons = view.delivery!.cartons;
       final needed =
           (cartons.length * LaMPContract.confirmationThreshold).ceil();

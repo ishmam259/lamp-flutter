@@ -1,156 +1,52 @@
 # LaMP Flutter — project notes for future Claude
 
-This file exists so the next Claude session does not have to redo the discovery work
-that cost the previous session an entire afternoon of debugging toolchain setup.
-
 ## What this project is
 
 A Flutter port of the LaMP (Last Mile Pharmacy) consortium receivables ledger demo.
 The TypeScript reference at `../LaMP` is authoritative — `README.md` says so.
 
 The demo's central claim is "the ledger, not the UI, is the system of record."
-That claim used to be false in several places — most of them one root cause: the
-screens rendered a single hard-coded token instead of deriving their lists from
-the chain. The most recent session closed that; the sections below list what
-changed and where, plus the non-obvious toolchain quirks that will trip up
-anyone trying to rebuild.
-
 **Start at `lib/core/world/queries.dart`.** Every screen filters through it, and
 the rule it exists to enforce is that a screen must not offer an action the
 chaincode is going to refuse.
 
-## Toolchain layout (read this before running anything)
+## Build (one-liner)
 
-The Flutter SDK, JDK, and Android SDK were all installed outside the project
-(`C:\Users\Lenovo\scoop\apps\...`) but **copied into the project** at the
-following paths, because the bash sandbox blocks references to `C:\Users\...`:
+Everything lives in-project to dodge the bash sandbox blocking `C:\Users\...`:
 
-| Tool         | Path inside the project                       |
-| ------------ | --------------------------------------------- |
-| Flutter SDK  | `.flutter/`                                   |
-| JDK 21       | `.jdk/`                                       |
-| Android SDK  | `.android-sdk/` (cmdline-tools, platforms, …) |
-
-If you need to invoke them, use the project-local paths:
-
-```bash
-FLUTTER=./.flutter/bin/flutter
-JAVA_HOME=./.jdk
-ANDROID_HOME=./.android-sdk
-```
-
-`android/local.properties` already points at the in-project SDK locations:
-
-```
-flutter.sdk=D:\\VSCODE\\Blockchain Olympiad\\lamp-flutter\\.flutter
-sdk.dir=D:/VSCODE/Blockchain Olympiad/lamp-flutter/.android-sdk
-```
-
-## One-time configuration that already happened
-
-```bash
-./.flutter/bin/flutter config --android-studio-dir=     # cleared (was bogus "none")
-yes | sdkmanager --licenses                              # accepted (10 packages)
-sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
-```
-
-The `--jdk-dir` config setting was problematic — passing the path through
-`flutter config` got the bash sandbox to choke on the space in `D:\VSCODE\...`.
-Set `JAVA_HOME` inline instead and leave `flutter config --jdk-dir` empty.
-
-## How to run
-
-### Static analysis
+| Tool         | Path         |
+| ------------ | ------------ |
+| Flutter SDK  | `.flutter/`  |
+| JDK 21       | `.jdk/`      |
+| Android SDK  | `.android-sdk/` |
 
 ```bash
 cd "D:/VSCODE/Blockchain Olympiad/lamp-flutter"
-JAVA_HOME=./.jdk ./$FLUTTER_BIN/flutter analyze
+export JAVA_HOME='D:\VSCODE\Blockchain Olympiad\lamp-flutter\.jdk'
+export ANDROID_HOME='D:\VSCODE\Blockchain Olympiad\lamp-flutter\.android-sdk'
+export ANDROID_SDK_ROOT="$ANDROID_HOME"
+./.flutter/bin/flutter analyze                                            # must be clean
+./.flutter/bin/flutter test                                               # 130+ tests
+./.flutter/bin/flutter run -d chrome                                      # web smoke
+./.flutter/bin/flutter build apk --release --android-skip-build-dependency-validation   # APK → build/app/outputs/flutter-apk/app-release.apk
 ```
 
-Must be clean. Currently is.
-
-### Tests (unit + widget + layout)
+First-run gotchas (do these once per machine):
 
 ```bash
-JAVA_HOME=./.jdk ./$FLUTTER_BIN/flutter test
+yes | ./.flutter/bin/flutter doctor --android-licenses                    # accept SDK + NDK licenses; triggers auto-install of platforms/build-tools/ndk/cmake
 ```
 
-133 total, all passing: 24 chaincode, 20 world/query, 11 UI flow, 78 layout.
+That's it. The four non-obvious knobs below are already wired in. Don't touch them unless you understand the failure mode.
 
-### Run on Chrome for quick smoke-testing
+### Why these knobs exist (do not delete without fixing the underlying problem)
 
-```bash
-JAVA_HOME=./.jdk ./$FLUTTER_BIN/flutter run -d chrome
-```
+1. **`kotlin.incremental=false`** in `android/gradle.properties` — Pub cache is on `C:\`, project on `D:\`. Kotlin incremental compiler refuses cross-drive paths. Move `PUB_CACHE=D:\...` to re-enable.
+2. **`gradle-wrapper.properties` pinned to `8.14-all`** — Flutter 3.47 rejects 8.12.
+3. **`--android-skip-build-dependency-validation`** — AGP is pinned to 8.9.1; Flutter 3.47 wants ≥8.11.1. Bump AGP, drop this flag.
+4. **`android.newDsl=false`** in `android/gradle.properties` — required for AGP 8.9.x to read the project's `build.gradle.kts`. Bump AGP, remove.
 
-### Build a release APK (for sideloading to a phone)
-
-**`JAVA_HOME` has to be absolute here, and Windows-style.** The relative
-`./.jdk` that works for `analyze` and `test` never reaches Gradle, which
-forks its own daemon with its own working directory and reports
-`JAVA_HOME is set to an invalid directory: ./.jdk`. The space in the path is
-fine as long as the value is quoted.
-
-```bash
-cd "D:/VSCODE/Blockchain Olympiad/lamp-flutter"
-JAVA_HOME='D:\VSCODE\Blockchain Olympiad\lamp-flutter\.jdk' \
-ANDROID_HOME='D:\VSCODE\Blockchain Olympiad\lamp-flutter\.android-sdk' \
-ANDROID_SDK_ROOT='D:\VSCODE\Blockchain Olympiad\lamp-flutter\.android-sdk' \
-  ./.flutter/bin/flutter build apk --release --android-skip-build-dependency-validation
-```
-
-Output: `build/app/outputs/flutter-apk/app-release.apk` (~70 MB).
-
-Piping the build through `tail` swallows Gradle's exit code, so check for
-the `Built build\app\outputs...` line rather than trusting `$?`.
-
-The APK is signed with the debug keystore (`android/app/build.gradle.kts` is
-configured this way for sideload convenience). For Play Store, replace with a
-real signing config.
-
-## Non-obvious build knobs (and why)
-
-These are the things that took the most time to figure out. Do not "simplify"
-them without understanding the failure mode:
-
-### 1. `kotlin.incremental=false` in `android/gradle.properties`
-
-The Pub cache lives on `C:\` (default user-profile location) while the project
-is on `D:\`. Kotlin's incremental compiler refuses to track files across drive
-roots and crashes during `compileReleaseKotlin` with:
-
-```
-IllegalArgumentException: this and base files have different roots:
-  C:\Users\Lenovo\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_android-2.4.23\...
-  D:\VSCODE\Blockchain Olympiad\lamp-flutter\android
-```
-
-Disabling incremental compilation forces full rebuilds but unblocks the build.
-If you move the Pub cache to the same drive as the project
-(`PUB_CACHE=D:\...`), this can be turned back on.
-
-### 2. `gradle-wrapper.properties` pinned to 8.14
-
-The original `8.12-all.zip` was rejected by Flutter 3.47 ("minimum supported
-version of 8.14.0"). Bumped to `gradle-8.14-all.zip`. If you bump Flutter,
-check the wrapper compatibility table again.
-
-### 3. `--android-skip-build-dependency-validation`
-
-The project pins `com.android.application` 8.9.1 in `android/settings.gradle.kts`,
-which is below Flutter 3.47's minimum of 8.11.1. Upgrading AGP would require
-coordinated changes in `build.gradle.kts` files (the project already opts out
-of `android.newDsl=false`, which is part of the AGP-9 migration). The bypass
-flag keeps the existing AGP working without the validation abort.
-
-If you do upgrade AGP, also delete `kotlin.incremental=false` and the
-`--android-skip-build-dependency-validation` flag — both were escape hatches
-around the older toolchain.
-
-### 4. `android/gradle.properties` has `android.newDsl=false`
-
-Required for AGP 8.9.1 to read the project's `build.gradle.kts` files (which
-were authored against the older DSL). Don't remove without upgrading AGP first.
+`JAVA_HOME` for the APK build must be **absolute, Windows-style, quoted** — Gradle forks its own daemon and ignores relative paths. `flutter analyze` and `flutter test` accept relative `./.jdk` fine.
 
 ## The state-derivation pass (most recent session)
 

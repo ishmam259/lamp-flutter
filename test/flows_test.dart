@@ -293,9 +293,9 @@ void main() {
 
       for (final line in lines) {
         expect(
-          find.text('${line.name} ${line.strength} (${line.sku})'),
+          find.text('${line.name} ${line.strength}...'),
           findsOneWidget,
-          reason: '${line.sku} missing from the manifest',
+          reason: '${line.name} ${line.strength} missing from the manifest',
         );
       }
     });

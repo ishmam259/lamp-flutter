@@ -50,8 +50,8 @@ class LaMPApp extends StatelessWidget {
           ///
           /// These are dense financial screens — a 25-row carton manifest, a
           /// credit history table — laid out against a fixed type scale. A
-          /// device set to 130% was breaking words mid-syllable ("Paracetam /
-          /// ol") and overflowing rows. Clamping respects someone who has
+          /// device set to 130% was breaking words mid-syllable ("Paracetamol /
+          /// ") and overflowing rows. Clamping respects someone who has
           /// turned text up without letting the instrument panel come apart;
           /// the floor stops a device set small from rendering 9px hashes.
           data: media.copyWith(
