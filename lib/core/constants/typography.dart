@@ -1,142 +1,125 @@
 import 'package:flutter/material.dart';
 
-/// The LaMP type scale.
+/// The LaMP type system. The only place a font size, weight or tracking value
+/// may be written. Screens pick a named style and `copyWith(color: …)` —
+/// nothing else.
 ///
-/// Ported from `app/globals.css` in the Next.js application, which is the
-/// system of record — the sizes, line heights and tracking here are the same
-/// numbers, so the phone and the web portals set type identically.
+/// Families (registered in pubspec.yaml):
+///   * AnekLatin + AnekBangla — one superfamily, shared metrics, so an English
+///     and a Bengali pharmacy name sit on the same baseline. The taka sign ৳
+///     only exists in the Bangla half, which is why it is the fallback.
+///   * IBMPlexMono — ONLY for things compared down a column: money, hashes,
+///     tx ids, block numbers, carton codes, and the uppercase eyebrow label.
+///     Never for names, subtitles or prose.
 ///
-/// Two families, each with a job. IBM Plex Sans carries prose and headings.
-/// IBM Plex Mono carries anything a person compares down a column: money,
-/// hashes, transaction ids, block numbers, invoice codes. That split is the
-/// whole typographic idea, and mixing them at random is what makes an
-/// instrument panel look like a brochure.
-///
-/// Both are bundled rather than fetched, so the demo does not need a network.
+/// Scale  sans 12.5 · 14 · 15 · 16 · 20      mono 11 · 12.5 · 15 · 22 · 28
+/// Weights 400 · 500 · 600 only (no w700 / bold anywhere).
+/// Floor   11. Nothing smaller, ever.
+/// Tracking −0.02em at ≥20 · 0 at 12.5–16 · +0.12em on uppercase labels.
 class LaMPType {
-  static const String sans = 'IBMPlexSans';
+  static const String sans = 'AnekLatin';
+  static const String bengali = 'AnekBangla';
   static const String mono = 'IBMPlexMono';
-  static const String bengali = 'NotoSansBengali';
-
-  /// Bengali has no coverage in IBM Plex, and the taka sign (৳ U+09F3) is in
-  /// none of the Latin faces. Listing Noto as a fallback keeps Latin resolving
-  /// from Plex and takes only the missing glyphs from a face we chose, rather
-  /// than whatever the device happens to ship.
   static const List<String> fallback = <String>[bengali];
 
-  static const TextStyle _base = TextStyle(
+  static const TextStyle _sans = TextStyle(
     fontFamily: sans,
     fontFamilyFallback: fallback,
+    fontWeight: FontWeight.w400,
+    letterSpacing: 0,
   );
-
-  /// 30 — the largest figure, for a dashboard tile.
-  static final TextStyle displayFigure = _base.copyWith(
+  static const TextStyle _mono = TextStyle(
     fontFamily: mono,
-    fontSize: 30,
-    height: 1.05,
-    letterSpacing: -0.03 * 30,
-    fontWeight: FontWeight.w600,
+    fontFamilyFallback: fallback,
+    fontWeight: FontWeight.w400,
+    letterSpacing: 0,
+    fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
   );
 
-  /// 24 — a figure quoted inline in a card.
-  static final TextStyle figure = _base.copyWith(
-    fontFamily: mono,
-    fontSize: 24,
-    height: 1.1,
-    letterSpacing: -0.025 * 24,
-    fontWeight: FontWeight.w600,
+  /* ── Sans ─────────────────────────────────────────────────────────── */
+
+  /// 20 · w600 — screen title. One per screen.
+  static const TextStyle title = TextStyle(
+    fontFamily: sans, fontFamilyFallback: fallback,
+    fontSize: 20, height: 1.2, fontWeight: FontWeight.w600,
+    letterSpacing: -0.02 * 20,
   );
 
-  /// 22 — screen and card titles.
-  static final TextStyle title = _base.copyWith(
-    fontSize: 22,
-    height: 1.22,
-    letterSpacing: -0.022 * 22,
-    fontWeight: FontWeight.w600,
-  );
+  /// 16 · w600 — section heads, card titles.
+  static final TextStyle head =
+      _sans.copyWith(fontSize: 16, height: 1.3, fontWeight: FontWeight.w600);
 
-  /// 17 — section heads.
-  static final TextStyle head = _base.copyWith(
-    fontSize: 17,
-    height: 1.32,
-    letterSpacing: -0.016 * 17,
-    fontWeight: FontWeight.w600,
-  );
+  /// 15 · w500 — list primaries, button labels.
+  static final TextStyle sub =
+      _sans.copyWith(fontSize: 15, height: 1.35, fontWeight: FontWeight.w500);
 
-  /// 15 — lead paragraphs and list primaries.
-  static final TextStyle sub = _base.copyWith(
-    fontSize: 15,
-    height: 1.45,
-    letterSpacing: -0.008 * 15,
-  );
+  /// 14 · w400 — body copy.
+  static final TextStyle body = _sans.copyWith(fontSize: 14, height: 1.5);
 
-  /// 14 — body copy.
-  static final TextStyle body = _base.copyWith(fontSize: 14, height: 1.55);
+  /// 12.5 · w500 — tabs, nav labels, chip text, snackbars, secondary lines.
+  static final TextStyle meta =
+      _sans.copyWith(fontSize: 12.5, height: 1.4, fontWeight: FontWeight.w500);
 
-  /// 13 — dense rows.
-  static final TextStyle small = _base.copyWith(fontSize: 13, height: 1.5);
+  /// 12.5 · w400 — captions under a row; people's names in dense tables.
+  static final TextStyle caption = _sans.copyWith(fontSize: 12.5, height: 1.45);
 
-  /// 12 — captions and secondary metadata.
-  static final TextStyle caption = _base.copyWith(fontSize: 12, height: 1.5);
+  /// Aliases kept so existing call sites compile. Prefer the names above.
+  static final TextStyle small = caption;
+  static final TextStyle micro = caption; // 11 is reserved for mono labels.
 
-  /// 11 — the smallest readable step.
-  static final TextStyle micro = _base.copyWith(fontSize: 11, height: 1.45);
+  /* ── Mono ─────────────────────────────────────────────────────────── */
 
-  /// The eyebrow label. Kept uppercase and tracked out because that is what
-  /// the LaMP system specifies for field labels in both worlds.
-  static final TextStyle label = _base.copyWith(
-    fontFamily: mono,
-    fontSize: 10.5,
-    height: 1.4,
-    fontWeight: FontWeight.w500,
-    letterSpacing: 0.11 * 10.5,
-  );
+  /// 28 · w600 — the one hero figure on a dashboard.
+  static final TextStyle displayFigure = _mono.copyWith(
+      fontSize: 28, height: 1.05, fontWeight: FontWeight.w600,
+      letterSpacing: -0.02 * 28);
 
-  /// Monospace body, for hashes, ids and money set in a column.
-  static final TextStyle monoBody = _base.copyWith(
-    fontFamily: mono,
-    fontSize: 13,
-    height: 1.5,
-  );
+  /// 22 · w600 — a figure quoted in a card (৳ amounts, counts).
+  static final TextStyle figure = _mono.copyWith(
+      fontSize: 22, height: 1.1, fontWeight: FontWeight.w600,
+      letterSpacing: -0.02 * 22);
 
-  static final TextStyle monoCaption = _base.copyWith(
-    fontFamily: mono,
-    fontSize: 11.5,
-    height: 1.45,
-  );
+  /// 15 · w500 — money / ids in a table column.
+  static final TextStyle monoBody =
+      _mono.copyWith(fontSize: 15, height: 1.4, fontWeight: FontWeight.w500);
 
-  /// Material's slots, filled from the scale above so anything that does not
-  /// name a style explicitly still lands inside the system.
+  /// 12.5 — hashes, carton codes inline.
+  static final TextStyle monoCaption = _mono.copyWith(fontSize: 12.5, height: 1.4);
+
+  /// 11 · w500 · +0.12em — UPPERCASE eyebrow labels and the receipt footer.
+  /// Pass text already uppercased.
+  static final TextStyle label = _mono.copyWith(
+      fontSize: 11, height: 1.4, fontWeight: FontWeight.w500,
+      letterSpacing: 0.12 * 11);
+
+  /// 11 — receipt footer (`BLK 1204 · tx 9f3a…c21e`). Not uppercased.
+  static final TextStyle monoMicro = _mono.copyWith(fontSize: 11, height: 1.4);
+
+  /// Material slots, so any widget that doesn't name a style still lands in
+  /// the system.
   static TextTheme textTheme(Color ink, Color ink2) => TextTheme(
-    displayLarge: title.copyWith(fontSize: 32, height: 1.1, letterSpacing: -0.03 * 32, color: ink),
-    displayMedium: title.copyWith(fontSize: 28, height: 1.15, letterSpacing: -0.028 * 28, color: ink),
-    displaySmall: title.copyWith(color: ink),
-    headlineLarge: title.copyWith(color: ink),
-    headlineMedium: head.copyWith(fontSize: 19, color: ink),
-    headlineSmall: head.copyWith(color: ink),
-    titleLarge: head.copyWith(color: ink),
-    titleMedium: sub.copyWith(fontWeight: FontWeight.w600, color: ink),
-    titleSmall: small.copyWith(fontWeight: FontWeight.w600, color: ink),
-    bodyLarge: sub.copyWith(color: ink),
-    bodyMedium: body.copyWith(color: ink),
-    bodySmall: caption.copyWith(color: ink2),
-    labelLarge: small.copyWith(fontWeight: FontWeight.w600, color: ink),
-    labelMedium: caption.copyWith(color: ink2),
-    labelSmall: label.copyWith(color: ink2),
-  );
+        displayLarge: displayFigure.copyWith(color: ink),
+        displayMedium: figure.copyWith(color: ink),
+        displaySmall: title.copyWith(color: ink),
+        headlineLarge: title.copyWith(color: ink),
+        headlineMedium: title.copyWith(color: ink),
+        headlineSmall: head.copyWith(color: ink),
+        titleLarge: title.copyWith(color: ink),
+        titleMedium: head.copyWith(color: ink),
+        titleSmall: sub.copyWith(color: ink),
+        bodyLarge: sub.copyWith(color: ink),
+        bodyMedium: body.copyWith(color: ink),
+        bodySmall: caption.copyWith(color: ink2),
+        labelLarge: sub.copyWith(fontWeight: FontWeight.w600, color: ink),
+        labelMedium: meta.copyWith(color: ink2),
+        labelSmall: label.copyWith(color: ink2),
+      );
 }
 
-/// The three radii, each with a job — from the same system.
-///
-/// There were twelve before it was cut down, which reads as unconsidered at
-/// close range however carefully the rest is set.
+/// Radii, each with a job. Control < card < surface so nesting reads as depth.
 class LaMPRadius {
-  /// Chips, inputs, buttons — things you touch.
-  static const double control = 6;
-
-  /// Panels and cards — things that hold content.
-  static const double card = 10;
-
-  /// Drawers, sheets, modals — things that arrive.
-  static const double surface = 14;
+  static const double control = 10; // buttons, inputs, chips you press
+  static const double card = 16; // things that hold content
+  static const double surface = 20; // sheets, dialogs — things that arrive
+  static const double pill = 999; // status chips, tracks, grabber
 }

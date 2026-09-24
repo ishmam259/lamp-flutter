@@ -10,43 +10,155 @@ The demo's central claim is "the ledger, not the UI, is the system of record."
 the rule it exists to enforce is that a screen must not offer an action the
 chaincode is going to refuse.
 
-## Build (one-liner)
+## Design system (authoritative — read before touching any UI)
 
-Everything lives in-project to dodge the bash sandbox blocking `C:\Users\...`:
+Rules: `docs/DESIGN_SYSTEM.md`. Enforced by `test/design_lint_test.dart`.
 
-| Tool         | Path         |
-| ------------ | ------------ |
-| Flutter SDK  | `.flutter/`  |
-| JDK 21       | `.jdk/`      |
-| Android SDK  | `.android-sdk/` |
+- Colour only via `context.lamp.*` (`lib/core/constants/palette.dart`). The brand colour is near-white in dark themes and `#0B5D42` in light themes. Mint `#3DDC97` = `verified` only. There are three states (confirmed/pending/refused) and no chain blue.
+- Type only via `LaMPType.*` (`typography.dart`): Anek Latin/Bangla sans + IBM Plex Mono for money, ids and labels. Weights 400/500/600, minimum size 11.
+- Spacing is `Gap.*`, radii are `LaMPRadius.*`, and icons are `IconSize.*`.
+- Seat chrome: `LumaAppBar` (mark in the leading slot) + `LampBlockPip` + `LampSeatMenu` (`lib/widgets/ui/lamp_ledger_ui.dart`). People sign in (`lib/core/auth/`, `features/sign_in/`) and land on their own seat; there is no seat picker. Ledger writes use `LampReceiptCard`, counts use `LampTickBar`, and state uses `LampStateDot`.
+- Logo: `LampMark` (brightness-aware assets `logo-mark-dark/light/white.png`).
+- **This is a real app for real users, not a demo.** Copy is plain language: no chaincode names, MSP ids, tx ids or raw errors on screen — use `LedgerLabels` (`lib/core/constants/ledger_labels.dart`). Testing tools sit behind `kDemoTools` (`app_mode.dart`), off in release builds. See `docs/DESIGN_SYSTEM.md` §3a.
+- A new screen follows the checklist in `docs/DESIGN_SYSTEM.md` §6.
 
-```bash
-cd "D:/VSCODE/Blockchain Olympiad/lamp-flutter"
-export JAVA_HOME='D:\VSCODE\Blockchain Olympiad\lamp-flutter\.jdk'
-export ANDROID_HOME='D:\VSCODE\Blockchain Olympiad\lamp-flutter\.android-sdk'
-export ANDROID_SDK_ROOT="$ANDROID_HOME"
-./.flutter/bin/flutter analyze                                            # must be clean
-./.flutter/bin/flutter test                                               # 130+ tests
-./.flutter/bin/flutter run -d chrome                                      # web smoke
-./.flutter/bin/flutter build apk --release --android-skip-build-dependency-validation   # APK → build/app/outputs/flutter-apk/app-release.apk
+## Toolchain (read this before running anything)
+
+The current development machine uses a normal install; nothing is copied into
+the project.
+
+| Tool        | Where                                                        |
+| ----------- | ------------------------------------------------------------ |
+| Flutter SDK | `C:\Users\16IRL8\flutter` (3.35.7 stable, Dart 3.9.2), on PATH |
+| JDK 21      | Android Studio's bundled JBR: `C:\Program Files\Android\Android Studio\jbr` |
+| Android SDK | `C:\Users\16IRL8\AppData\Local\Android\sdk` (platform 36.1, build-tools 36.1.0) |
+| adb         | `C:\Users\16IRL8\AppData\Local\Android\sdk\platform-tools\adb.exe` |
+
+`android/local.properties` is machine-specific and not committed. On this
+machine it holds:
+
+```
+flutter.sdk=C:\Users\16IRL8\flutter
+sdk.dir=C:\Users\16IRL8\AppData\Local\Android\sdk
 ```
 
-First-run gotchas (do these once per machine):
+`flutter doctor` finds the JDK through Android Studio, so no `JAVA_HOME` is
+needed.
+
+**The other machine** (`D:\VSCODE\Blockchain Olympiad\lamp-flutter`, user
+`Lenovo`, Flutter 3.47) used to carry the SDKs inside the project as `.flutter/`,
+`.jdk/` and `.android-sdk/`. Those were deleted; it now uses global scoop
+installs, and three things are needed to build there:
+
+- **Tools:** Flutter `C:\Users\Lenovo\scoop\apps\flutter\current`, JDK 21
+  `...\scoop\apps\oraclejdk-lts\current`, Android SDK
+  `...\scoop\apps\android-clt\current` (`ANDROID_HOME` set).
+- **JDK:** run `flutter config --jdk-dir="C:\Users\Lenovo\scoop\apps\oraclejdk-lts\current"`.
+  Otherwise Flutter picks Android Studio's bundled Java 25, which Gradle 8.14
+  rejects.
+- **AGP check:** pass `--android-skip-build-dependency-validation`. AGP is pinned
+  to 8.9.1 and Flutter 3.47 wants 8.11.1 or newer. Studio's `main.dart` run
+  configuration carries the flag.
+
+Day-to-day work there is on the `lamp_pixel` emulator (Pixel 7 skin, 1080x2400,
+API 35). The emulator's camera is a virtual room and cannot scan a laptop
+screen, so real scanning is checked on the wireless phone.
+
+## How to run
 
 ```bash
-yes | ./.flutter/bin/flutter doctor --android-licenses                    # accept SDK + NDK licenses; triggers auto-install of platforms/build-tools/ndk/cmake
+flutter analyze        # must be clean
+flutter test           # 152 tests, all passing (breakdown under "Tests reference")
+flutter run -d chrome  # quick smoke test in a browser
 ```
 
-That's it. The four non-obvious knobs below are already wired in. Don't touch them unless you understand the failure mode.
+### On a phone (wireless debugging)
 
-### Why these knobs exist (do not delete without fixing the underlying problem)
+The test phone is a Samsung SM-S721B connected over **wireless debugging**. It
+shows up in `flutter devices` as `SM S721B (wireless)`. It drops off whenever
+the phone's Wi-Fi sleeps; re-enable *Developer options → Wireless debugging*
+and it reappears.
 
-1. **`kotlin.incremental=false`** in `android/gradle.properties` — Pub cache is on `C:\`, project on `D:\`. Kotlin incremental compiler refuses cross-drive paths. Move `PUB_CACHE=D:\...` to re-enable.
-2. **`gradle-wrapper.properties` pinned to `8.14-all`** — Flutter 3.47 rejects 8.12.
-3. **`--android-skip-build-dependency-validation`** — AGP is pinned to 8.9.1; Flutter 3.47 wants ≥8.11.1. Bump AGP, drop this flag.
-4. **`android.newDsl=false`** in `android/gradle.properties` — required for AGP 8.9.x to read the project's `build.gradle.kts`. Bump AGP, remove.
+`flutter run` sometimes loses the connection during install over Wi-Fi. What
+works reliably is to install with adb, launch the app, and attach:
 
-`JAVA_HOME` for the APK build must be **absolute, Windows-style, quoted** — Gradle forks its own daemon and ignores relative paths. `flutter analyze` and `flutter test` accept relative `./.jdk` fine.
+```bash
+flutter build apk --debug
+adb install -r build/app/outputs/flutter-apk/app-debug.apk
+adb shell am start -n com.lamp.bcolbd.lamp_flutter/.MainActivity
+flutter attach -d <device id from flutter devices>
+```
+
+Screenshots from the phone: `adb exec-out screencap -p > shot.png`.
+
+### Release APK (for sideloading)
+
+```bash
+flutter build apk --release
+```
+
+Output: `build/app/outputs/flutter-apk/app-release.apk`. It's signed with the
+debug keystore (`android/app/build.gradle.kts`) for sideload convenience;
+replace that with a real signing config for the Play Store. A release build
+hides the testing tools (`kDemoTools`, see the design section).
+
+Piping the build through `tail` swallows Gradle's exit code, so check for the
+`Built build\app\outputs...` line rather than trusting `$?`.
+
+### Launcher icons
+
+Masters are in `assets/app_icon/` (not bundled). Regenerate with
+`dart run flutter_launcher_icons`, then **revert**
+`ios/Runner.xcodeproj/project.pbxproj`, which the tool corrupts
+(`…SWIFT_ASSET_SYMBOL_EXTENSIONS = AppIcon`). The web icons are copied from the
+masters by hand.
+
+## Non-obvious build knobs (and why)
+
+These are the things that took the most time to figure out. Do not "simplify"
+them without understanding the failure mode. They were found on the earlier
+D:-drive machine with Flutter 3.47; on this machine (Flutter 3.35.7) the
+current settings build without `--android-skip-build-dependency-validation`,
+but leave the other knobs alone.
+
+### 1. `kotlin.incremental=false` in `android/gradle.properties`
+
+The Pub cache lives on `C:\` (default user-profile location) while the project
+is on `D:\`. Kotlin's incremental compiler refuses to track files across drive
+roots and crashes during `compileReleaseKotlin` with:
+
+```
+IllegalArgumentException: this and base files have different roots:
+  C:\Users\Lenovo\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_android-2.4.23\...
+  D:\VSCODE\Blockchain Olympiad\lamp-flutter\android
+```
+
+Disabling incremental compilation forces full rebuilds but unblocks the build.
+If you move the Pub cache to the same drive as the project
+(`PUB_CACHE=D:\...`), this can be turned back on.
+
+### 2. `gradle-wrapper.properties` pinned to 8.14
+
+The original `8.12-all.zip` was rejected by Flutter 3.47 ("minimum supported
+version of 8.14.0"). Bumped to `gradle-8.14-all.zip`. If you bump Flutter,
+check the wrapper compatibility table again.
+
+### 3. `--android-skip-build-dependency-validation`
+
+The project pins `com.android.application` 8.9.1 in `android/settings.gradle.kts`,
+which is below Flutter 3.47's minimum of 8.11.1. Upgrading AGP would require
+coordinated changes in `build.gradle.kts` files (the project already opts out
+of `android.newDsl=false`, which is part of the AGP-9 migration). The bypass
+flag keeps the existing AGP working without the validation abort.
+
+If you do upgrade AGP, also delete `kotlin.incremental=false` and the
+`--android-skip-build-dependency-validation` flag — both were escape hatches
+around the older toolchain.
+
+### 4. `android/gradle.properties` has `android.newDsl=false`
+
+Required for AGP 8.9.1 to read the project's `build.gradle.kts` files (which
+were authored against the older DSL). Don't remove without upgrading AGP first.
 
 ## The state-derivation pass (most recent session)
 
@@ -187,49 +299,45 @@ other's membership test.
 - **`features/pharmacy/pharmacy_screen.dart`** — `_invoiceAmountFor(state)`
   reads from `state.invoices`.
 
-### Palette & widgets
-
-- **`core/constants/palette.dart`** — `portalLight.brand` shifted from
-  `#059669` (emerald, same as verified) to `#0F766E` (teal). `portalDark.brand`
-  shifted from `#3DDC97` (mint, same as verified) to `#38BDF8` (sky). The
-  brand and verified tokens are now distinguishable.
-- **`widgets/lifecycle_rail.dart`** — uses `context.lamp` tokens, not the
-  legacy `LaMPColors`.
-
 ### Theme
 
 - **`core/state/theme_controller.dart`** — `cycle()` captures the starting
   mode before mutation, so two rapid taps no longer advance two steps.
 
-## How to test the demo (manual, on a phone or in Chrome)
+## How to test by hand (on the phone)
 
-The five reported defects, in the order they were reported:
+The app opens on **Sign in**. Pick an account and set a 4-digit PIN the first
+time (on the test phone, Kamrul Hasan's PIN is 1234). In a debug build the
+"⋯" menu has **Switch account** (no PIN) and **Demo controls** (move the clock,
+reset the world) for walking the whole flow on one phone.
 
-1. **Pharmacy, at demo start** — no **Pay now**. The hero consignment is
-   CREATED, so the card reads "Payable once the delivery is confirmed on the
-   ledger."
-2. **MPO → Route** — three stops, not one. Tap one to select it; its manifest
-   opens beneath.
-3. **MPO → Sign, before scanning** — the submit button is disabled and says
-   "Scan all N cartons before signing".
-4. **MPO → Scan → Auto Cascade**, then **Sign** — the gate opens. Sign, and the
-   stop leaves the route; the next one becomes stop 1.
-5. **Bank** — the consignment appears under *Awaiting dispute window*. Advance
-   the clock 24h from the demo director; it moves to *Eligible*. Finance it; it
-   moves to *Recently financed*, with no Finance button.
-6. **Pharmacy** — still **Pay now**, because financing does not discharge the
-   debt. Pay it: it leaves "Due now", appears under Recent deliveries, and the
-   credit ring gains a cycle.
-7. **Manufacturer → Mint** — the new invoice appears on the MPO's route and on
-   the manufacturer's book. Before this pass it appeared nowhere.
+1. **Pharmacy (Abdur Rahman)**: no pay button at the start. The hero invoice is
+   issued but not delivered, so the card reads "You can pay once the delivery is
+   confirmed."
+2. **Delivery officer (Kamrul Hasan) → Route**: stop 1 is open, and the other
+   stops are listed under "Next". Tap one to open it.
+3. **→ Sign, before scanning**: the button is disabled and says "Scan all N
+   cartons before signing".
+4. **→ Scan → Scan all**, then **Sign**: the gate opens. Sign, and the stop
+   leaves the route.
+5. **Bank (Meghna)**: the invoice appears under *Dispute window open*. Move the
+   clock +24h from Demo controls and it moves to *Ready to finance*. Finance
+   it and it moves to *Recently financed*, with no button.
+6. **Pharmacy**: still **Pay ৳…**, because financing doesn't discharge the
+   debt. Pay it: it leaves "Due now", appears under Recent, and the credit ring
+   gains a cycle.
+7. **Manufacturer → New invoice**: the new invoice appears on the officer's
+   route and in the manufacturer's book.
 
-Still worth checking by hand:
+Also worth checking:
 
-- Carton 14 of the hero consignment is the planted misroute; the cascade submits
-  a foreign payload and the chaincode refuses it for real.
-- Theme toggle cycles Light → Dark → System without skipping.
+- Carton 14 of the hero consignment is the planted wrong carton (debug builds
+  only). "Scan next" presents a foreign code there and the ledger refuses it;
+  the refusal shows on the carton's row, and in the Regulator seat as an open
+  flag.
+- The theme toggle cycles Light → Dark → Seat default without skipping.
 - Kill the app right after launch on a populated store; relaunch shows the same
-  blocks.
+  records and the same signed-in account.
 
 ## Tests reference
 
@@ -250,15 +358,27 @@ seven tokens, unique carton hashes), the predicates every screen filters on,
 the 90% confirmation threshold, the MPO route dropping a signed-for stop, and
 minting reaching both the route and the book.
 
-`test/flows_test.dart` — 11 tests: the five reported defects asserted on screen
+`test/flows_test.dart` — 12 tests: the five reported defects asserted on screen,
+plus a second pharmacy seeing only its own invoices,
 at 360x800, rather than in the model. If one of these fails, a user can see it.
 
-`test/layout_test.dart` (78 tests): golden-style layout tests for every screen
-at multiple device sizes (iPhone SE, iPhone 15 Pro, Android 360×800) in both
-light and dark mode. These guard against overflow regressions.
+`test/layout_test.dart` (54 tests): layout checks for sign-in and every seat,
+on every tab, at three device sizes (iPhone SE, iPhone 15 Pro, Android
+360×800) in light and dark. These guard against overflow regressions.
 
-`test/widget_test.dart` (a few tests): persona launcher smoke test and
-back-button behavior.
+`test/design_lint_test.dart` (7 tests): fails on raw colours, inline font
+sizes, bold, raw `TextStyle(`, inline `fontFamily` and `brightness ==`
+branches in `lib/features` and `lib/widgets`. See `docs/DESIGN_SYSTEM.md`.
+
+`test/widget_test.dart` (4 tests): sign-in lists every account, the first
+sign-in sets a PIN and opens the account's own seat, a wrong PIN doesn't sign
+in, and a fast load never flashes the splash.
+
+`test/palette_test.dart` (21 tests, one per widget file): no screen reads a
+fixed world palette. `test/luma_design_test.dart` (10 tests): the Luma
+widgets.
+
+Total: 152.
 
 ## If you break something
 

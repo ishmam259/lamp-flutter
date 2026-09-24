@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:lamp_flutter/core/chain/contract.dart';
+import 'package:lamp_flutter/core/chain/crypto.dart';
 import 'package:lamp_flutter/core/chain/ledger.dart';
 import 'package:lamp_flutter/core/models/domain_models.dart';
 import 'package:lamp_flutter/core/state/lamp_state.dart';
@@ -164,6 +165,20 @@ void main() {
       // Report 01 #3: "I have financed it, why is it still showing."
       final view =
           views().firstWhere((v) => v.token.isFinanceable(clock.now));
+      // The chaincode will not advance against an invoice the bank has not
+      // anchored the PDF for.
+      final anchored = await ledger.submit(
+        fn: 'anchorInvoiceDocument',
+        args: {
+          'tokenId': view.tokenId,
+          'sha256': LaMPCrypto.sha256Hex('invoice-pdf-'),
+          'byteLength': 4096,
+          'filename': '.pdf',
+        },
+        asMsp: Msp.meghnaMSP,
+        nowTimestamp: clock.now,
+      );
+      expect(anchored.ok, isTrue, reason: anchored.error);
       final res = await ledger.submit(
         fn: 'matchAndAdvance',
         args: {'tokenId': view.tokenId},
@@ -379,11 +394,18 @@ void main() {
       }
 
       final tokensBefore = state.tokenViews.length;
-      final routeBefore = state.routeFor(SeedData.mpos[0].id).length;
+      // The new consignment goes to the officer who covers the pharmacy's
+      // territory.
+      final buyer = SeedData.pharmacies[1];
+      final officer = SeedData.mpos.firstWhere(
+        (m) => m.territory == buyer.territory,
+        orElse: () => SeedData.mpos.first,
+      );
+      final routeBefore = state.routeFor(officer.id).length;
 
       final product = SeedData.products.first;
       final res = await state.mintInvoice(
-        pharmacyDid: SeedData.pharmacies[1].did,
+        pharmacyDid: buyer.did,
         termsDays: 30,
         lineItems: [
           LineItem(
@@ -401,7 +423,7 @@ void main() {
 
       // Before this, minting inserted rows nothing ever read.
       expect(state.tokenViews.length, tokensBefore + 1);
-      expect(state.routeFor(SeedData.mpos[0].id).length, routeBefore + 1);
+      expect(state.routeFor(officer.id).length, routeBefore + 1);
     });
 
     test('minted invoice ids are monotonic and never collide', () async {

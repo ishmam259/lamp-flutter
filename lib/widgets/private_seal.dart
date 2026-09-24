@@ -35,33 +35,35 @@ class PrivateSeal extends StatelessWidget {
             Expanded(
               child: Text(
                 cleartext,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: c.ink,
-                ),
+                style: LaMPType.caption.copyWith(color: c.ink),
               ),
             ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: c.verified.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.lock_open, size: 12, color: c.verified),
-                  const SizedBox(width: 4),
-                  Text(
-                    'visible to $memberName',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: c.verified,
+            const SizedBox(width: Gap.sm),
+            // Flexible, because the member name is data: 'Bangladesh Bank ·
+            // DGDA' is twice the width of 'Meghna' and this badge had no way
+            // to give any of it back.
+            Flexible(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: c.verified.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(LaMPRadius.control),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.lock_open, size: 12, color: c.verified),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        'Visible to $memberName',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: LaMPType.caption.copyWith(fontWeight: FontWeight.w600, color: c.verified),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],
@@ -88,22 +90,13 @@ class PrivateSeal extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'SEALED PRIVATE DATA',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.8,
-                    color: c.inkFaint,
-                  ),
+                  'PRIVATE',
+                  style: LaMPType.label.copyWith(color: c.inkFaint),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   LaMPFormatters.shortHash(hash, head: 16, tail: 12),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback,
-                    color: c.inkFaint,
-                  ),
+                  style: LaMPType.monoCaption.copyWith(color: c.inkFaint),
                 ),
               ],
             ),
@@ -115,12 +108,8 @@ class PrivateSeal extends StatelessWidget {
               borderRadius: BorderRadius.circular(4),
             ),
             child: Text(
-              'hash only',
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-                color: c.pending,
-              ),
+              'Others see a fingerprint only',
+              style: LaMPType.caption.copyWith(fontWeight: FontWeight.w600, color: c.pending),
             ),
           ),
         ],

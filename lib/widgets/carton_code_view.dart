@@ -37,7 +37,7 @@ class CartonCodeView extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Colors.white, // design-lint: allow (a barcode must be black on white to scan)
             borderRadius: BorderRadius.circular(8),
             border: Border.all(color: c.line),
           ),
@@ -45,16 +45,16 @@ class CartonCodeView extends StatelessWidget {
             data: gs1,
             version: QrVersions.auto,
             size: size,
-            backgroundColor: Colors.white,
+            backgroundColor: Colors.white, // design-lint: allow (a barcode must be black on white to scan)
             padding: EdgeInsets.zero,
             errorCorrectionLevel: QrErrorCorrectLevel.M,
           ),
         ),
         const SizedBox(height: 8),
         Text(
-          'QR standing in for the carton DataMatrix',
+          'Carton code',
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 10, color: c.inkFaint, height: 1.3),
+          style: LaMPType.caption.copyWith(color: c.inkFaint, height: 1.3),
         ),
         if (showPayload) ...[
           const SizedBox(height: 8),
@@ -63,12 +63,7 @@ class CartonCodeView extends StatelessWidget {
               '(01) ${fields.gtin}   (10) ${fields.batch}\n'
               '(17) ${fields.expiry}   (21) ${fields.serial}',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback,
-                fontSize: 10,
-                color: c.inkMuted,
-                height: 1.5,
-              ),
+              style: LaMPType.monoCaption.copyWith(color: c.inkMuted, height: 1.5),
             ),
         ],
       ],

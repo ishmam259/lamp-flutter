@@ -2,16 +2,17 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'core/auth/auth_controller.dart';
 import 'core/constants/app_theme.dart';
 import 'core/constants/palette.dart';
 import 'core/state/lamp_state.dart';
 import 'core/state/theme_controller.dart';
 import 'features/bank/bank_screen.dart';
-import 'features/launcher/launcher_screen.dart';
 import 'features/manufacturer/manufacturer_screen.dart';
 import 'features/mpo/mpo_screen.dart';
 import 'features/pharmacy/pharmacy_screen.dart';
 import 'features/regulator/regulator_screen.dart';
+import 'features/sign_in/sign_in_screen.dart';
 import 'features/splash/splash_screen.dart';
 
 void main() {
@@ -21,6 +22,7 @@ void main() {
       providers: [
         ChangeNotifierProvider(create: (_) => LaMPState()),
         ChangeNotifierProvider(create: (_) => ThemeController()),
+        ChangeNotifierProvider(create: (_) => AuthController()),
       ],
       child: const LaMPApp(),
     ),
@@ -76,8 +78,6 @@ class MainShell extends StatefulWidget {
 }
 
 class _MainShellState extends State<MainShell> {
-  PersonaId? _activePersona;
-
   /// How long to wait before admitting the app is loading at all.
   ///
   /// Platform guidance on both sides is that a launch screen should disappear
@@ -157,8 +157,6 @@ class _MainShellState extends State<MainShell> {
     super.dispose();
   }
 
-  void _toLauncher() => setState(() => _activePersona = null);
-
   @override
   Widget build(BuildContext context) {
     // Seats are swapped by setState rather than pushed, so the navigator only
@@ -174,17 +172,25 @@ class _MainShellState extends State<MainShell> {
     // one is what stops a fast restore from flashing a splash it did not need.
     final phase = context.watch<LaMPState>().loadPhase;
 
+    // Signed in, the seat is the app's home screen, so system back leaves
+    // the app as it would from any other app's home. The sign-in screen
+    // handles back itself, stepping from the PIN pad to the account list.
+    final auth = context.watch<AuthController>();
+    final ready = _handedOver && auth.isLoaded;
+
     return PopScope(
-      canPop: _activePersona == null,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) _toLauncher();
-      },
+      canPop: true,
       // Cross-fade rather than cut. The splash has just finished its own
       // entrance; replacing it in a single frame throws that away.
       child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 350),
         child: switch ((_handedOver, _splashShowing)) {
-          (true, _) => _seat(),
+          (true, _) when ready => _seat(auth),
+          (true, _) => ColoredBox(
+              key: const ValueKey('quiet'),
+              color: context.lamp.bg,
+              child: const SizedBox.expand(),
+            ),
           (false, true) => SplashScreen(
               key: const ValueKey('splash'),
               phase: phase,
@@ -202,19 +208,19 @@ class _MainShellState extends State<MainShell> {
     );
   }
 
-  Widget _seat() {
+  Widget _seat(AuthController auth) {
+    final account = auth.current;
     return KeyedSubtree(
-      key: const ValueKey('app'),
-      child: switch (_activePersona) {
-        null => LauncherScreen(
-            onSelectPersona: (p) => setState(() => _activePersona = p),
-          ),
-        PersonaId.mpo => MpoScreen(onBackToLauncher: _toLauncher),
-        PersonaId.pharmacy => PharmacyScreen(onBackToLauncher: _toLauncher),
-        PersonaId.manufacturer =>
-          ManufacturerScreen(onBackToLauncher: _toLauncher),
-        PersonaId.bank => BankScreen(onBackToLauncher: _toLauncher),
-        PersonaId.regulator => RegulatorScreen(onBackToLauncher: _toLauncher),
+      // Keyed by account, so switching accounts builds the seat fresh rather
+      // than carrying one person's tab and selection over to the next.
+      key: ValueKey('app-${account?.id}'),
+      child: switch (account?.seat) {
+        null => const SignInScreen(),
+        PersonaId.mpo => MpoScreen(mpoId: account!.mpoId),
+        PersonaId.pharmacy => PharmacyScreen(pharmacyDid: account!.pharmacyDid),
+        PersonaId.manufacturer => const ManufacturerScreen(),
+        PersonaId.bank => BankScreen(initialBank: account!.bank),
+        PersonaId.regulator => const RegulatorScreen(),
       },
     );
   }

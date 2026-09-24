@@ -205,20 +205,14 @@ class _VerifyAndAnchorSheetState extends State<VerifyAndAnchorSheet> {
               ),
               Text(
                 'Verify anchored invoice PDF',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: c.ink,
-                ),
+                style: LaMPType.head.copyWith(color: c.ink),
+
               ),
               const SizedBox(height: 4),
               Text(
                 'Token ${widget.tokenId}',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontFamily: LaMPType.mono,
-                  color: c.inkFaint,
-                ),
+                style: LaMPType.monoMicro.copyWith(color: c.inkFaint),
+
               ),
               const SizedBox(height: 16),
               _ledgerLine(
@@ -248,7 +242,7 @@ class _VerifyAndAnchorSheetState extends State<VerifyAndAnchorSheet> {
                 const SizedBox(height: 8),
                 Text(
                   _anchorError!,
-                  style: TextStyle(fontSize: 11, color: c.dispute),
+                  style: LaMPType.caption.copyWith(color: c.dispute),
                 ),
               ],
               const SizedBox(height: 20),
@@ -390,7 +384,7 @@ class _VerifyAndAnchorSheetState extends State<VerifyAndAnchorSheet> {
           Expanded(
             child: Text(
               text,
-              style: TextStyle(fontSize: 12, color: c.ink, height: 1.4),
+              style: LaMPType.caption.copyWith(color: c.ink),
             ),
           ),
         ],
@@ -408,22 +402,15 @@ class _VerifyAndAnchorSheetState extends State<VerifyAndAnchorSheet> {
           width: 110,
           child: Text(
             label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: c.inkFaint,
-            ),
+            style: LaMPType.caption.copyWith(color: c.inkFaint),
+
           ),
         ),
         Expanded(
           child: Text(
             value,
-            style: TextStyle(
-              fontSize: 11,
-              fontFamily: LaMPType.mono,
-              color: color,
-              fontWeight: FontWeight.w600,
-            ),
+            style: LaMPType.monoMicro.copyWith(color: color),
+
           ),
         ),
       ],

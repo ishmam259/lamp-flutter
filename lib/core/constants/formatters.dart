@@ -50,6 +50,9 @@ class LaMPFormatters {
 
   static String formatTime(int ms) => DateFormat('HH:mm:ss').format(_dhaka(ms));
 
+  /// `09:00` — a time of day for people, without seconds.
+  static String formatClock(int ms) => DateFormat('HH:mm').format(_dhaka(ms));
+
   static String formatDateTime(int ms) =>
       DateFormat('dd MMM yyyy HH:mm:ss').format(_dhaka(ms));
 

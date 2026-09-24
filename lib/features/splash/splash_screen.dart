@@ -98,6 +98,8 @@ class _SplashScreenState extends State<SplashScreen>
                     opacity: _markFade.value,
                     child: Transform.scale(
                       scale: _markScale.value,
+                      // Mark only: the wordmark is the animated 'LaMP' text
+                      // below, so the full logo would set it twice.
                       child: const LampMark(size: 88),
                     ),
                   ),
@@ -118,7 +120,7 @@ class _SplashScreenState extends State<SplashScreen>
                         const SizedBox(height: Gap.xs),
                         Text(
                           'Last Mile Pharmacy',
-                          style: LaMPType.monoCaption.copyWith(color: c.inkFaint),
+                          style: LaMPType.caption.copyWith(color: c.inkFaint),
                         ),
                       ],
                     ),
@@ -154,8 +156,8 @@ class _SplashScreenState extends State<SplashScreen>
                           // one document. Calling both the same thing would be
                           // wrong half the time.
                           switch (widget.phase) {
-                            WorldLoad.seeding => 'Building the ledger',
-                            WorldLoad.restoring => 'Opening the ledger',
+                            WorldLoad.seeding => 'Getting things ready',
+                            WorldLoad.restoring => 'Loading your data',
                             _ => 'Starting',
                           },
                           style: LaMPType.caption.copyWith(color: c.inkFaint),

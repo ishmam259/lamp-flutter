@@ -20,6 +20,11 @@ import 'package:flutter/material.dart';
 /// One rule survives from the web design system and is not negotiable:
 /// **mint is reserved**. [verified] means "the ledger confirmed this" and
 /// nothing else. It is never a call to action.
+///
+/// Three states only — confirmed, pending, refused. Provenance (blocks,
+/// hashes, endorsements) is shown by typography, a mono footer under a
+/// hairline, not by a colour of its own. And accent is a budget: state colour
+/// belongs on dots, chip text and figures that carry state, never on fills.
 @immutable
 class LampPalette extends ThemeExtension<LampPalette> {
   /// The page behind everything.
@@ -46,7 +51,8 @@ class LampPalette extends ThemeExtension<LampPalette> {
   final Color line;
   final Color lineStrong;
 
-  /// The action colour. Buttons, links, selected state.
+  /// The action colour. Buttons, links, selected state. In dark themes it is
+  /// the top of the ink ramp, so it never reads as a status.
   final Color brand;
 
   /// Text and icons sitting on top of [brand].
@@ -65,10 +71,6 @@ class LampPalette extends ThemeExtension<LampPalette> {
   /// Refused, disputed, failed.
   final Color dispute;
   final Color disputeSoft;
-
-  /// Chain provenance — hashes, blocks, endorsements.
-  final Color chain;
-  final Color chainSoft;
 
   /// Tinted to the ground rather than neutral black, so cards lift off the
   /// page instead of looking like they are sitting in a puddle.
@@ -93,8 +95,6 @@ class LampPalette extends ThemeExtension<LampPalette> {
     required this.pendingSoft,
     required this.dispute,
     required this.disputeSoft,
-    required this.chain,
-    required this.chainSoft,
     required this.shadow,
   });
 
@@ -117,41 +117,42 @@ class LampPalette extends ThemeExtension<LampPalette> {
     brand: Color(0xFF0B5D42),
     onBrand: Color(0xFFFFFFFF),
     brandSoft: Color(0x140B5D42),
-    verified: Color(0xFF0F8A62),
-    verifiedSoft: Color(0x1A0F8A62),
+    verified: Color(0xFF0B6B4C),
+    verifiedSoft: Color(0x1A0B6B4C),
     pending: Color(0xFF9A6206),
     pendingSoft: Color(0x1A9A6206),
     dispute: Color(0xFFB92F36),
     disputeSoft: Color(0x16B92F36),
-    chain: Color(0xFF2F5FA8),
-    chainSoft: Color(0x162F5FA8),
     shadow: Color(0x1A0C1411),
   );
 
   /// The same app after dark — a rider finishing a run at night, a pharmacist
-  /// closing up. Mint lifts to carry the action colour, because #0B5D42 on a
-  /// dark ground is unreadable.
+  /// closing up. #0B5D42 is unreadable on a dark ground, and mint is taken by
+  /// [verified], so the action colour moves to the top of the ink ramp.
   static const LampPalette fieldDark = LampPalette(
     bg: Color(0xFF0B100E),
-    surface: Color(0xFF151C18),
-    surfaceAlt: Color(0xFF1D2621),
-    surfaceSunken: Color(0xFF26312B),
-    ink: Color(0xFFEAF1EC),
-    inkMuted: Color(0xFFAEBDB5),
-    inkFaint: Color(0xFF7D8E85),
-    line: Color(0xFF243029),
-    lineStrong: Color(0xFF334037),
-    brand: Color(0xFF3DDC97),
-    onBrand: Color(0xFF05130D),
-    brandSoft: Color(0x1F3DDC97),
+    // Lifted. A shadow cannot separate anything in dark mode — there is
+    // nothing darker than the ground to cast onto — so the only thing that
+    // makes a card read as a card is being lighter than the page. These were
+    // within six points of the background and the interface looked like one
+    // flat sheet with hairlines drawn on it.
+    surface: Color(0xFF1A231E),
+    surfaceAlt: Color(0xFF232E28),
+    surfaceSunken: Color(0xFF2C3830),
+    ink: Color(0xFFECF2EE),
+    inkMuted: Color(0xFFB6C3BC),
+    inkFaint: Color(0xFF8A9791),
+    line: Color(0xFF2C3931),
+    lineStrong: Color(0xFF3D4C43),
+    brand: Color(0xFFECF2EE),
+    onBrand: Color(0xFF0A100D),
+    brandSoft: Color(0x1FECF2EE),
     verified: Color(0xFF3DDC97),
     verifiedSoft: Color(0x1F3DDC97),
-    pending: Color(0xFFE8A33D),
-    pendingSoft: Color(0x1FE8A33D),
-    dispute: Color(0xFFE5484D),
-    disputeSoft: Color(0x1FE5484D),
-    chain: Color(0xFF7BA6E8),
-    chainSoft: Color(0x1F7BA6E8),
+    pending: Color(0xFFF0A93C),
+    pendingSoft: Color(0x1FF0A93C),
+    dispute: Color(0xFFFF6165),
+    disputeSoft: Color(0x1FFF6165),
     shadow: Color(0x66000000),
   );
 
@@ -162,11 +163,16 @@ class LampPalette extends ThemeExtension<LampPalette> {
   /// Ported from the web design system's light portal scope, so the phone and
   /// the desktop portals agree.
   ///
-  /// Brand is a deep teal so it never collides with `verified`, which is
-  /// emerald. The "mint is reserved" rule survives across both portals — a
-  /// tinted action button is visually distinct from a confirmation badge.
+  /// Brand is the same deep green as the field seats. `verified` is a
+  /// separate, lighter green that only ever appears as a dot or chip text, so
+  /// the two separate by tone and by shape — never a filled button.
   static const LampPalette portalLight = LampPalette(
-    bg: Color(0xFFFFFFFF),
+    // The page is no longer white. A white card on a white page is not a
+    // card — it is a rectangle of border, and the whole light portal read as
+    // a wireframe because of it. Luma's light mode is a faintly tinted
+    // ground with white cards lifted off it, which is what makes elevation
+    // do any work at all in light.
+    bg: Color(0xFFF5F8F6),
     surface: Color(0xFFFFFFFF),
     surfaceAlt: Color(0xFFF4F8F5),
     surfaceSunken: Color(0xFFE5EFE8),
@@ -175,46 +181,42 @@ class LampPalette extends ThemeExtension<LampPalette> {
     inkFaint: Color(0xFF52675D),
     line: Color(0xFFE1EDE5),
     lineStrong: Color(0xFFC5DACF),
-    brand: Color(0xFF0F766E),
+    brand: Color(0xFF0B5D42),
     onBrand: Color(0xFFFFFFFF),
-    brandSoft: Color(0x1F0F766E),
-    verified: Color(0xFF059669),
-    verifiedSoft: Color(0x1F059669),
+    brandSoft: Color(0x1F0B5D42),
+    verified: Color(0xFF0B6B4C),
+    verifiedSoft: Color(0x1A0B6B4C),
     pending: Color(0xFF925807),
     pendingSoft: Color(0x1C925807),
     dispute: Color(0xFFB92F36),
     disputeSoft: Color(0x1AB92F36),
-    chain: Color(0xFF225698),
-    chainSoft: Color(0x1A225698),
     shadow: Color(0x14070E0B),
   );
 
   /// The default for the institutional seats.
   ///
-  /// Brand is a deeper sky so it sits beside the mint `verified` without
-  /// sharing the hue. The previous `brand == verified == #3DDC97` made every
-  /// primary action indistinguishable from a confirmation mark.
+  /// Brand is near-white, the top of the ink ramp; mint is left to
+  /// `verified` alone. When the two shared #3DDC97, a button you could press
+  /// and a fact the ledger had confirmed read identically.
   static const LampPalette portalDark = LampPalette(
     bg: Color(0xFF090D0C),
-    surface: Color(0xFF121A16),
-    surfaceAlt: Color(0xFF1A241F),
-    surfaceSunken: Color(0xFF232F29),
-    ink: Color(0xFFE9F0EB),
-    inkMuted: Color(0xFFAFBEB6),
-    inkFaint: Color(0xFF7C8A85),
-    line: Color(0xFF212C27),
-    lineStrong: Color(0xFF2F3C35),
-    brand: Color(0xFF38BDF8),
-    onBrand: Color(0xFF04120C),
-    brandSoft: Color(0x1F38BDF8),
+    surface: Color(0xFF17211C),
+    surfaceAlt: Color(0xFF202B25),
+    surfaceSunken: Color(0xFF2A3730),
+    ink: Color(0xFFECF2EE),
+    inkMuted: Color(0xFFB6C3BC),
+    inkFaint: Color(0xFF8A9791),
+    line: Color(0xFF2A3630),
+    lineStrong: Color(0xFF3A4941),
+    brand: Color(0xFFECF2EE),
+    onBrand: Color(0xFF0A100D),
+    brandSoft: Color(0x1FECF2EE),
     verified: Color(0xFF3DDC97),
     verifiedSoft: Color(0x1F3DDC97),
-    pending: Color(0xFFE8A33D),
-    pendingSoft: Color(0x1FE8A33D),
-    dispute: Color(0xFFE5484D),
-    disputeSoft: Color(0x1FE5484D),
-    chain: Color(0xFF7BA6E8),
-    chainSoft: Color(0x1F7BA6E8),
+    pending: Color(0xFFF0A93C),
+    pendingSoft: Color(0x1FF0A93C),
+    dispute: Color(0xFFFF6165),
+    disputeSoft: Color(0x1FFF6165),
     shadow: Color(0x80000000),
   );
 
@@ -246,8 +248,6 @@ class LampPalette extends ThemeExtension<LampPalette> {
     Color? pendingSoft,
     Color? dispute,
     Color? disputeSoft,
-    Color? chain,
-    Color? chainSoft,
     Color? shadow,
   }) {
     return LampPalette(
@@ -269,8 +269,6 @@ class LampPalette extends ThemeExtension<LampPalette> {
       pendingSoft: pendingSoft ?? this.pendingSoft,
       dispute: dispute ?? this.dispute,
       disputeSoft: disputeSoft ?? this.disputeSoft,
-      chain: chain ?? this.chain,
-      chainSoft: chainSoft ?? this.chainSoft,
       shadow: shadow ?? this.shadow,
     );
   }
@@ -297,8 +295,6 @@ class LampPalette extends ThemeExtension<LampPalette> {
       pendingSoft: Color.lerp(pendingSoft, other.pendingSoft, t)!,
       dispute: Color.lerp(dispute, other.dispute, t)!,
       disputeSoft: Color.lerp(disputeSoft, other.disputeSoft, t)!,
-      chain: Color.lerp(chain, other.chain, t)!,
-      chainSoft: Color.lerp(chainSoft, other.chainSoft, t)!,
       shadow: Color.lerp(shadow, other.shadow, t)!,
     );
   }
@@ -322,6 +318,20 @@ class Gap {
   static const double xl = 24;
   static const double xxl = 32;
   static const double section = 40;
+
+  /// Inside a card.
+  ///
+  /// Its own token rather than a reuse of [lg], because card padding is the
+  /// single number that decides whether an interface feels considered or
+  /// cramped, and it should be changeable without moving every other gap in
+  /// the app with it. 16 was the old value and it put the text hard against
+  /// the border; Luma's cards sit nearer 20-24.
+  static const double card = 20;
+
+  /// Between one group of content and the next. Sections separated by the
+  /// same gap that separates two cards inside a section do not read as
+  /// sections at all.
+  static const double group = 36;
 }
 
 /// Icon sizes as tokens. There were ten arbitrary values before this, with

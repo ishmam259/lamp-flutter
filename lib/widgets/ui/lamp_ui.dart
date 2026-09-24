@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../core/constants/palette.dart';
 import '../../core/constants/typography.dart';
+import '../../core/design/luma_elevation.dart';
+import '../../core/design/luma_press.dart';
 
 /// The shared component set.
 ///
@@ -17,13 +19,31 @@ import '../../core/constants/typography.dart';
 /* -------------------------------------------------------------------------- */
 
 /// The standard content surface.
+///
+/// Two things changed here on this branch, and both are Luma's.
+///
+/// The press is a transform now, not a ripple. A ripple on a card 340dp wide
+/// takes most of a second to cross it, so the acknowledgement lands well after
+/// the finger has already lifted; a 2.5% squeeze lands on contact. See
+/// [LumaPress] for the rest of that argument.
+///
+/// The shadow is layered rather than single — see [LumaElevation]. A card at
+/// rest now casts something, which is what separates it from the page when the
+/// hairline border is the same value as the background in dark mode.
 class LampCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry? padding;
   final VoidCallback? onTap;
   final Color? background;
   final Color? border;
+
+  /// The card that is the point of the screen. One per view, or the word
+  /// stops meaning anything.
   final bool raised;
+
+  /// Drops the shadow entirely, for a card nested inside another card where a
+  /// cast would read as a rendering mistake.
+  final bool flat;
 
   const LampCard({
     super.key,
@@ -33,6 +53,7 @@ class LampCard extends StatelessWidget {
     this.background,
     this.border,
     this.raised = false,
+    this.flat = false,
   });
 
   @override
@@ -41,30 +62,26 @@ class LampCard extends StatelessWidget {
     final radius = BorderRadius.circular(LaMPRadius.card);
 
     final content = Container(
-      padding: padding ?? const EdgeInsets.all(Gap.lg),
+      padding: padding ?? const EdgeInsets.all(Gap.card),
       decoration: BoxDecoration(
         color: background ?? c.surface,
         borderRadius: radius,
         border: Border.all(color: border ?? c.line),
-        // Tinted to the ground rather than neutral black, so a card lifts off
-        // the page instead of looking like it is sitting in a puddle.
-        boxShadow: raised
-            ? [BoxShadow(color: c.shadow, blurRadius: 24, offset: const Offset(0, 8))]
-            : null,
+        boxShadow: flat
+            ? LumaElevation.none
+            : raised
+                ? LumaElevation.raised(context)
+                : LumaElevation.rest(context),
       ),
       child: child,
     );
 
     if (onTap == null) return content;
 
-    return Material(
-      color: Colors.transparent,
+    return LumaPress(
+      onTap: onTap,
       borderRadius: radius,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: radius,
-        child: content,
-      ),
+      child: content,
     );
   }
 }
@@ -90,7 +107,7 @@ class LampSectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.lamp;
     return Padding(
-      padding: const EdgeInsets.only(bottom: Gap.md),
+      padding: const EdgeInsets.only(bottom: Gap.lg),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -100,7 +117,7 @@ class LampSectionHeader extends StatelessWidget {
               children: [
                 Text(title, style: LaMPType.head.copyWith(color: c.ink)),
                 if (caption != null) ...[
-                  const SizedBox(height: 2),
+                  const SizedBox(height: Gap.xs),
                   Text(caption!, style: LaMPType.caption.copyWith(color: c.inkFaint)),
                 ],
               ],
@@ -117,7 +134,7 @@ class LampSectionHeader extends StatelessWidget {
 /* Status                                                                     */
 /* -------------------------------------------------------------------------- */
 
-enum LampTone { neutral, verified, pending, dispute, chain, brand }
+enum LampTone { neutral, verified, pending, dispute, brand }
 
 extension LampToneColors on LampTone {
   Color fg(BuildContext context) {
@@ -127,7 +144,6 @@ extension LampToneColors on LampTone {
       LampTone.verified => c.verified,
       LampTone.pending => c.pending,
       LampTone.dispute => c.dispute,
-      LampTone.chain => c.chain,
       LampTone.brand => c.brand,
     };
   }
@@ -139,7 +155,6 @@ extension LampToneColors on LampTone {
       LampTone.verified => c.verifiedSoft,
       LampTone.pending => c.pendingSoft,
       LampTone.dispute => c.disputeSoft,
-      LampTone.chain => c.chainSoft,
       LampTone.brand => c.brandSoft,
     };
   }
@@ -162,10 +177,13 @@ class LampChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final fg = tone.fg(context);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: Gap.sm, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: 5),
       decoration: BoxDecoration(
+        // Pill, not a rounded rectangle. A badge that shares its corner radius
+        // with the buttons around it invites a tap it will not answer; the
+        // shape is doing the affordance work here.
         color: tone.bg(context),
-        borderRadius: BorderRadius.circular(LaMPRadius.control),
+        borderRadius: BorderRadius.circular(LaMPRadius.pill),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -176,7 +194,7 @@ class LampChip extends StatelessWidget {
           ],
           Text(
             label,
-            style: LaMPType.micro.copyWith(color: fg, fontWeight: FontWeight.w600),
+            style: LaMPType.caption.copyWith(color: fg, fontWeight: FontWeight.w600),
           ),
         ],
       ),
@@ -222,7 +240,7 @@ class LampStat extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        const SizedBox(height: Gap.xs),
+        const SizedBox(height: Gap.sm),
         FittedBox(
           fit: BoxFit.scaleDown,
           alignment: align == CrossAxisAlignment.end
@@ -238,9 +256,64 @@ class LampStat extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             caption!,
-            style: LaMPType.micro.copyWith(color: c.inkFaint),
+            style: LaMPType.caption.copyWith(color: c.inkFaint),
             maxLines: 2,
           ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Two or three figures across the width of a card.
+///
+/// This exists because of a defect that only appeared on a real phone, and
+/// that no test in this repo could have caught.
+///
+/// Three `LampStat`s in `Expanded`s is the obvious way to write the row, and
+/// it is what the route card, the launcher strip and the pharmacy dashboard
+/// all did. It never overflows — `LampStat` scales its figure down rather
+/// than pushing its neighbours off — and that is exactly the problem. A
+/// figure long enough to need scaling is scaled to fill its column *exactly*,
+/// and the next column begins at that same pixel. On the delivery officer's
+/// route card, `INV-00235` and `0/25` came out as `INV-002350/25`: no
+/// overflow, no exception, nothing for the layout sweep to report, and
+/// completely unreadable.
+///
+/// A gutter is the whole fix. It is a component rather than a `SizedBox` at
+/// three call sites so that the next stat row gets it without anyone
+/// remembering.
+class LampStatRow extends StatelessWidget {
+  final List<Widget> children;
+
+  /// Column weights, when the figures are not the same length — the launcher
+  /// gives the invoice id twice the share of the block height. Must match
+  /// [children] in length; equal columns when omitted.
+  final List<int>? flex;
+
+  /// The gap between columns. `Gap.lg`, not `Gap.sm`: this is separating two
+  /// figures set in the same weight at the same size, and at 8dp the eye
+  /// still groups them into one number.
+  final double gutter;
+
+  const LampStatRow({
+    super.key,
+    required this.children,
+    this.flex,
+    this.gutter = Gap.lg,
+  }) : assert(
+          flex == null || flex.length == children.length,
+          'flex must give a weight for every column',
+        );
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var i = 0; i < children.length; i++) ...[
+          if (i > 0) SizedBox(width: gutter),
+          Expanded(flex: flex?[i] ?? 1, child: children[i]),
         ],
       ],
     );
@@ -279,24 +352,27 @@ class LampRow extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(LaMPRadius.control),
         child: Container(
-          constraints: const BoxConstraints(minHeight: 56),
+          // 64, not 56. The floor for a touch target is 48 and this has never
+          // been near it; the number that matters here is the one that keeps
+          // two lines of 16/13 text off each other's leading.
+          constraints: const BoxConstraints(minHeight: 64),
           padding: const EdgeInsets.symmetric(
-            horizontal: Gap.md,
+            horizontal: Gap.lg,
             vertical: Gap.md,
           ),
           child: Row(
             children: [
               if (icon != null) ...[
                 Container(
-                  width: 36,
-                  height: 36,
+                  width: 40,
+                  height: 40,
                   decoration: BoxDecoration(
                     color: (iconColor ?? c.brand).withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(LaMPRadius.control),
                   ),
                   child: Icon(icon, size: IconSize.md, color: iconColor ?? c.brand),
                 ),
-                const SizedBox(width: Gap.md),
+                const SizedBox(width: Gap.lg),
               ],
               Expanded(
                 child: Column(
@@ -359,7 +435,7 @@ class LampKeyValue extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.lamp;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: Gap.xs),
+      padding: const EdgeInsets.symmetric(vertical: Gap.sm),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -417,15 +493,15 @@ class LampEmpty extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 56,
-              height: 56,
+              width: 64,
+              height: 64,
               decoration: BoxDecoration(
                 color: c.surfaceAlt,
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, size: IconSize.lg, color: c.inkFaint),
+              child: Icon(icon, size: IconSize.xl, color: c.inkFaint),
             ),
-            const SizedBox(height: Gap.lg),
+            const SizedBox(height: Gap.xl),
             Text(
               title,
               textAlign: TextAlign.center,
@@ -461,10 +537,10 @@ class LampProgress extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.lamp;
     return ClipRRect(
-      borderRadius: BorderRadius.circular(999),
+      borderRadius: BorderRadius.circular(LaMPRadius.pill),
       child: LinearProgressIndicator(
         value: value.clamp(0.0, 1.0),
-        minHeight: 6,
+        minHeight: 8,
         backgroundColor: c.surfaceSunken,
         valueColor: AlwaysStoppedAnimation(color ?? c.verified),
       ),

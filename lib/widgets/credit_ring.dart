@@ -46,23 +46,15 @@ class CreditRing extends StatelessWidget {
             children: [
               Text(
                 '${cycles.length}',
-                style: TextStyle(
-                  fontSize: size * 0.22,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: LaMPType.mono, fontFamilyFallback: LaMPType.fallback,
-                  color: c.ink,
-                  height: 1.0,
-                ),
+                // Tokens rather than a fraction of the ring: at 120dp the
+                // caption scaled to 9.6px, under the 11px floor.
+                style: (size >= 140 ? LaMPType.displayFigure : LaMPType.figure)
+                    .copyWith(color: c.ink, height: 1.0),
               ),
               const SizedBox(height: 2),
               Text(
-                'of $total cycles',
-                style: TextStyle(
-                  fontSize: size * 0.08,
-                  fontWeight: FontWeight.w600,
-                  color: c.inkFaint,
-                  letterSpacing: 0.5,
-                ),
+                'OF $total',
+                style: LaMPType.label.copyWith(color: c.inkFaint),
               ),
             ],
           ),
@@ -94,7 +86,10 @@ class _CreditRingPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = (size.width - strokeWidth) / 2;
 
-    const gapRadians = 0.08;
+    // One arc per cycle, and the gaps have to survive the stroke: round caps
+    // reach half a stroke past each end and closed the old 0.08rad gaps, so
+    // eight cycles read as one ring. Butt caps, and a gap sized to the stroke.
+    final gapRadians = (strokeWidth * 0.9) / radius;
     final totalGap = gapRadians * total;
     final segmentRadians = (2 * math.pi - totalGap) / total;
 
@@ -113,7 +108,7 @@ class _CreditRingPainter extends CustomPainter {
         ..color = arcColor
         ..style = PaintingStyle.stroke
         ..strokeWidth = strokeWidth
-        ..strokeCap = StrokeCap.round;
+        ..strokeCap = StrokeCap.butt;
 
       canvas.drawArc(
         Rect.fromCircle(center: center, radius: radius),

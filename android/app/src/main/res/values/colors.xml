@@ -4,4 +4,5 @@
          its first frame. It has to match the app's own ground or the launch
          reads as a flash. Light portal ground. -->
     <color name="lamp_ground">#FFFFFF</color>
+	<color name="ic_launcher_background">#0B120F</color>
 </resources>

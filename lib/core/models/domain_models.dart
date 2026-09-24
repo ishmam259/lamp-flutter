@@ -24,12 +24,12 @@ enum Msp {
 }
 
 enum TokenState {
-  created('CREATED', 'Created'),
-  partiallyFulfilled('PARTIALLY_FULFILLED', 'Partially Fulfilled'),
+  created('CREATED', 'Issued'),
+  partiallyFulfilled('PARTIALLY_FULFILLED', 'Being delivered'),
   delivered('DELIVERED', 'Delivered'),
   disputed('DISPUTED', 'Disputed'),
   financed('FINANCED', 'Financed'),
-  settled('SETTLED', 'Settled'),
+  settled('SETTLED', 'Paid'),
   defaulted('DEFAULTED', 'Defaulted');
 
   final String id;
@@ -273,15 +273,18 @@ class Carton {
 }
 
 enum DeliveryStatus {
-  pending('PENDING'),
-  inTransit('IN_TRANSIT'),
-  scanning('SCANNING'),
-  awaitingConfirmation('AWAITING_CONFIRMATION'),
-  completed('COMPLETED'),
-  disputed('DISPUTED');
+  pending('PENDING', 'Not started'),
+  inTransit('IN_TRANSIT', 'On the way'),
+  scanning('SCANNING', 'Scanning cartons'),
+  awaitingConfirmation('AWAITING_CONFIRMATION', 'Awaiting signature'),
+  completed('COMPLETED', 'Delivered'),
+  disputed('DISPUTED', 'Disputed');
 
   final String id;
-  const DeliveryStatus(this.id);
+
+  /// What the status is called on screen.
+  final String label;
+  const DeliveryStatus(this.id, this.label);
 
   static DeliveryStatus fromId(String id) =>
       DeliveryStatus.values.firstWhere(
