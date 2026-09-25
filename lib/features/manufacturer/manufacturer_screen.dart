@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
+import 'dart:typed_data';
 import '../../core/constants/app_theme.dart';
 import '../../core/constants/ledger_labels.dart';
 import '../../core/constants/palette.dart';
@@ -11,6 +12,7 @@ import '../../core/design/luma_toast.dart';
 import '../../core/design/luma_frost.dart';
 import '../../core/constants/formatters.dart';
 import '../../core/invoice/invoice_artifacts.dart';
+import '../../core/invoice/save_to_device.dart';
 import '../../core/models/domain_models.dart';
 import '../../core/state/lamp_state.dart';
 import '../../core/world/queries.dart';
@@ -460,6 +462,7 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> {
     );
   }
 
+  /// Save the QR codes to the device. Sharing is offered afterwards, not done.
   Future<void> _downloadQrZip(BuildContext context, String tokenId) async {
     final messenger = ScaffoldMessenger.of(context);
     final state = context.read<LaMPState>();
@@ -469,19 +472,13 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> {
         (inv) => inv.tokenId == tokenId,
         orElse: () => state.invoices.first,
       );
-      final filename = InvoiceArtifacts.zipFilename(invoice.invoiceId);
-      final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/$filename');
-      await file.writeAsBytes(bytes);
-      await Share.shareXFiles(
-        [XFile(file.path, name: filename, mimeType: 'application/zip')],
-        subject: 'LaMP QR codes for $filename',
-      );
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text('$filename sent — open on a second device to scan.'),
-          duration: const Duration(seconds: 3),
-        ),
+      await _saveThenOfferShare(
+        messenger,
+        bytes: bytes,
+        filename: InvoiceArtifacts.zipFilename(invoice.invoiceId),
+        mimeType: 'application/zip',
+        subject: 'LaMP QR codes for ${invoice.invoiceId}',
+        note: 'Open on a second device to scan.',
       );
     } catch (e) {
       messenger.showSnackBar(
@@ -490,31 +487,27 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> {
     }
   }
 
+  /// Save the invoice PDF to the device. Sharing is offered afterwards.
   Future<void> _downloadInvoicePdf(BuildContext context, String tokenId) async {
     final messenger = ScaffoldMessenger.of(context);
     final state = context.read<LaMPState>();
     try {
       final pdf = await state.generateInvoicePdf(tokenId);
+      // Staged before the save sheet opens: the bank verifies against this
+      // copy when it anchors the invoice, so cancelling the save must not lose
+      // it.
       await state.stageInvoicePdf(
         tokenId,
         pdf.bytes,
         filename: pdf.filename,
       );
-      final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/${pdf.filename}');
-      await file.writeAsBytes(pdf.bytes);
-      await Share.shareXFiles(
-        [XFile(file.path, name: pdf.filename, mimeType: 'application/pdf')],
+      await _saveThenOfferShare(
+        messenger,
+        bytes: pdf.bytes,
+        filename: pdf.filename,
+        mimeType: 'application/pdf',
         subject: 'LaMP invoice ${pdf.filename}',
-      );
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            '${pdf.filename} shared. SHA-256: ${pdf.sha256.substring(0, 16)}… — '
-            'send to the financier to anchor.',
-          ),
-          duration: const Duration(seconds: 5),
-        ),
+        note: 'SHA-256 ${pdf.sha256.substring(0, 16)}…',
       );
     } catch (e) {
       messenger.showSnackBar(
@@ -523,6 +516,63 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> {
     }
   }
 
+  /// Ask where to save the file, save it, and only then put a Share button on
+  /// the confirmation. Nothing leaves the device unless that button is tapped.
+  Future<void> _saveThenOfferShare(
+    ScaffoldMessengerState messenger, {
+    required Uint8List bytes,
+    required String filename,
+    required String mimeType,
+    required String subject,
+    String? note,
+  }) async {
+    final saved = await saveToDevice(filename: filename, bytes: bytes);
+    if (saved == null) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Save cancelled. Nothing was downloaded.')),
+      );
+      return;
+    }
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(note == null ? 'Saved $filename.' : 'Saved $filename. $note'),
+        duration: const Duration(seconds: 8),
+        action: SnackBarAction(
+          label: 'Share',
+          onPressed: () => _shareSaved(
+            messenger,
+            bytes: bytes,
+            filename: filename,
+            mimeType: mimeType,
+            subject: subject,
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// The optional second step: hand the saved file to the system share sheet.
+  Future<void> _shareSaved(
+    ScaffoldMessengerState messenger, {
+    required Uint8List bytes,
+    required String filename,
+    required String mimeType,
+    required String subject,
+  }) async {
+    try {
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/$filename');
+      await file.writeAsBytes(bytes);
+      await Share.shareXFiles(
+        [XFile(file.path, name: filename, mimeType: mimeType)],
+        subject: subject,
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Could not share $filename: $e')),
+      );
+    }
+  }
   /* ---------------------------------------------------------------------- */
   /* Tracking                                                                */
   /* ---------------------------------------------------------------------- */
