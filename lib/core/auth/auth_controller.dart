@@ -1,126 +1,188 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-import '../chain/crypto.dart';
+import '../models/domain_models.dart';
+import '../state/lamp_state.dart';
 import 'accounts.dart';
+import 'auth_service.dart';
+import 'local_auth_service.dart';
+import 'user_profile.dart';
 
-/// Who is signed in, and the PIN check that gets them there.
+/// Who is signed in, and which seat that opens.
 ///
-/// On-device for now: each account's PIN is set the first time it signs in on
-/// this phone and stored only as a salted hash. The session survives a
-/// restart. The screens only ever call [signIn], [createPin] and [signOut],
-/// so a server-backed check can replace this class without touching them.
+/// Sign-in itself belongs to an [AuthService] (Firebase in the app, a local
+/// stand-in in tests). This class turns "who they are" plus "what they
+/// registered for" into the [Account] the shell shows, so `main.dart` and the
+/// seats only ever read [current].
 ///
 /// Separate from [LaMPState] on purpose: resetting the demo world must not
 /// sign anyone out.
 class AuthController extends ChangeNotifier {
-  static const String _sessionKey = 'lamp.session';
-  static const String _pinPrefix = 'lamp.pin.';
+  final AuthService _service;
+  StreamSubscription<AuthUser?>? _sub;
 
-  /// Wrong PINs allowed before sign-in pauses.
-  static const int maxAttempts = 5;
-  static const Duration lockout = Duration(seconds: 30);
+  AuthUser? _user;
+  UserProfile? _profile;
 
-  static const int pinLength = 4;
-
-  Account? _current;
-  Account? get current => _current;
+  /// Testing only (see `kDemoTools`): a seat opened without signing in, so one
+  /// phone can walk the whole flow.
+  Account? _override;
 
   bool _loaded = false;
+  bool _profileFailed = false;
+
+  /// True from the moment a person is signed in until we know whether they
+  /// have a seat. Without it "signed in, no profile yet" cannot be told apart
+  /// from "signed in, and there really is no profile", and a registered person
+  /// is shown the registration page while their profile is still on its way.
+  bool _resolving = false;
+
+  /// Bumped on every session change so a slow profile load from an earlier
+  /// session cannot overwrite a newer one.
+  int _generation = 0;
+
+  AuthController({AuthService? service}) : _service = service ?? LocalAuthService() {
+    _sub = _service.userChanges.listen(_onUser);
+  }
+
+  /// The seat to show, or null when nobody is signed in or the person still
+  /// has to register.
+  Account? get current => _override ?? _profile?.toAccount();
+
+  /// The signed-in person, registered or not.
+  AuthUser? get user => _user;
 
   /// False until the stored session has been read, so the app does not flash
   /// the sign-in screen at someone who is already signed in.
   bool get isLoaded => _loaded;
 
-  final Map<String, String> _pinHashes = {};
-  int _failures = 0;
-  DateTime? _lockedUntil;
+  /// Signed in, and we are still finding out which seat they hold. Show a
+  /// waiting state, never the registration page.
+  bool get resolvingProfile => _override == null && _user != null && _resolving;
 
-  AuthController() {
-    _load();
+  /// Signed in, the lookup is finished, and they have no seat: registration.
+  bool get needsRegistration =>
+      _override == null &&
+      _user != null &&
+      !_resolving &&
+      _profile == null &&
+      !_profileFailed;
+
+  /// Signed in, but their registration could not be read (offline, usually).
+  /// Registering again would be wrong; retry instead.
+  bool get profileUnavailable =>
+      _override == null && _user != null && !_resolving && _profileFailed;
+
+  Future<void> _onUser(AuthUser? user) async {
+    final generation = ++_generation;
+    _user = user;
+    _profile = null;
+    _profileFailed = false;
+    if (user == null) {
+      _resolving = false;
+      _loaded = true;
+      notifyListeners();
+      return;
+    }
+    _resolving = true;
+    // Tell the screen now, so it can show "signing you in" rather than
+    // whatever it happened to be showing.
+    notifyListeners();
+    await _loadProfile(user, generation);
   }
 
-  Future<void> _load() async {
+  Future<void> _loadProfile(AuthUser user, int generation) async {
+    UserProfile? profile;
+    var failed = false;
     try {
-      final prefs = await SharedPreferences.getInstance();
-      for (final a in Accounts.all) {
-        final h = prefs.getString('$_pinPrefix${a.id}');
-        if (h != null) _pinHashes[a.id] = h;
-      }
-      _current = Accounts.byId(prefs.getString(_sessionKey));
+      profile = await _service.loadProfile(user.uid);
     } catch (e) {
-      debugPrint('AuthController: could not read the session ($e)');
+      debugPrint('AuthController: could not read the profile ($e)');
+      failed = true;
     }
+    if (generation != _generation) return;
+    _profile = profile;
+    _profileFailed = failed;
+    _resolving = false;
     _loaded = true;
     notifyListeners();
   }
 
-  bool hasPin(Account a) => _pinHashes.containsKey(a.id);
-
-  /// How long sign-in is paused after too many wrong PINs, or null.
-  Duration? get lockedFor {
-    final until = _lockedUntil;
-    if (until == null) return null;
-    final left = until.difference(DateTime.now());
-    return left.isNegative ? null : left;
+  /// Try again after [profileUnavailable].
+  Future<void> retryProfile() async {
+    final user = _user;
+    if (user == null) return;
+    _profileFailed = false;
+    _resolving = true;
+    notifyListeners();
+    await _loadProfile(user, ++_generation);
   }
 
-  static String _hash(Account a, String pin) =>
-      LaMPCrypto.sha256Hex('lamp-pin:v1:${a.id}:$pin');
+  /// Google account picker. Throws [AuthFailure]; a dismissed picker throws
+  /// [AuthFailureKind.cancelled], which callers should not show as an error.
+  Future<void> signInWithGoogle() => _service.signInWithGoogle();
 
-  /// First sign-in on this phone: store the PIN and sign in.
-  Future<void> createPin(Account a, String pin) async {
-    final h = _hash(a, pin);
-    _pinHashes[a.id] = h;
-    await _write('$_pinPrefix${a.id}', h);
-    await _open(a);
+  Future<PhoneChallenge> sendPhoneCode(String phone) => _service.sendPhoneCode(phone);
+
+  Future<void> confirmPhoneCode(PhoneChallenge challenge, String code) =>
+      _service.confirmPhoneCode(challenge, code);
+
+  /// Finish registration: record which seat this person holds.
+  Future<void> register({
+    required String name,
+    required PersonaId seat,
+    String? pharmacyDid,
+    String? mpoId,
+    Msp? bank,
+  }) async {
+    final user = _user;
+    if (user == null) throw AuthFailure.of(AuthFailureKind.other);
+    final profile = UserProfile(
+      uid: user.uid,
+      name: name.trim().isEmpty ? user.suggestedName : name.trim(),
+      seat: seat,
+      pharmacyDid: pharmacyDid,
+      mpoId: mpoId,
+      bank: bank,
+      phone: user.phone,
+      email: user.email,
+    );
+    await _service.saveProfile(profile);
+    _profile = profile;
+    notifyListeners();
   }
 
-  /// Returns false on a wrong PIN or while sign-in is paused.
-  Future<bool> signIn(Account a, String pin) async {
-    if (lockedFor != null) return false;
-    if (_pinHashes[a.id] != _hash(a, pin)) {
-      _failures++;
-      if (_failures >= maxAttempts) {
-        _failures = 0;
-        _lockedUntil = DateTime.now().add(lockout);
-      }
-      notifyListeners();
-      return false;
-    }
-    await _open(a);
-    return true;
+  /// Testing only (see `kDemoTools`): open another account's seat without
+  /// signing in as it.
+  Future<void> switchTo(Account a) async {
+    _override = a;
+    notifyListeners();
   }
-
-  /// Testing only (see `kDemoTools`): open another account's seat without its
-  /// PIN, so one phone can walk the whole flow.
-  Future<void> switchTo(Account a) => _open(a);
 
   Future<void> signOut() async {
-    _current = null;
+    // Forget the person at once, not when the provider gets round to telling
+    // us. While `_user` outlived `_profile` the app read "signed in, no seat"
+    // and flashed the registration page on the way to sign-in. Bumping the
+    // generation also stops a profile load still in flight from bringing the
+    // old session back.
+    _generation++;
+    _override = null;
+    _user = null;
+    _profile = null;
+    _profileFailed = false;
+    _resolving = false;
     notifyListeners();
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_sessionKey);
+      await _service.signOut();
     } catch (e) {
-      debugPrint('AuthController: could not clear the session ($e)');
+      debugPrint('AuthController: could not sign out ($e)');
     }
   }
 
-  Future<void> _open(Account a) async {
-    _failures = 0;
-    _lockedUntil = null;
-    _current = a;
-    notifyListeners();
-    await _write(_sessionKey, a.id);
-  }
-
-  Future<void> _write(String key, String value) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(key, value);
-    } catch (e) {
-      debugPrint('AuthController: could not save ($e)');
-    }
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
   }
 }

@@ -1,23 +1,27 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/auth/accounts.dart';
 import '../../core/auth/auth_controller.dart';
+import '../../core/auth/auth_service.dart';
+import '../../core/auth/phone_number.dart';
 import '../../core/constants/palette.dart';
 import '../../core/constants/typography.dart';
 import '../../core/design/luma_press.dart';
+import '../../core/models/domain_models.dart';
 import '../../core/state/lamp_state.dart';
+import '../../core/world/seed.dart';
 import '../../widgets/lamp_mark.dart';
 import '../../widgets/ui/lamp_ledger_ui.dart';
-import '../../widgets/ui/lamp_ui.dart';
 
-/// Sign in: choose your account, then your PIN.
+/// Sign in or register.
 ///
-/// Replaces the seat picker, which let anyone open any seat. The first time
-/// an account signs in on a phone it sets its PIN here; after that the PIN is
-/// what opens it. The session is kept, so this is seen once, not every launch.
+/// Two ways in, Google or a mobile number and a code, and both lead to the
+/// same place: a person who already has a seat goes straight to it, and a
+/// person who does not chooses one. The session is kept, so this is seen once,
+/// not every launch.
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
 
@@ -25,326 +29,595 @@ class SignInScreen extends StatefulWidget {
   State<SignInScreen> createState() => _SignInScreenState();
 }
 
-class _SignInScreenState extends State<SignInScreen> {
-  Account? _account;
-  String _pin = '';
+enum _Step { welcome, phone, code }
 
-  /// While creating a PIN: the first entry, waiting to be confirmed.
-  String? _firstEntry;
+class _SignInScreenState extends State<SignInScreen> {
+  static const int _codeLength = 6;
+  static const Duration _resendAfter = Duration(seconds: 30);
+
+  _Step _step = _Step.welcome;
+  final _phone = TextEditingController();
+  final _code = TextEditingController();
+  PhoneChallenge? _challenge;
+
+  bool _busy = false;
   String? _error;
-  Timer? _lockTicker;
+
+  DateTime? _canResendAt;
+  Timer? _ticker;
+
+  // Registration.
+  final _name = TextEditingController();
+  bool _nameSeeded = false;
+  PersonaId? _seat;
+  String? _pharmacyDid;
+  String? _mpoId;
+  Msp? _bank;
 
   @override
   void dispose() {
-    _lockTicker?.cancel();
+    _ticker?.cancel();
+    _phone.dispose();
+    _code.dispose();
+    _name.dispose();
     super.dispose();
   }
 
-  void _choose(Account a) {
-    LumaHaptics.select();
-    setState(() {
-      _account = a;
-      _pin = '';
-      _firstEntry = null;
-      _error = null;
-    });
-  }
-
-  void _back() => setState(() {
-        _account = null;
-        _pin = '';
-        _firstEntry = null;
+  void _go(_Step step) => setState(() {
+        _step = step;
         _error = null;
+        _code.clear();
       });
 
-  Future<void> _digit(String d) async {
-    final auth = context.read<AuthController>();
-    if (auth.lockedFor != null || _pin.length >= AuthController.pinLength) return;
-    LumaHaptics.select();
+  /// Run one sign-in action: show progress, and show a plain-language message
+  /// if it fails. A dismissed Google sheet is not a failure.
+  Future<void> _run(Future<void> Function() action) async {
     setState(() {
-      _pin += d;
+      _busy = true;
       _error = null;
     });
-    if (_pin.length == AuthController.pinLength) await _submit(auth);
-  }
-
-  void _delete() {
-    if (_pin.isEmpty) return;
-    setState(() => _pin = _pin.substring(0, _pin.length - 1));
-  }
-
-  Future<void> _submit(AuthController auth) async {
-    final account = _account!;
-    final pin = _pin;
-
-    if (!auth.hasPin(account)) {
-      if (_firstEntry == null) {
-        setState(() {
-          _firstEntry = pin;
-          _pin = '';
-        });
-        return;
-      }
-      if (_firstEntry != pin) {
+    try {
+      await action();
+    } on AuthFailure catch (f) {
+      if (!mounted) return;
+      if (f.kind != AuthFailureKind.cancelled) {
         LumaHaptics.reject();
-        setState(() {
-          _firstEntry = null;
-          _pin = '';
-          _error = "Those PINs didn't match. Choose one again.";
-        });
-        return;
+        setState(() => _error = f.message);
       }
-      await auth.createPin(account, pin);
+    } catch (_) {
+      if (!mounted) return;
+      LumaHaptics.reject();
+      setState(() => _error = AuthFailure.of(AuthFailureKind.other).message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _google() =>
+      _run(() => context.read<AuthController>().signInWithGoogle());
+
+  Future<void> _sendCode() async {
+    final phone = normalizePhone(_phone.text);
+    if (phone == null) {
+      setState(() => _error = AuthFailure.of(AuthFailureKind.invalidPhone).message);
       return;
     }
-
-    final ok = await auth.signIn(account, pin);
-    if (ok || !mounted) return;
-    LumaHaptics.reject();
-    final locked = auth.lockedFor;
-    setState(() {
-      _pin = '';
-      _error = locked == null
-          ? 'Wrong PIN. Try again.'
-          : 'Too many tries. Wait ${locked.inSeconds} seconds.';
+    await _run(() async {
+      final challenge = await context.read<AuthController>().sendPhoneCode(phone);
+      if (!mounted) return;
+      _challenge = challenge;
+      _startCooldown();
+      _go(_Step.code);
     });
-    if (locked != null) {
-      _lockTicker?.cancel();
-      _lockTicker = Timer.periodic(const Duration(seconds: 1), (t) {
-        if (!mounted) return t.cancel();
-        final left = auth.lockedFor;
-        setState(() {
-          _error = left == null ? null : 'Too many tries. Wait ${left.inSeconds} seconds.';
-        });
-        if (left == null) t.cancel();
-      });
-    }
   }
+
+  Future<void> _confirmCode() async {
+    final challenge = _challenge;
+    if (challenge == null || _code.text.length != _codeLength) return;
+    await _run(() async {
+      await context.read<AuthController>().confirmPhoneCode(challenge, _code.text);
+    });
+    if (mounted && _error != null) _code.clear();
+  }
+
+  void _startCooldown() {
+    _canResendAt = DateTime.now().add(_resendAfter);
+    _ticker?.cancel();
+    _ticker = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) return t.cancel();
+      setState(() {});
+      if (_resendRemaining == null) t.cancel();
+    });
+  }
+
+  Duration? get _resendRemaining {
+    final at = _canResendAt;
+    if (at == null) return null;
+    final left = at.difference(DateTime.now());
+    return left.isNegative ? null : left;
+  }
+
+  bool get _canRegister {
+    if (_seat == null) return false;
+    return switch (_seat!) {
+      PersonaId.pharmacy => _pharmacyDid != null,
+      PersonaId.mpo => _mpoId != null,
+      PersonaId.bank => _bank != null,
+      _ => true,
+    };
+  }
+
+  Future<void> _register() => _run(() => context.read<AuthController>().register(
+        name: _name.text,
+        seat: _seat!,
+        pharmacyDid: _seat == PersonaId.pharmacy ? _pharmacyDid : null,
+        mpoId: _seat == PersonaId.mpo ? _mpoId : null,
+        bank: _seat == PersonaId.bank ? _bank : null,
+      ));
 
   @override
   Widget build(BuildContext context) {
     final c = context.lamp;
+    final auth = context.watch<AuthController>();
+
+    // While we are finding out whether this person already has a seat, show
+    // only a waiting state. Anything else (above all the registration page)
+    // would be a guess, and a wrong one for someone who is already registered.
+    final holding = auth.resolvingProfile || auth.needsRegistration || auth.profileUnavailable;
+
+    final Widget body;
+    if (auth.resolvingProfile) {
+      body = _resolving(context);
+    } else if (auth.profileUnavailable) {
+      body = _profileUnavailable(context, auth);
+    } else if (auth.needsRegistration) {
+      if (!_nameSeeded) {
+        _nameSeeded = true;
+        _name.text = auth.user?.suggestedName ?? '';
+      }
+      body = _registration(context, auth);
+    } else {
+      body = switch (_step) {
+        _Step.welcome => _welcome(context),
+        _Step.phone => _phoneStep(context),
+        _Step.code => _codeStep(context),
+      };
+    }
+
     return PopScope(
-      // Back from the PIN step returns to the list; from the list it leaves.
-      canPop: _account == null,
+      // Back steps toward the welcome page; from there it leaves the app.
+      canPop: _step == _Step.welcome && !holding,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) _back();
+        if (didPop) return;
+        if (holding) return;
+        _go(_step == _Step.code ? _Step.phone : _Step.welcome);
       },
       child: Scaffold(
         backgroundColor: c.bg,
         body: SafeArea(
           child: AnimatedSwitcher(
             duration: const Duration(milliseconds: 250),
-            child: _account == null
-                ? _accountList(context)
-                : _pinEntry(context, _account!),
+            child: body,
           ),
         ),
       ),
     );
   }
 
-  Widget _accountList(BuildContext context) {
-    final c = context.lamp;
-    final field = Accounts.all.where((a) => a.isField).toList();
-    final desk = Accounts.all.where((a) => !a.isField).toList();
+  /* ---------------------------------------------------------------------- */
+  /* Welcome                                                                 */
+  /* ---------------------------------------------------------------------- */
 
+  Widget _welcome(BuildContext context) {
+    final c = context.lamp;
     return ListView(
-      key: const ValueKey('accounts'),
+      key: const ValueKey('welcome'),
       padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.xxl, Gap.lg, Gap.xl),
       children: [
         const Center(child: LampMark(size: 72)),
         const SizedBox(height: Gap.lg),
         Text(
-          'Sign in to LaMP',
+          'Welcome to LaMP',
           textAlign: TextAlign.center,
           style: LaMPType.title.copyWith(color: c.ink),
         ),
         const SizedBox(height: Gap.xs),
         Text(
-          'Choose your account',
+          'Sign in, or register if you are new.',
           textAlign: TextAlign.center,
           style: LaMPType.body.copyWith(color: c.inkMuted),
         ),
-        const SizedBox(height: Gap.xl),
-        const LampEyebrow('In the field'),
+        const SizedBox(height: Gap.xxl),
+        ElevatedButton.icon(
+          key: const ValueKey('google'),
+          onPressed: _busy ? null : _google,
+          icon: const Icon(Icons.account_circle_outlined, size: IconSize.md),
+          label: const Text('Continue with Google'),
+          style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+        ),
         const SizedBox(height: Gap.md),
-        for (final a in field) ...[
-          _accountRow(context, a),
-          const SizedBox(height: Gap.sm),
-        ],
-        const SizedBox(height: Gap.lg),
-        const LampEyebrow('At the desk'),
-        const SizedBox(height: Gap.md),
-        for (final a in desk) ...[
-          _accountRow(context, a),
-          const SizedBox(height: Gap.sm),
-        ],
+        OutlinedButton.icon(
+          key: const ValueKey('use-phone'),
+          onPressed: _busy ? null : () => _go(_Step.phone),
+          icon: const Icon(Icons.smartphone_outlined, size: IconSize.md),
+          label: const Text('Use my phone number'),
+          style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+        ),
+        _errorText(context),
       ],
     );
   }
 
-  Widget _accountRow(BuildContext context, Account a) {
+  /* ---------------------------------------------------------------------- */
+  /* Phone                                                                   */
+  /* ---------------------------------------------------------------------- */
+
+  Widget _phoneStep(BuildContext context) {
     final c = context.lamp;
-    final icon = switch (a.seat) {
-      PersonaId.mpo => Icons.local_shipping_outlined,
-      PersonaId.pharmacy => Icons.local_pharmacy_outlined,
-      PersonaId.manufacturer => Icons.factory_outlined,
-      PersonaId.bank => Icons.account_balance_outlined,
-      PersonaId.regulator => Icons.verified_user_outlined,
-    };
-    return LampCard(
-      onTap: () => _choose(a),
-      padding: const EdgeInsets.symmetric(horizontal: Gap.lg, vertical: Gap.md),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: c.surfaceAlt,
-              borderRadius: BorderRadius.circular(LaMPRadius.control),
+    return ListView(
+      key: const ValueKey('phone'),
+      padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.lg, Gap.xl),
+      children: [
+        _backButton(context, () => _go(_Step.welcome)),
+        const SizedBox(height: Gap.lg),
+        Text('Your mobile number', style: LaMPType.title.copyWith(color: c.ink)),
+        const SizedBox(height: Gap.xs),
+        Text(
+          "We'll send you a code to confirm it's you.",
+          style: LaMPType.body.copyWith(color: c.inkMuted),
+        ),
+        const SizedBox(height: Gap.xl),
+        _labelled(
+          context,
+          'Mobile number',
+          TextField(
+            key: const ValueKey('phone-field'),
+            controller: _phone,
+            autofocus: true,
+            keyboardType: TextInputType.phone,
+            textInputAction: TextInputAction.done,
+            style: LaMPType.monoBody.copyWith(color: c.ink),
+            decoration: const InputDecoration(
+              hintText: '01711 204488',
+              prefixIcon: Icon(Icons.phone_outlined),
             ),
-            child: Icon(icon, size: IconSize.md, color: c.inkMuted),
+            onSubmitted: (_) => _busy ? null : _sendCode(),
           ),
-          const SizedBox(width: Gap.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  a.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: LaMPType.sub.copyWith(color: c.ink),
-                ),
-                Text(
-                  '${a.org} · ${a.role}',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: LaMPType.caption.copyWith(color: c.inkFaint),
-                ),
+        ),
+        _errorText(context),
+        const SizedBox(height: Gap.xl),
+        ElevatedButton(
+          key: const ValueKey('send-code'),
+          onPressed: _busy ? null : _sendCode,
+          style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+          child: Text(_busy ? 'Sending…' : 'Send code'),
+        ),
+      ],
+    );
+  }
+
+  Widget _codeStep(BuildContext context) {
+    final c = context.lamp;
+    final phone = _challenge?.phone ?? '';
+    final left = _resendRemaining;
+    return ListView(
+      key: const ValueKey('code'),
+      padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.lg, Gap.xl),
+      children: [
+        _backButton(context, () => _go(_Step.phone)),
+        const SizedBox(height: Gap.lg),
+        Text('Enter the code', style: LaMPType.title.copyWith(color: c.ink)),
+        const SizedBox(height: Gap.xs),
+        Text(
+          'We sent a $_codeLength-digit code to ${formatPhone(phone)}.',
+          style: LaMPType.body.copyWith(color: c.inkMuted),
+        ),
+        const SizedBox(height: Gap.xl),
+        TextField(
+          key: const ValueKey('code-field'),
+          controller: _code,
+          autofocus: true,
+          keyboardType: TextInputType.number,
+          textAlign: TextAlign.center,
+          maxLength: _codeLength,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          style: LaMPType.displayFigure.copyWith(color: c.ink),
+          decoration: const InputDecoration(counterText: '', hintText: '••••••'),
+          onChanged: (v) {
+            setState(() => _error = null);
+            if (v.length == _codeLength && !_busy) _confirmCode();
+          },
+        ),
+        _errorText(context),
+        const SizedBox(height: Gap.xl),
+        ElevatedButton(
+          key: const ValueKey('confirm-code'),
+          onPressed: _busy || _code.text.length != _codeLength ? null : _confirmCode,
+          style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+          child: Text(_busy ? 'Checking…' : 'Continue'),
+        ),
+        const SizedBox(height: Gap.md),
+        TextButton(
+          key: const ValueKey('resend'),
+          onPressed: _busy || left != null ? null : _sendCode,
+          child: Text(
+            left == null ? 'Send the code again' : 'Send again in ${left.inSeconds + 1}s',
+          ),
+        ),
+      ],
+    );
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Registration                                                            */
+  /* ---------------------------------------------------------------------- */
+
+  Widget _registration(BuildContext context, AuthController auth) {
+    final c = context.lamp;
+    return ListView(
+      key: const ValueKey('register'),
+      padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.xl, Gap.lg, Gap.xl),
+      children: [
+        Text('Finish registering', style: LaMPType.title.copyWith(color: c.ink)),
+        const SizedBox(height: Gap.xs),
+        Text(
+          'Tell us who you are and we will open the right screen.',
+          style: LaMPType.body.copyWith(color: c.inkMuted),
+        ),
+        const SizedBox(height: Gap.xxl),
+        _labelled(
+          context,
+          'Your name',
+          TextField(
+            key: const ValueKey('name-field'),
+            controller: _name,
+            textCapitalization: TextCapitalization.words,
+            textInputAction: TextInputAction.done,
+            style: LaMPType.body.copyWith(color: c.ink),
+            decoration: const InputDecoration(hintText: 'Full name'),
+          ),
+        ),
+        const SizedBox(height: Gap.xl),
+        const LampEyebrow('I am a…'),
+        const SizedBox(height: Gap.md),
+        for (final s in PersonaId.values) ...[
+          _roleTile(context, s),
+          const SizedBox(height: Gap.sm),
+        ],
+        if (_seat == PersonaId.pharmacy) ...[
+          const SizedBox(height: Gap.lg),
+          _labelled(
+            context,
+            'Which pharmacy?',
+            DropdownButtonFormField<String>(
+              key: const ValueKey('pharmacy-field'),
+              initialValue: _pharmacyDid,
+              isExpanded: true,
+              hint: const Text('Choose one'),
+              items: [
+                for (final p in SeedData.pharmacies)
+                  DropdownMenuItem(
+                    value: p.did,
+                    child: Text('${p.name} · ${p.territory}', overflow: TextOverflow.ellipsis),
+                  ),
               ],
+              onChanged: (v) => setState(() => _pharmacyDid = v),
             ),
           ),
-          Icon(Icons.chevron_right, color: c.inkFaint),
+        ],
+        if (_seat == PersonaId.mpo) ...[
+          const SizedBox(height: Gap.lg),
+          _labelled(
+            context,
+            'Which delivery round?',
+            DropdownButtonFormField<String>(
+              key: const ValueKey('mpo-field'),
+              initialValue: _mpoId,
+              isExpanded: true,
+              hint: const Text('Choose one'),
+              items: [
+                for (final m in SeedData.mpos)
+                  DropdownMenuItem(
+                    value: m.id,
+                    child: Text('${m.name} · ${m.territory}', overflow: TextOverflow.ellipsis),
+                  ),
+              ],
+              onChanged: (v) => setState(() => _mpoId = v),
+            ),
+          ),
+        ],
+        if (_seat == PersonaId.bank) ...[
+          const SizedBox(height: Gap.lg),
+          _labelled(
+            context,
+            'Which bank?',
+            DropdownButtonFormField<Msp>(
+              key: const ValueKey('bank-field'),
+              initialValue: _bank,
+              isExpanded: true,
+              hint: const Text('Choose one'),
+              items: [
+                for (final b in Msp.values.where((m) => m.kind == 'bank'))
+                  DropdownMenuItem(value: b, child: Text(b.fullName)),
+              ],
+              onChanged: (v) => setState(() => _bank = v),
+            ),
+          ),
+        ],
+        _errorText(context),
+        const SizedBox(height: Gap.xl),
+        ElevatedButton(
+          key: const ValueKey('register'),
+          onPressed: _busy || !_canRegister ? null : _register,
+          style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+          child: Text(_busy ? 'Registering…' : 'Register'),
+        ),
+        const SizedBox(height: Gap.sm),
+        TextButton(
+          key: const ValueKey('different-account'),
+          onPressed: _busy ? null : () => auth.signOut(),
+          child: const Text('Use a different account'),
+        ),
+      ],
+    );
+  }
+
+  Widget _roleTile(BuildContext context, PersonaId seat) {
+    final c = context.lamp;
+    final selected = _seat == seat;
+    final (label, hint, icon) = switch (seat) {
+      PersonaId.mpo => ('Delivery officer', 'Scan and hand over cartons', Icons.local_shipping_outlined),
+      PersonaId.pharmacy => ('Pharmacy owner', 'Receive goods and build credit', Icons.local_pharmacy_outlined),
+      PersonaId.manufacturer => ('Manufacturer', 'Issue and track invoices', Icons.factory_outlined),
+      PersonaId.bank => ('Bank', 'Finance delivered invoices', Icons.account_balance_outlined),
+      PersonaId.regulator => ('Regulator', 'View-only supervision', Icons.verified_user_outlined),
+    };
+    return Semantics(
+      selected: selected,
+      button: true,
+      label: label,
+      child: InkWell(
+        key: ValueKey('role-${seat.id}'),
+        borderRadius: BorderRadius.circular(LaMPRadius.card),
+        onTap: () {
+          LumaHaptics.select();
+          setState(() {
+            _seat = seat;
+            _error = null;
+          });
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: Gap.lg, vertical: Gap.md),
+          decoration: BoxDecoration(
+            color: c.surface,
+            borderRadius: BorderRadius.circular(LaMPRadius.card),
+            border: Border.all(color: selected ? c.brand : c.line, width: selected ? 2 : 1),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, size: IconSize.md, color: selected ? c.brand : c.inkMuted),
+              const SizedBox(width: Gap.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(label, style: LaMPType.sub.copyWith(color: c.ink)),
+                    Text(hint, style: LaMPType.caption.copyWith(color: c.inkFaint)),
+                  ],
+                ),
+              ),
+              if (selected) Icon(Icons.check_circle, size: IconSize.md, color: c.brand),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Between "signed in" and "we know your seat". Brief for someone already
+  /// registered, so it is plain rather than decorated.
+  Widget _resolving(BuildContext context) {
+    final c = context.lamp;
+    return Center(
+      key: const ValueKey('resolving'),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 28,
+            height: 28,
+            child: CircularProgressIndicator(strokeWidth: 2.5, color: c.inkMuted),
+          ),
+          const SizedBox(height: Gap.lg),
+          Text(
+            'Signing you in…',
+            style: LaMPType.body.copyWith(color: c.inkMuted),
+          ),
         ],
       ),
     );
   }
 
-  Widget _pinEntry(BuildContext context, Account a) {
+  Widget _profileUnavailable(BuildContext context, AuthController auth) {
     final c = context.lamp;
-    final auth = context.watch<AuthController>();
-    final creating = !auth.hasPin(a);
-    final prompt = !creating
-        ? 'Enter your PIN'
-        : _firstEntry == null
-            ? 'Choose a ${AuthController.pinLength}-digit PIN'
-            : 'Enter it again to confirm';
-
-    return Column(
-      key: ValueKey('pin-${a.id}'),
-      children: [
-        Align(
-          alignment: Alignment.centerLeft,
-          child: IconButton(
-            tooltip: 'Back',
-            icon: Icon(Icons.arrow_back, color: c.ink),
-            onPressed: _back,
+    return Padding(
+      key: const ValueKey('unavailable'),
+      padding: const EdgeInsets.all(Gap.lg),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            "Couldn't open your account",
+            textAlign: TextAlign.center,
+            style: LaMPType.title.copyWith(color: c.ink),
           ),
-        ),
-        const Spacer(),
-        Text(a.name, style: LaMPType.title.copyWith(color: c.ink)),
-        const SizedBox(height: Gap.xs),
-        Text(
-          a.org,
-          textAlign: TextAlign.center,
-          style: LaMPType.body.copyWith(color: c.inkMuted),
-        ),
-        const SizedBox(height: Gap.xl),
-        Text(prompt, style: LaMPType.sub.copyWith(color: c.ink)),
-        if (creating && _firstEntry == null) ...[
           const SizedBox(height: Gap.xs),
           Text(
-            "You'll use it to sign in on this phone.",
-            style: LaMPType.caption.copyWith(color: c.inkFaint),
+            'Check your connection and try again.',
+            textAlign: TextAlign.center,
+            style: LaMPType.body.copyWith(color: c.inkMuted),
+          ),
+          const SizedBox(height: Gap.xl),
+          ElevatedButton(
+            key: const ValueKey('retry'),
+            onPressed: auth.retryProfile,
+            style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+            child: const Text('Try again'),
+          ),
+          TextButton(
+            onPressed: auth.signOut,
+            child: const Text('Use a different account'),
           ),
         ],
-        const SizedBox(height: Gap.lg),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            for (var i = 0; i < AuthController.pinLength; i++)
-              Container(
-                width: 14,
-                height: 14,
-                margin: const EdgeInsets.symmetric(horizontal: Gap.sm),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: i < _pin.length ? c.ink : Colors.transparent,
-                  border: Border.all(color: i < _pin.length ? c.ink : c.lineStrong, width: 1.5),
-                ),
-              ),
-          ],
-        ),
-        SizedBox(
-          height: 40,
-          child: Center(
-            child: _error == null
-                ? null
-                : Text(
-                    _error!,
-                    textAlign: TextAlign.center,
-                    style: LaMPType.meta.copyWith(color: c.dispute),
-                  ),
-          ),
-        ),
-        const Spacer(),
-        _keypad(context),
-        const SizedBox(height: Gap.xl),
+      ),
+    );
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Shared bits                                                             */
+  /* ---------------------------------------------------------------------- */
+
+  /// A field with its label above it. A floating label sits half on the edge of
+  /// a filled box and reads as clipped; a label of its own above the field is
+  /// what the rest of the app does and stays legible on the dark surface.
+  Widget _labelled(BuildContext context, String label, Widget field) {
+    final c = context.lamp;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: LaMPType.caption.copyWith(color: c.inkMuted)),
+        const SizedBox(height: Gap.sm),
+        field,
       ],
     );
   }
 
-  Widget _keypad(BuildContext context) {
+  Widget _backButton(BuildContext context, VoidCallback onTap) {
     final c = context.lamp;
-    Widget key(String label, {VoidCallback? onTap, Widget? child}) => SizedBox(
-          width: 88,
-          height: 64,
-          child: TextButton(
-            onPressed: onTap,
-            style: TextButton.styleFrom(
-              foregroundColor: c.ink,
-              shape: const StadiumBorder(),
-            ),
-            child: child ?? Text(label, style: LaMPType.figure.copyWith(color: c.ink)),
-          ),
-        );
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: IconButton(
+        tooltip: 'Back',
+        icon: Icon(Icons.arrow_back, color: c.ink),
+        onPressed: onTap,
+      ),
+    );
+  }
 
-    Widget row(List<String> digits) => Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [for (final d in digits) key(d, onTap: () => _digit(d))],
-        );
-
-    return Column(
-      children: [
-        row(['1', '2', '3']),
-        row(['4', '5', '6']),
-        row(['7', '8', '9']),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const SizedBox(width: 88, height: 64),
-            key('0', onTap: () => _digit('0')),
-            key(
-              '',
-              onTap: _delete,
-              child: Icon(Icons.backspace_outlined, color: c.inkMuted, semanticLabel: 'Delete'),
-            ),
-          ],
-        ),
-      ],
+  Widget _errorText(BuildContext context) {
+    final c = context.lamp;
+    return SizedBox(
+      height: 48,
+      child: Center(
+        child: _error == null
+            ? null
+            : Text(
+                _error!,
+                textAlign: TextAlign.center,
+                style: LaMPType.meta.copyWith(color: c.dispute),
+              ),
+      ),
     );
   }
 }

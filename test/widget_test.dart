@@ -1,27 +1,78 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lamp_flutter/main.dart';
 import 'package:lamp_flutter/core/auth/auth_controller.dart';
+import 'package:lamp_flutter/core/auth/local_auth_service.dart';
+import 'package:lamp_flutter/core/auth/user_profile.dart';
 import 'package:lamp_flutter/core/state/lamp_state.dart';
 import 'package:lamp_flutter/core/state/theme_controller.dart';
+import 'package:lamp_flutter/core/world/seed.dart';
 import 'package:lamp_flutter/features/splash/splash_screen.dart';
 
-Widget _app() => MultiProvider(
+Widget _app(LocalAuthService service) => MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => LaMPState()),
         ChangeNotifierProvider(create: (_) => ThemeController()),
-        ChangeNotifierProvider(create: (_) => AuthController()),
+        ChangeNotifierProvider(create: (_) => AuthController(service: service)),
       ],
       child: const LaMPApp(),
     );
 
-Future<void> _enterPin(WidgetTester tester, String pin) async {
-  for (final d in pin.split('')) {
-    await tester.tap(find.widgetWithText(TextButton, d));
-    await tester.pump();
+/// A local backend whose profile lookup waits until the test lets it through,
+/// so the moment between "signed in" and "we know your seat" can be looked at.
+class _HeldProfiles extends LocalAuthService {
+  final Completer<void> _gate = Completer<void>();
+
+  void release() {
+    if (!_gate.isCompleted) _gate.complete();
   }
+
+  @override
+  Future<UserProfile?> loadProfile(String uid) async {
+    await _gate.future;
+    return super.loadProfile(uid);
+  }
+}
+
+AuthController _auth(WidgetTester tester) =>
+    tester.element(find.byType(MainShell)).read<AuthController>();
+
+Future<void> _signInWithPhone(WidgetTester tester, String number,
+    {String code = LocalAuthService.testCode}) async {
+  await tester.tap(find.byKey(const ValueKey('use-phone')));
+  await tester.pumpAndSettle();
+  await tester.enterText(find.byKey(const ValueKey('phone-field')), number);
+  await tester.tap(find.byKey(const ValueKey('send-code')));
+  await tester.pumpAndSettle();
+  await tester.enterText(find.byKey(const ValueKey('code-field')), code);
+  await tester.pumpAndSettle();
+}
+
+/// Registration is a long list on a short test screen: bring a control into
+/// view before tapping it, as a person would scroll.
+Future<void> _tapKey(WidgetTester tester, String key) async {
+  final finder = find.byKey(ValueKey(key)).last;
+  await tester.ensureVisible(finder);
+  await tester.pumpAndSettle();
+  await tester.tap(finder);
+  await tester.pumpAndSettle();
+}
+
+Future<void> _pick(WidgetTester tester, String field, String item) async {
+  await tester.ensureVisible(find.byKey(ValueKey(field)));
+  await tester.tap(find.byKey(ValueKey(field)));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(item).last);
+  await tester.pumpAndSettle();
+}
+
+Future<void> _register(WidgetTester tester) async {
+  await tester.ensureVisible(find.byKey(const ValueKey('register')).last);
+  await tester.tap(find.byKey(const ValueKey('register')).last);
   await tester.pumpAndSettle();
 }
 
@@ -32,58 +83,186 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  testWidgets('launches into sign-in, offering every account', (tester) async {
-    await tester.pumpWidget(_app());
-    await tester.pumpAndSettle();
-
-    expect(find.text('Sign in to LaMP'), findsOneWidget);
-    expect(find.text('Kamrul Hasan'), findsOneWidget);
-    expect(find.text('Abdur Rahman'), findsOneWidget);
-    await tester.scrollUntilVisible(find.text('Supervision'), 200);
-    expect(find.text('Supervision'), findsOneWidget);
-  });
-
-  testWidgets('first sign-in sets a PIN and opens that account\'s own seat',
+  testWidgets('launches into sign-in, offering Google and a phone number',
       (tester) async {
-    await tester.pumpWidget(_app());
+    await tester.pumpWidget(_app(LocalAuthService()));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Kamrul Hasan'));
-    await tester.pumpAndSettle();
-    expect(find.text('Choose a 4-digit PIN'), findsOneWidget);
-
-    await _enterPin(tester, '2468');
-    expect(find.text('Enter it again to confirm'), findsOneWidget);
-    await _enterPin(tester, '2468');
-
-    // The delivery officer's seat, with no way back to a picker.
-    expect(find.text('Delivery officer'), findsOneWidget);
-    expect(find.byTooltip('Back'), findsNothing);
+    expect(find.text('Welcome to LaMP'), findsOneWidget);
+    expect(find.text('Continue with Google'), findsOneWidget);
+    expect(find.text('Use my phone number'), findsOneWidget);
   });
 
-  testWidgets('a wrong PIN does not sign in', (tester) async {
-    await tester.pumpWidget(_app());
-    await tester.pumpAndSettle();
-    final auth = tester.element(find.byType(MainShell)).read<AuthController>();
-
-    // Set a PIN, then sign out.
-    await tester.tap(find.text('Kamrul Hasan'));
-    await tester.pumpAndSettle();
-    await _enterPin(tester, '1357');
-    await _enterPin(tester, '1357');
-    await auth.signOut();
+  testWidgets('a new person registers as a delivery officer and lands on that seat',
+      (tester) async {
+    await tester.pumpWidget(_app(LocalAuthService()));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Kamrul Hasan'));
-    await tester.pumpAndSettle();
-    await _enterPin(tester, '0000');
+    await _signInWithPhone(tester, '01711 204488');
 
-    expect(auth.current, isNull);
-    expect(find.text('Wrong PIN. Try again.'), findsOneWidget);
+    // Signed in, but no seat yet: registration asks for one.
+    expect(find.text('Finish registering'), findsOneWidget);
+    await _tapKey(tester, 'role-mpo');
+    final officer = SeedData.mpos.first;
+    await _pick(tester, 'mpo-field', '${officer.name} · ${officer.territory}');
+    await _register(tester);
+
+    // The delivery officer's seat, with no way back to a sign-in list.
+    expect(find.text('Delivery officer'), findsWidgets);
+    expect(find.text('Finish registering'), findsNothing);
+    expect(find.byTooltip('Back'), findsNothing);
+    expect(_auth(tester).current!.mpoId, officer.id);
+  });
+
+  testWidgets('a wrong code does not sign in, and says so plainly',
+      (tester) async {
+    await tester.pumpWidget(_app(LocalAuthService()));
+    await tester.pumpAndSettle();
+
+    await _signInWithPhone(tester, '01711204488', code: '000000');
+
+    expect(_auth(tester).user, isNull);
+    expect(find.text("That code isn't right. Check it and try again."),
+        findsOneWidget);
+    expect(find.text('Enter the code'), findsOneWidget);
+  });
+
+  testWidgets('a number that cannot be a mobile number is refused before sending',
+      (tester) async {
+    await tester.pumpWidget(_app(LocalAuthService()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('use-phone')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const ValueKey('phone-field')), '12345');
+    await tester.tap(find.byKey(const ValueKey('send-code')));
+    await tester.pumpAndSettle();
+
+    expect(find.text("That doesn't look like a valid mobile number."),
+        findsOneWidget);
+    expect(find.text('Enter the code'), findsNothing);
+  });
+
+  testWidgets('someone who has registered before goes straight to their seat',
+      (tester) async {
+    final service = LocalAuthService();
+    await tester.pumpWidget(_app(service));
+    await tester.pumpAndSettle();
+
+    // Register once, as the regulator (no further choice to make).
+    await _signInWithPhone(tester, '01711204488');
+    await _tapKey(tester, 'role-regulator');
+    await _register(tester);
+    expect(_auth(tester).current, isNotNull);
+
+    // Sign out, then sign in again with the same number.
+    await _auth(tester).signOut();
+    await tester.pumpAndSettle();
+    expect(find.text('Welcome to LaMP'), findsOneWidget);
+
+    await _signInWithPhone(tester, '01711204488');
+
+    expect(find.text('Finish registering'), findsNothing);
+    expect(_auth(tester).current, isNotNull);
+  });
+
+  testWidgets('Google sign-in reaches the same registration', (tester) async {
+    await tester.pumpWidget(_app(LocalAuthService()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('google')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Finish registering'), findsOneWidget);
+    // The name is offered from the Google account.
+    expect(find.widgetWithText(TextField, 'Demo User'), findsOneWidget);
+  });
+
+  testWidgets('a registered person sees a waiting state, never registration, while signing in',
+      (tester) async {
+    final service = _HeldProfiles();
+    // This Google account already has a seat.
+    await service.saveProfile(UserProfile(
+      uid: 'local-google',
+      name: 'Demo User',
+      seat: PersonaId.regulator,
+    ));
+    await tester.pumpWidget(_app(service));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('google')));
+    await tester.pump();
+    // Past the screen's cross-fade, so the welcome page has really gone. The
+    // spinner never settles, so step time rather than pumpAndSettle.
+    await tester.pump(const Duration(milliseconds: 400));
+
+    // Signed in, profile still on its way.
+    expect(find.text('Signing you in…'), findsOneWidget);
+    expect(find.text('Finish registering'), findsNothing);
+    expect(find.text('Welcome to LaMP'), findsNothing);
+
+    service.release();
+    await tester.pumpAndSettle();
+
+    expect(_auth(tester).current!.seat, PersonaId.regulator);
+    expect(find.text('Finish registering'), findsNothing);
+    expect(find.text('Signing you in…'), findsNothing);
+  });
+
+  testWidgets('signing out goes straight to sign-in, not through registration',
+      (tester) async {
+    final service = LocalAuthService();
+    await tester.pumpWidget(_app(service));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('google')));
+    await tester.pumpAndSettle();
+    await _tapKey(tester, 'role-regulator');
+    await _register(tester);
+    expect(_auth(tester).current, isNotNull);
+
+    final signOut = _auth(tester).signOut();
+    // The very next frame must already be past the seat, and must not be the
+    // registration page.
+    await tester.pump();
+    expect(find.text('Finish registering'), findsNothing);
+    await signOut;
+    await tester.pumpAndSettle();
+
+    expect(find.text('Finish registering'), findsNothing);
+    expect(find.text('Welcome to LaMP'), findsOneWidget);
+  });
+
+  testWidgets('two people cannot hold the same pharmacy', (tester) async {
+    final service = LocalAuthService();
+    await tester.pumpWidget(_app(service));
+    await tester.pumpAndSettle();
+    final pharmacy = SeedData.pharmacies.first;
+    final label = '${pharmacy.name} · ${pharmacy.territory}';
+
+    // The first owner takes it.
+    await _signInWithPhone(tester, '01711204488');
+    await _tapKey(tester, 'role-pharmacy');
+    await _pick(tester, 'pharmacy-field', label);
+    await _register(tester);
+    await _auth(tester).signOut();
+    await tester.pumpAndSettle();
+
+    // A second person tries for the same one.
+    await _signInWithPhone(tester, '01811204488');
+    await _tapKey(tester, 'role-pharmacy');
+    await _pick(tester, 'pharmacy-field', label);
+    await _register(tester);
+
+    expect(_auth(tester).current, isNull);
+    expect(
+      find.textContaining('Someone else has already registered'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('a fast load never flashes the splash', (tester) async {
-    await tester.pumpWidget(_app());
+    await tester.pumpWidget(_app(LocalAuthService()));
 
     // Before the show-delay elapses there must be nothing to see. Platform
     // guidance on both sides is that a launch screen should disappear as soon
@@ -98,6 +277,6 @@ void main() {
 
     // And it still arrives at the app.
     await tester.pumpAndSettle();
-    expect(find.text('Sign in to LaMP'), findsOneWidget);
+    expect(find.text('Welcome to LaMP'), findsOneWidget);
   });
 }

@@ -1,0 +1,24 @@
+{
+    "firestore":  {
+                      "rules":  "firestore.rules"
+                  },
+    "flutter":  {
+                    "platforms":  {
+                                      "android":  {
+                                                      "default":  {
+                                                                      "projectId":  "lamp-bcolbd",
+                                                                      "appId":  "1:956359589320:android:aa820bc47026bd549a54fd",
+                                                                      "fileOutput":  "android/app/google-services.json"
+                                                                  }
+                                                  },
+                                      "dart":  {
+                                                   "lib/firebase_options.dart":  {
+                                                                                     "projectId":  "lamp-bcolbd",
+                                                                                     "configurations":  {
+                                                                                                            "android":  "1:956359589320:android:aa820bc47026bd549a54fd"
+                                                                                                        }
+                                                                                 }
+                                               }
+                                  }
+                }
+}

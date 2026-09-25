@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "956359589320",
+    "project_id": "lamp-bcolbd",
+    "storage_bucket": "lamp-bcolbd.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:956359589320:android:aa820bc47026bd549a54fd",
+        "android_client_info": {
+          "package_name": "com.lamp.bcolbd.lamp_flutter"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "956359589320-ee9v4nc26j3plaau8ekvqaqf7on9odnl.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.lamp.bcolbd.lamp_flutter",
+            "certificate_hash": "50bf69797eddc182d8f53db88fb8761d342d164a"
+          }
+        },
+        {
+          "client_id": "956359589320-gmaf21ljaqt5vdmma2a2u9fl8knb4beh.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCbyQc2Zzpo9tTNemMGNux9mkEVze5ouEQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "956359589320-gmaf21ljaqt5vdmma2a2u9fl8knb4beh.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

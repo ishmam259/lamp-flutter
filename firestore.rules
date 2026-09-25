@@ -1,0 +1,97 @@
+rules_version = '2';
+
+// LaMP sign-in and registration.
+//
+//   users/{uid}      one profile per person: which seat they hold.
+//   claims/{claimId} marks a pharmacy or delivery round as taken, so two
+//                    people cannot hold the same one.
+//
+// Only the signed-in person can read or write their own profile. A pharmacy
+// or delivery-round profile can only be written in the same batch that creates
+// its claim, and a claim can be created once and never changed, so the first
+// person to register for a pharmacy keeps it. Desk seats (manufacturer, banks,
+// regulator) are shared and need no claim.
+//
+// Known prototype limitation: anyone can register as any role, including
+// regulator or bank. Nothing here verifies who they are.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function validSeat(seat) {
+      return seat in ['mpo', 'pharmacy', 'manufacturer', 'bank', 'regulator'];
+    }
+
+    // The last segment of an id: "did:lamp:pharmacy:rahman-medical" ->
+    // "rahman-medical". Must match UserProfile.claimId in the app, which uses
+    // `split(':').last`. Taking the last segment rather than a fixed position
+    // means the number of segments in an id does not matter.
+    function didSuffix(did) {
+      return did.split(':')[did.split(':').size() - 1];
+    }
+
+    // A pharmacy and a delivery round belong to one person each; the other
+    // seats are shared and need no claim.
+    function needsClaim(data) {
+      return data.seat == 'pharmacy' || data.seat == 'mpo';
+    }
+
+    // The claim document's id. Only read when needsClaim() is true.
+    function claimName(data) {
+      return data.seat == 'pharmacy'
+        ? 'pharmacy-' + didSuffix(data.pharmacyDid)
+        : 'mpo-' + data.mpoId;
+    }
+
+    function seatHasItsChoice(data) {
+      return (data.seat != 'pharmacy' || (data.pharmacyDid is string && data.pharmacyDid.matches('did:lamp:.+')))
+          && (data.seat != 'mpo' || data.mpoId is string)
+          && (data.seat != 'bank' || data.bank in ['MeghnaMSP', 'PadmaMSP']);
+    }
+
+    function claimIsMine(data) {
+      return !needsClaim(data)
+          || (existsAfter(/databases/$(database)/documents/claims/$(claimName(data)))
+              && getAfter(/databases/$(database)/documents/claims/$(claimName(data))).data.uid
+                   == request.auth.uid);
+    }
+
+    match /users/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(
+             ['name', 'seat', 'pharmacyDid', 'mpoId', 'bank', 'phone', 'email'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 80
+        && validSeat(request.resource.data.seat)
+        && seatHasItsChoice(request.resource.data)
+        && claimIsMine(request.resource.data);
+
+      // A registration is final in this version: no edits, no deletes.
+      allow update, delete: if false;
+    }
+
+    match /claims/{claimId} {
+      // Signed-in people may look up one claim (to say "already taken"), but
+      // not list them all.
+      allow get: if signedIn();
+      allow list: if false;
+
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['uid'])
+        && request.resource.data.uid == request.auth.uid;
+
+      allow update, delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

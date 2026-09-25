@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'core/auth/auth_bootstrap.dart';
 import 'core/auth/auth_controller.dart';
 import 'core/constants/app_theme.dart';
 import 'core/constants/palette.dart';
@@ -15,14 +16,15 @@ import 'features/regulator/regulator_screen.dart';
 import 'features/sign_in/sign_in_screen.dart';
 import 'features/splash/splash_screen.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  final authService = await createAuthService();
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => LaMPState()),
         ChangeNotifierProvider(create: (_) => ThemeController()),
-        ChangeNotifierProvider(create: (_) => AuthController()),
+        ChangeNotifierProvider(create: (_) => AuthController(service: authService)),
       ],
       child: const LaMPApp(),
     ),

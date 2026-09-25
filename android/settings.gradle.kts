@@ -20,7 +20,12 @@ pluginManagement {
 plugins {
     id("dev.flutter.flutter-plugin-loader") version "1.0.0"
     id("com.android.application") version "8.9.1" apply false
-    id("org.jetbrains.kotlin.android") version "2.1.0" apply false
+    // 2.3.0, not 2.1.0: the Firebase Android libraries are compiled with Kotlin
+    // 2.3 metadata, which an older plugin refuses to read.
+    id("org.jetbrains.kotlin.android") version "2.3.0" apply false
+    // Reads android/app/google-services.json. Declared here, applied in
+    // app/build.gradle.kts only when that file exists.
+    id("com.google.gms.google-services") version "4.4.3" apply false
 }
 
 include(":app")

@@ -22,6 +22,31 @@ Rules: `docs/DESIGN_SYSTEM.md`. Enforced by `test/design_lint_test.dart`.
 - **This is a real app for real users, not a demo.** Copy is plain language: no chaincode names, MSP ids, tx ids or raw errors on screen — use `LedgerLabels` (`lib/core/constants/ledger_labels.dart`). Testing tools sit behind `kDemoTools` (`app_mode.dart`), off in release builds. See `docs/DESIGN_SYSTEM.md` §3a.
 - A new screen follows the checklist in `docs/DESIGN_SYSTEM.md` §6.
 
+## Sign-in and registration
+
+People sign in with **Google** or a **phone number + 6-digit code**, then, if new, register
+by choosing a seat (role, and which pharmacy / delivery round / bank). Firebase does it; setup
+is in `docs/FIREBASE_SETUP.md`.
+
+- `lib/core/auth/auth_service.dart` is the interface. `firebase_auth_service.dart` is the real
+  one (Firebase Auth + Firestore `users/{uid}`, `claims/{id}`); `local_auth_service.dart` is a
+  stand-in for tests and offline debug work (accepts code `123456`, keeps data on the device).
+- `AuthController` turns the signed-in person plus their profile into the `Account` the shell
+  shows. `main.dart` reads only `auth.current`. The PIN sign-in is gone.
+- `auth_bootstrap.dart` starts Firebase. In a **debug** build with no `firebase_options.dart`
+  configured it falls back to the local stand-in; a **release** build never does.
+- `lib/firebase_options.dart` and `android/app/google-services.json` are generated for the
+  Firebase project `lamp-bcolbd` (Android only; iOS, web and desktop are not configured).
+  The Google Services Gradle plugin is applied only when `google-services.json` exists.
+- Android build notes: the Kotlin Gradle plugin is 2.3.0 (the Firebase libraries need it), so
+  `kotlinOptions` is gone in favour of `kotlin { compilerOptions }`; Gradle heap is 4G and the
+  Kotlin daemon 2G in `android/gradle.properties`, because 8G ran a 16 GB machine out of memory.
+- Rules: `firestore.rules`. A pharmacy or round profile can only be written together with its
+  `claims/` document, and a claim is written once, so the first person keeps the seat.
+- Known limits: anyone can register as any role; seats still read seeded data
+  (`SeedData.pharmacies[0]` etc.), so a new pharmacy sees seeded invoices.
+- Tests use `LocalAuthService`: `test/auth_test.dart`, `test/widget_test.dart`.
+
 ## Toolchain (read this before running anything)
 
 The current development machine uses a normal install; nothing is copied into

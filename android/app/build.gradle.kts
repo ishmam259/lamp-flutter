@@ -15,10 +15,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
 
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
-    }
-
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.lamp.bcolbd.lamp_flutter"
@@ -39,6 +35,22 @@ android {
     }
 }
 
+// Kotlin 2.2+ replaced `android { kotlinOptions { jvmTarget = ... } }`, which is
+// now an error, with this. Same meaning: compile to Java 11.
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
+    }
+}
+
 flutter {
     source = "../.."
+}
+
+// Firebase. `flutterfire configure` writes google-services.json next to this
+// file. Without it the build still succeeds (a debug build then runs on the
+// local sign-in stand-in); with it, the plugin wires the Firebase project and
+// the Google sign-in client id into the app.
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
 }
