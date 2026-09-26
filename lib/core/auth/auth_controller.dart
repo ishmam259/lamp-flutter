@@ -153,6 +153,20 @@ class AuthController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// True when this person holds a seat they registered for and can give up.
+  bool get canReleaseSeat => _override == null && _profile != null;
+
+  /// Give up this person's seat, so someone else can register for it. They stay
+  /// signed in and land on registration again. Throws [AuthFailure].
+  Future<void> releaseSeat() async {
+    final profile = _profile;
+    if (profile == null) return;
+    await _service.releaseSeat(profile);
+    _profile = null;
+    _profileFailed = false;
+    notifyListeners();
+  }
+
   /// Testing only (see `kDemoTools`): open another account's seat without
   /// signing in as it.
   Future<void> switchTo(Account a) async {

@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -26,11 +28,33 @@ android {
         versionName = flutter.versionName
     }
 
+    // The shared release key. `android/key.properties` (git-ignored) points at
+    // the keystore; see docs/FIREBASE_SETUP.md. Google sign-in only works from
+    // builds signed with a key whose fingerprint is registered in Firebase, so
+    // every release APK, from any PC, must be signed with this one.
+    val keyProps = Properties()
+    val keyPropsFile = rootProject.file("key.properties")
+    if (keyPropsFile.exists()) keyPropsFile.inputStream().use { keyProps.load(it) }
+    val hasReleaseKey = keyProps.getProperty("storeFile")?.let { file(it).exists() } == true
+
+    signingConfigs {
+        if (hasReleaseKey) {
+            create("release") {
+                storeFile = file(keyProps.getProperty("storeFile"))
+                storePassword = keyProps.getProperty("storePassword")
+                keyAlias = keyProps.getProperty("keyAlias")
+                keyPassword = keyProps.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Without the key file (a fresh checkout) fall back to the debug key so
+            // `flutter run --release` still builds. Such an APK will NOT sign in
+            // with Google on other people's phones unless its fingerprint is
+            // registered, so never hand one out.
+            signingConfig = signingConfigs.getByName(if (hasReleaseKey) "release" else "debug")
         }
     }
 }

@@ -233,6 +233,35 @@ void main() {
       expect(again.current, isNull);
     });
 
+    test('giving up a seat frees it for someone else and returns to registration',
+        () async {
+      final did = SeedData.pharmacies.first.did;
+      final service = LocalAuthService();
+      final first = await signedIn(service);
+      await first.register(name: 'Rina', seat: PersonaId.pharmacy, pharmacyDid: did);
+      expect(first.canReleaseSeat, isTrue);
+
+      await first.releaseSeat();
+      expect(first.current, isNull);
+      expect(first.canReleaseSeat, isFalse);
+      expect(first.needsRegistration, isTrue);
+      expect(first.user, isNotNull, reason: 'still signed in');
+
+      // Someone else can now register for the same pharmacy.
+      await service.saveProfile(UserProfile(
+          uid: 'friend', name: 'Friend', seat: PersonaId.pharmacy, pharmacyDid: did));
+
+      // It stays gone after a restart.
+      final restarted = AuthController(service: LocalAuthService());
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(restarted.current, isNull);
+    });
+
+    test('someone who has not registered has no seat to give up', () async {
+      final auth = await signedIn(LocalAuthService());
+      expect(auth.canReleaseSeat, isFalse);
+    });
+
     test('a profile that cannot be read is not treated as unregistered', () async {
       final auth = AuthController(service: _OfflineProfiles());
       await auth.signInWithGoogle();

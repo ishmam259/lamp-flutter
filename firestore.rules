@@ -9,7 +9,8 @@ rules_version = '2';
 // Only the signed-in person can read or write their own profile. A pharmacy
 // or delivery-round profile can only be written in the same batch that creates
 // its claim, and a claim can be created once and never changed, so the first
-// person to register for a pharmacy keeps it. Desk seats (manufacturer, banks,
+// person to register for a pharmacy keeps it until they give it up (their
+// profile and claim are deleted together). Desk seats (manufacturer, banks,
 // regulator) are shared and need no claim.
 //
 // Known prototype limitation: anyone can register as any role, including
@@ -73,8 +74,10 @@ service cloud.firestore {
         && seatHasItsChoice(request.resource.data)
         && claimIsMine(request.resource.data);
 
-      // A registration is final in this version: no edits, no deletes.
-      allow update, delete: if false;
+      // A registration cannot be edited. The person can give it up (delete it)
+      // and register again.
+      allow update: if false;
+      allow delete: if signedIn() && request.auth.uid == uid;
     }
 
     match /claims/{claimId} {
@@ -87,7 +90,13 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['uid'])
         && request.resource.data.uid == request.auth.uid;
 
-      allow update, delete: if false;
+      allow update: if false;
+
+      // Only the holder can free a claim, and only in the batch that also
+      // deletes their profile, so a profile never outlives its claim.
+      allow delete: if signedIn()
+        && resource.data.uid == request.auth.uid
+        && !existsAfter(/databases/$(database)/documents/users/$(request.auth.uid));
     }
 
     match /{document=**} {

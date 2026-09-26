@@ -2,7 +2,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../firebase_options.dart';
-import '../constants/app_mode.dart';
 import 'auth_service.dart';
 import 'firebase_auth_service.dart';
 import 'local_auth_service.dart';
@@ -19,7 +18,7 @@ Future<AuthService> createAuthService() async {
     await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
     return FirebaseAuthService();
   } catch (e) {
-    if (!kDemoTools) rethrow;
+    if (kReleaseMode) rethrow;
     debugPrint('Firebase is not available ($e). Using the local sign-in stand-in.');
     return LocalAuthService();
   }

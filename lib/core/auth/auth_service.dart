@@ -103,5 +103,9 @@ abstract class AuthService {
   /// [AuthFailureKind.seatTaken] if it is already claimed.
   Future<void> saveProfile(UserProfile profile);
 
+  /// Give the seat up: delete this person's profile and, for a pharmacy or
+  /// delivery round, its claim, together, so someone else can register for it.
+  Future<void> releaseSeat(UserProfile profile);
+
   Future<void> signOut();
 }

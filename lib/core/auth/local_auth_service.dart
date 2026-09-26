@@ -98,6 +98,17 @@ class LocalAuthService implements AuthService {
   }
 
   @override
+  Future<void> releaseSeat(UserProfile profile) async {
+    final claims = await _readMap(_claimsKey);
+    final claim = profile.claimId;
+    if (claim != null && claims[claim] == profile.uid) claims.remove(claim);
+    final profiles = await _readMap(_profilesKey);
+    profiles.remove(profile.uid);
+    await _writeMap(_claimsKey, claims);
+    await _writeMap(_profilesKey, profiles);
+  }
+
+  @override
   Future<void> signOut() async {
     _user = null;
     _controller.add(null);

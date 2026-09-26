@@ -90,3 +90,29 @@ That is a known prototype limit.
 | Gradle dies with "daemon disappeared unexpectedly" and an `hs_err_pid*.log` in `android/` | The machine ran out of memory. The log says "insufficient memory" and shows `AvailPageFile` near 0. Stop leftover build JVMs (`android\gradlew.bat --stop`, then end any `KotlinCompileDaemon` java process in Task Manager), close the emulator for the build, or enlarge the Windows pagefile. Heap limits are in `android/gradle.properties`. |
 | The app starts on the local stand-in | Debug build with no `firebase_options.dart` configured. Run `flutterfire configure`. |
 | Release build will not start | Firebase is not configured. Release builds never use the local stand-in. |
+
+## Release signing key (for APKs anyone will install)
+
+Google sign-in only works from an app signed with a key whose SHA-1 is registered
+under the Android app in Firebase. Debug keys differ per PC, so APKs are signed
+with one shared release key instead.
+
+- Keystore: `lamp-upload.jks` (alias `lamp`), kept outside the repo and backed up
+  in a password manager. Never commit it. If it is lost, later APKs will no
+  longer match Firebase.
+- On each PC that builds release APKs, create `android/key.properties`
+  (git-ignored):
+
+  ```
+  storeFile=C:/path/to/lamp-upload.jks
+  storePassword=...
+  keyAlias=lamp
+  keyPassword=...
+  ```
+
+  `storeFile` is this PC's path to the keystore. `android/app/build.gradle.kts`
+  reads the file; without it, release builds use the debug key (do not share those).
+- Register the key's SHA-1 and SHA-256 once in Firebase Console -> Project settings
+  -> Android app -> Add fingerprint. Debug builds on a developer PC still need
+  that PC's own debug fingerprints registered.
+- Check an APK: `apksigner verify --print-certs app-release.apk`.

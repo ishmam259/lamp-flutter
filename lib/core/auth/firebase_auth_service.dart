@@ -201,6 +201,29 @@ class FirebaseAuthService implements AuthService {
   }
 
   @override
+  Future<void> releaseSeat(UserProfile profile) async {
+    try {
+      // One batch, so the claim is never freed while the profile still points
+      // at it. The rules only let the holder delete their own claim, and only
+      // together with their profile.
+      final batch = _db.batch();
+      final claim = profile.claimId;
+      if (claim != null) {
+        final existing = await _claim(claim).get();
+        if (existing.exists && existing.data()?['uid'] == profile.uid) {
+          batch.delete(_claim(claim));
+        }
+      }
+      batch.delete(_user(profile.uid));
+      await batch.commit();
+    } on FirebaseException catch (e) {
+      debugPrint('FirebaseAuthService: could not release the seat (${e.code})');
+      if (e.code == 'unavailable') throw AuthFailure.of(AuthFailureKind.network);
+      throw AuthFailure.of(AuthFailureKind.other);
+    }
+  }
+
+  @override
   Future<void> signOut() async {
     try {
       await _ensureGoogle();

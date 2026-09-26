@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/auth/accounts.dart';
 import '../../core/auth/auth_controller.dart';
+import '../../core/auth/auth_service.dart';
 import '../../core/constants/app_mode.dart';
 import '../../core/constants/formatters.dart';
 import '../../core/constants/ledger_labels.dart';
@@ -242,6 +243,8 @@ class LampSeatMenu extends StatelessWidget {
             _switchAccount(context, auth!);
           case 3:
             auth?.signOut();
+          case 4:
+            _confirmRelease(context, auth!);
         }
       },
       itemBuilder: (_) => [
@@ -260,9 +263,45 @@ class LampSeatMenu extends StatelessWidget {
         item(0, theme.icon, 'Theme · ${theme.label}'),
         if (kDemoTools) item(1, Icons.tune, 'Demo controls'),
         if (kDemoTools && auth != null) item(2, Icons.switch_account_outlined, 'Switch account'),
+        if (auth != null && auth.canReleaseSeat)
+          item(4, Icons.person_remove_outlined, 'Give up this seat'),
         if (auth != null) item(3, Icons.logout, 'Sign out'),
       ],
     );
+  }
+
+  /// Ask first: giving up a seat lets someone else register for it.
+  static Future<void> _confirmRelease(BuildContext context, AuthController auth) async {
+    final c = context.lamp;
+    final messenger = ScaffoldMessenger.of(context);
+    final sure = await showDialog<bool>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        backgroundColor: c.surface,
+        title: Text('Give up this seat?', style: LaMPType.head.copyWith(color: c.ink)),
+        content: Text(
+          'Someone else will be able to register for it. You stay signed in and '
+          'can register for a different seat.',
+          style: LaMPType.body.copyWith(color: c.inkMuted),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialog, false),
+            child: Text('Keep it', style: LaMPType.sub.copyWith(color: c.inkMuted)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialog, true),
+            child: Text('Give it up', style: LaMPType.sub.copyWith(color: c.ink)),
+          ),
+        ],
+      ),
+    );
+    if (sure != true) return;
+    try {
+      await auth.releaseSeat();
+    } on AuthFailure catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+    }
   }
 
   /// Testing only: open any account's seat without its PIN.

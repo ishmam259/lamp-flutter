@@ -122,10 +122,14 @@ Screenshots from the phone: `adb exec-out screencap -p > shot.png`.
 flutter build apk --release
 ```
 
-Output: `build/app/outputs/flutter-apk/app-release.apk`. It's signed with the
-debug keystore (`android/app/build.gradle.kts`) for sideload convenience;
-replace that with a real signing config for the Play Store. A release build
-hides the testing tools (`kDemoTools`, see the design section).
+Output: `build/app/outputs/flutter-apk/app-release.apk`. It is signed with the
+shared release key named in `android/key.properties` (git-ignored; see
+`docs/FIREBASE_SETUP.md`). Its SHA-1 `90:E5:24:90:…:24:46` is registered in
+Firebase, so Google sign-in works on every phone. Without `key.properties` the
+build falls back to the machine's debug key, and that APK will not sign in
+with Google for other people: never hand one out. A release build hides the
+testing tools (`kDemoTools`); a tester build turns them on with
+`--dart-define=DEMO_TOOLS=true`.
 
 Piping the build through `tail` swallows Gradle's exit code, so check for the
 `Built build\app\outputs...` line rather than trusting `$?`.
