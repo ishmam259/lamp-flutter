@@ -13,8 +13,10 @@ rules_version = '2';
 // profile and claim are deleted together). Desk seats (manufacturer, banks,
 // regulator) are shared and need no claim.
 //
-// Known prototype limitation: anyone can register as any role, including
-// regulator or bank. Nothing here verifies who they are.
+// Only a pharmacy owner or a delivery officer can register themselves. A
+// manufacturer, bank or regulator profile moves money or oversees it, so the
+// app cannot create one: an administrator writes it (Firebase console or the
+// Admin SDK, which these rules do not apply to). See docs/FIREBASE_SETUP.md.
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -22,8 +24,9 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function validSeat(seat) {
-      return seat in ['mpo', 'pharmacy', 'manufacturer', 'bank', 'regulator'];
+    // Seats a person may take for themselves.
+    function selfServiceSeat(seat) {
+      return seat in ['mpo', 'pharmacy'];
     }
 
     // The last segment of an id: "did:lamp:pharmacy:rahman-medical" ->
@@ -70,7 +73,7 @@ service cloud.firestore {
         && request.resource.data.name is string
         && request.resource.data.name.size() > 0
         && request.resource.data.name.size() <= 80
-        && validSeat(request.resource.data.seat)
+        && selfServiceSeat(request.resource.data.seat)
         && seatHasItsChoice(request.resource.data)
         && claimIsMine(request.resource.data);
 

@@ -293,10 +293,8 @@ class _BankScreenState extends State<BankScreen> {
           ),
           _check(
             context,
-            'Invoice PDF anchored',
-            documentAnchored
-                ? '${token.documentHash!.substring(0, 8)}… · ${token.documentByteLength ?? 0} B'
-                : 'not yet',
+            'Invoice PDF checked',
+            documentAnchored ? 'recorded' : 'not yet',
             documentAnchored,
           ),
           Divider(height: Gap.xl, thickness: 1, color: c.line),
@@ -359,21 +357,21 @@ class _BankScreenState extends State<BankScreen> {
                   : band == null
                       ? 'No rate for this invoice'
                       : !documentAnchored
-                          ? 'Anchor the invoice PDF first'
+                          ? 'Check the invoice PDF first'
                           : 'Finance ${LaMPFormatters.formatBDT(advance)}',
             ),
             style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
           ),
           const SizedBox(height: Gap.sm),
-          // Opens the sheet that walks the financier through pick a PDF →
-          // hash → match verdict → anchor on the channel → download. Offered
-          // whether or not the other checks pass, so a bank can anchor ahead
-          // of the dispute window closing.
+          // Opens the sheet that checks the PDF the bank was sent against the
+          // one issued with the invoice, and records it. Offered whether or
+          // not the other checks pass, so a bank can check ahead of the
+          // dispute window closing.
           OutlinedButton.icon(
             key: ValueKey('verify-pdf-${token.tokenId}'),
             icon: const Icon(Icons.verified_outlined, size: IconSize.md),
             label: Text(
-              documentAnchored ? 'Re-verify & download PDF' : 'Verify & download PDF',
+              documentAnchored ? 'Invoice PDF' : 'Check invoice PDF',
             ),
             style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(44)),
             onPressed: () => _openVerifySheet(state, token.tokenId),

@@ -43,7 +43,11 @@ dependencies:
   # Anchored-invoice-document flow: PDF generation, ZIP bundling, share sheet,
   # and a temp-dir for the emitted bytes. file_picker lets the bank pick the
   # PDF a financier wants to verify against the channel.
-  pdf: ^3.11.1
+  # Pinned exactly: invoice PDFs are re-rendered, and the ledger holds each
+  # issued PDF's hash from mint. A pdf release that changed its output would
+  # stop every earlier invoice from passing the bank's check.
+  # test/invoice_pdf_test.dart fails if the bytes move.
+  pdf: 3.12.0
   archive: ^3.6.1
   path_provider: ^2.1.4
   share_plus: ^10.0.2

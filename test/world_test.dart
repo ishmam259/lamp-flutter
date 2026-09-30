@@ -2,7 +2,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:lamp_flutter/core/chain/contract.dart';
-import 'package:lamp_flutter/core/chain/crypto.dart';
 import 'package:lamp_flutter/core/chain/ledger.dart';
 import 'package:lamp_flutter/core/models/domain_models.dart';
 import 'package:lamp_flutter/core/state/lamp_state.dart';
@@ -171,9 +170,9 @@ void main() {
         fn: 'anchorInvoiceDocument',
         args: {
           'tokenId': view.tokenId,
-          'sha256': LaMPCrypto.sha256Hex('invoice-pdf-'),
+          'sha256': view.token.issuedDocumentHash!,
           'byteLength': 4096,
-          'filename': '.pdf',
+          'filename': '${view.token.invoiceId.toLowerCase()}.pdf',
         },
         asMsp: Msp.meghnaMSP,
         nowTimestamp: clock.now,

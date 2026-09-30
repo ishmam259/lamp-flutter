@@ -1,18 +1,20 @@
-// Verify-and-anchor modal sheet for the bank.
+// The bank's invoice-PDF check.
 //
-// Bank-side analog of `LaMP/components/invoice-document.tsx` `mode="verify"`:
-// 1. Pick a PDF (file picker).
-// 2. SHA-256 it locally and compare against the channel anchor (`token.documentHash`).
-//    - Match → green banner + "Anchor to the channel" button (only shown when
-//      the token isn't already anchored).
-//    - Mismatch → red banner with both digests so the financier can see which
-//      file they got.
-// 3. Once anchored, the verdict turns into a green "anchored at block N by
-//    MeghnaMSP" banner and a "Download PDF" button surfaces the same bytes
-//    the manufacturer staged (or any future PDF the financier verifies).
+// Before financing, the bank confirms the PDF it was sent is the invoice the
+// manufacturer issued, and records that on the ledger:
 //
-// The sheet never fires `matchAndAdvance` itself — that's the separate Finance
-// button on the opportunity card. The sheet only writes the document anchor.
+// 1. Choose the PDF (file picker).
+// 2. Hash it on the phone and compare with `token.issuedDocumentHash`, the
+//    hash the ledger took of the issued PDF when the invoice was minted.
+// 3. On a match, "Record as checked" submits `anchorInvoiceDocument`, which
+//    makes the same comparison again and refuses anything else.
+//
+// The comparison used to be against the *anchor*, which is empty until the
+// bank anchors — so before that, every file "matched", including another
+// invoice's PDF. The copy on the sheet was also the chaincode's own vocabulary
+// (token ids, channel anchor, hashes); a bank officer sees plain words now.
+//
+// The sheet never finances: that is the Finance button on the bank's card.
 
 import 'dart:io';
 
@@ -22,28 +24,13 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../core/chain/crypto.dart';
+import '../../core/constants/ledger_labels.dart';
 import '../../core/constants/palette.dart';
 import '../../core/constants/typography.dart';
 import '../../core/models/domain_models.dart';
 import '../../core/state/lamp_state.dart';
 
-/// Verdict state held by the sheet — drives both the banner colour and which
-/// action button is enabled.
-enum _VerifyPhase { idle, hashing, matched, mismatched, anchored }
-
-class _VerifyOutcome {
-  final String? sha256;
-  final int? byteLength;
-  final String? filename;
-  final String? error;
-
-  const _VerifyOutcome({
-    this.sha256,
-    this.byteLength,
-    this.filename,
-    this.error,
-  });
-}
+enum _Phase { idle, reading, matched, mismatched, recorded }
 
 class VerifyAndAnchorSheet extends StatefulWidget {
   final LaMPState state;
@@ -62,20 +49,25 @@ class VerifyAndAnchorSheet extends StatefulWidget {
 }
 
 class _VerifyAndAnchorSheetState extends State<VerifyAndAnchorSheet> {
-  _VerifyPhase _phase = _VerifyPhase.idle;
-  _VerifyOutcome _outcome = const _VerifyOutcome();
-  String? _anchorError;
-  bool _isAnchoring = false;
+  _Phase _phase = _Phase.idle;
+  String? _pickedSha;
+  int? _pickedLength;
+  String? _pickedName;
+  String? _problem;
+  bool _recording = false;
 
-  ReceivableToken? _token() {
-    return widget.state.viewFor(widget.tokenId)?.token;
+  ReceivableToken? get _token => widget.state.viewFor(widget.tokenId)?.token;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_token?.documentHash != null) _phase = _Phase.recorded;
   }
 
-  Future<void> _pickAndHash() async {
+  Future<void> _choosePdf() async {
     setState(() {
-      _phase = _VerifyPhase.hashing;
-      _outcome = const _VerifyOutcome();
-      _anchorError = null;
+      _phase = _Phase.reading;
+      _problem = null;
     });
 
     try {
@@ -85,226 +77,200 @@ class _VerifyAndAnchorSheetState extends State<VerifyAndAnchorSheet> {
         withData: true,
       );
       if (result == null || result.files.isEmpty) {
-        setState(() => _phase = _VerifyPhase.idle);
+        setState(() => _phase = _restingPhase());
         return;
       }
       final picked = result.files.single;
       final bytes = picked.bytes ??
-          (picked.path != null
-              ? await File(picked.path!).readAsBytes()
-              : null);
+          (picked.path != null ? await File(picked.path!).readAsBytes() : null);
       if (bytes == null) {
         setState(() {
-          _phase = _VerifyPhase.idle;
-          _outcome = const _VerifyOutcome(
-            error: 'Could not read the picked file.',
-          );
+          _phase = _restingPhase();
+          _problem = "Couldn't read that file. Try choosing it again.";
         });
         return;
       }
 
       final sha = LaMPCrypto.sha256HexBytes(bytes);
-      final token = _token();
-      final expected = token?.documentHash;
-
+      final issued = _token?.issuedDocumentHash;
       setState(() {
-        _outcome = _VerifyOutcome(
-          sha256: sha,
-          byteLength: bytes.length,
-          filename: picked.name,
-        );
-        if (expected != null &&
-            expected.toLowerCase() == sha.toLowerCase()) {
-          _phase = _VerifyPhase.anchored;
-        } else if (expected == null) {
-          // Not yet anchored on chain; pick succeeded; await user click on
-          // "Anchor to the channel". Stay in "matched" so the banner is green
-          // and the anchor button is enabled.
-          _phase = _VerifyPhase.matched;
+        _pickedSha = sha;
+        _pickedLength = bytes.length;
+        _pickedName = picked.name;
+        if (issued == null) {
+          _phase = _Phase.idle;
+          _problem = 'No invoice PDF was issued with this invoice, so there '
+              'is nothing to check it against.';
+        } else if (issued.toLowerCase() == sha.toLowerCase()) {
+          _phase = _token?.documentHash != null ? _Phase.recorded : _Phase.matched;
         } else {
-          _phase = _VerifyPhase.mismatched;
+          _phase = _Phase.mismatched;
         }
       });
     } catch (e) {
+      debugPrint('VerifyAndAnchorSheet: picking failed ($e)');
       setState(() {
-        _phase = _VerifyPhase.idle;
-        _outcome = _VerifyOutcome(error: e.toString());
+        _phase = _restingPhase();
+        _problem = "Couldn't open the file picker. Try again.";
       });
     }
   }
 
-  Future<void> _anchorOnChain() async {
-    final sha = _outcome.sha256;
-    final len = _outcome.byteLength;
-    final fname = _outcome.filename;
-    if (sha == null || len == null || fname == null) return;
+  _Phase _restingPhase() =>
+      _token?.documentHash != null ? _Phase.recorded : _Phase.idle;
+
+  Future<void> _record() async {
+    final sha = _pickedSha;
+    final len = _pickedLength;
+    final name = _pickedName;
+    if (sha == null || len == null || name == null) return;
     setState(() {
-      _isAnchoring = true;
-      _anchorError = null;
+      _recording = true;
+      _problem = null;
     });
     final res = await widget.state.anchorInvoiceDocument(
       widget.tokenId,
       widget.activeBank,
       sha256: sha,
       byteLength: len,
-      filename: fname,
+      filename: name,
     );
     if (!mounted) return;
     setState(() {
-      _isAnchoring = false;
+      _recording = false;
       if (res.ok) {
-        _phase = _VerifyPhase.anchored;
+        _phase = _Phase.recorded;
       } else {
-        _anchorError = res.error ?? 'Anchor transaction failed.';
+        _problem = LedgerLabels.reason(res.error);
       }
     });
   }
 
-  Future<void> _downloadAnchoredPdf() async {
-    final bytes = widget.state.anchoredDocumentBytes(widget.tokenId);
-    final doc = widget.state.getAnchoredDocument(widget.tokenId);
-    if (bytes == null || doc == null) return;
-    final dir = await getTemporaryDirectory();
-    final file = File('${dir.path}/${doc.filename}');
-    await file.writeAsBytes(bytes);
-    await Share.shareXFiles(
-      [XFile(file.path, name: doc.filename, mimeType: 'application/pdf')],
-      subject: 'LaMP anchored invoice ${doc.filename}',
-    );
+  /// Share the issued invoice PDF. It is reproducible, so these are the same
+  /// bytes the manufacturer issued and the ledger recorded the hash of.
+  Future<void> _sharePdf() async {
+    try {
+      final pdf = await widget.state.generateInvoicePdf(widget.tokenId);
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/${pdf.filename}');
+      await file.writeAsBytes(pdf.bytes);
+      await Share.shareXFiles(
+        [XFile(file.path, name: pdf.filename, mimeType: 'application/pdf')],
+        subject: 'Invoice ${pdf.filename}',
+      );
+    } catch (e) {
+      debugPrint('VerifyAndAnchorSheet: sharing failed ($e)');
+      if (!mounted) return;
+      setState(() => _problem = "Couldn't share the invoice PDF. Try again.");
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final c = context.lamp;
-    final token = _token();
-    final tokenDocHash = token?.documentHash;
+    final invoiceId = _token?.invoiceId ?? widget.tokenId;
+    final recorded = _token?.documentHash != null;
 
     return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: SafeArea(
         top: false,
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(Gap.xl, Gap.lg, Gap.xl, Gap.xl),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Drag handle
               Center(
                 child: Container(
                   width: 36,
                   height: 4,
-                  margin: const EdgeInsets.only(bottom: 12),
+                  margin: const EdgeInsets.only(bottom: Gap.md),
                   decoration: BoxDecoration(
                     color: c.lineStrong,
-                    borderRadius: BorderRadius.circular(2),
+                    borderRadius: BorderRadius.circular(LaMPRadius.pill),
                   ),
                 ),
               ),
-              Text(
-                'Verify anchored invoice PDF',
-                style: LaMPType.head.copyWith(color: c.ink),
-
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Token ${widget.tokenId}',
-                style: LaMPType.monoMicro.copyWith(color: c.inkFaint),
-
-              ),
-              const SizedBox(height: 16),
-              _ledgerLine(
+              Text('Check the invoice PDF', style: LaMPType.head.copyWith(color: c.ink)),
+              const SizedBox(height: Gap.xs),
+              Text(invoiceId, style: LaMPType.monoMicro.copyWith(color: c.inkFaint)),
+              const SizedBox(height: Gap.lg),
+              _line(
                 context,
-                label: 'Channel anchor',
-                value: tokenDocHash == null
-                    ? '— not anchored —'
-                    : 'SHA-256 ${tokenDocHash.substring(0, 16)}…',
-                color: tokenDocHash == null ? c.pending : c.verified,
+                label: 'Status',
+                value: recorded ? 'Checked and recorded' : 'Not checked yet',
+                color: recorded ? c.verified : c.pending,
               ),
-              if (_outcome.sha256 != null) ...[
-                const SizedBox(height: 6),
-                _ledgerLine(
+              if (_pickedName != null) ...[
+                const SizedBox(height: Gap.xs),
+                _line(
                   context,
-                  label: 'Picked file',
-                  value:
-                      'SHA-256 ${_outcome.sha256!.substring(0, 16)}… · '
-                      '${_outcome.byteLength} bytes · ${_outcome.filename}',
-                  color: _phase == _VerifyPhase.mismatched
-                      ? c.dispute
-                      : c.brand,
+                  label: 'Your file',
+                  value: _pickedName!,
+                  color: _phase == _Phase.mismatched ? c.dispute : c.ink,
                 ),
               ],
-              const SizedBox(height: 16),
-              _verdictBanner(context),
-              if (_anchorError != null) ...[
-                const SizedBox(height: 8),
-                Text(
-                  _anchorError!,
-                  style: LaMPType.caption.copyWith(color: c.dispute),
-                ),
+              const SizedBox(height: Gap.lg),
+              _verdict(context, invoiceId),
+              if (_problem != null) ...[
+                const SizedBox(height: Gap.sm),
+                Text(_problem!, style: LaMPType.caption.copyWith(color: c.dispute)),
               ],
-              const SizedBox(height: 20),
+              const SizedBox(height: Gap.xl),
               Row(
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
                       key: const ValueKey('verify-pick'),
-                      icon: const Icon(Icons.upload_file, size: 16),
-                      label: const Text('Pick PDF & hash'),
+                      icon: const Icon(Icons.upload_file, size: IconSize.sm),
+                      label: const Text('Choose PDF'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: c.brand,
                         side: BorderSide(color: c.lineStrong),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        padding: const EdgeInsets.symmetric(vertical: Gap.md),
                       ),
-                      onPressed: _phase == _VerifyPhase.hashing
-                          ? null
-                          : _pickAndHash,
+                      onPressed: _phase == _Phase.reading ? null : _choosePdf,
                     ),
                   ),
-                  if (_phase == _VerifyPhase.matched) ...[
-                    const SizedBox(width: 8),
+                  if (_phase == _Phase.matched) ...[
+                    const SizedBox(width: Gap.sm),
                     Expanded(
                       child: ElevatedButton.icon(
                         key: const ValueKey('verify-anchor'),
-                        icon: _isAnchoring
+                        icon: _recording
                             ? const SizedBox(
                                 width: 14,
                                 height: 14,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
+                                child: CircularProgressIndicator(strokeWidth: 2),
                               )
-                            : const Icon(Icons.link, size: 16),
-                        label: Text(
-                          _isAnchoring ? 'Anchoring...' : 'Anchor to channel',
-                        ),
+                            : const Icon(Icons.task_alt, size: IconSize.sm),
+                        label: Text(_recording ? 'Recording…' : 'Record as checked'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: c.brand,
                           foregroundColor: c.onBrand,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          padding: const EdgeInsets.symmetric(vertical: Gap.md),
                         ),
-                        onPressed: _isAnchoring ? null : _anchorOnChain,
+                        onPressed: _recording ? null : _record,
                       ),
                     ),
                   ],
                 ],
               ),
-              if (tokenDocHash != null) ...[
-                const SizedBox(height: 8),
+              if (recorded) ...[
+                const SizedBox(height: Gap.sm),
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
                     key: const ValueKey('verify-download'),
-                    icon: const Icon(Icons.download, size: 16),
-                    label: const Text('Download anchored PDF'),
+                    icon: const Icon(Icons.ios_share, size: IconSize.sm),
+                    label: const Text('Share invoice PDF'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: c.brand,
                       side: BorderSide(color: c.lineStrong),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      padding: const EdgeInsets.symmetric(vertical: Gap.md),
                     ),
-                    onPressed: _downloadAnchoredPdf,
+                    onPressed: _sharePdf,
                   ),
                 ),
               ],
@@ -315,103 +281,81 @@ class _VerifyAndAnchorSheetState extends State<VerifyAndAnchorSheet> {
     );
   }
 
-  Widget _verdictBanner(BuildContext context) {
+  Widget _verdict(BuildContext context, String invoiceId) {
     final c = context.lamp;
-    switch (_phase) {
-      case _VerifyPhase.idle:
-        if (_outcome.error != null) {
-          return _banner(
-            context,
-            icon: Icons.error_outline,
-            color: c.dispute,
-            text: _outcome.error!,
-          );
-        }
-        return _banner(
+    return switch (_phase) {
+      _Phase.idle => _banner(
           context,
           icon: Icons.info_outline,
           color: c.inkMuted,
-          text: 'Pick the PDF the manufacturer sent. We\'ll hash it locally '
-              'and compare against the channel anchor.',
-        );
-      case _VerifyPhase.hashing:
-        return _banner(
+          text: 'Choose the PDF the manufacturer sent you. We check it '
+              'against the invoice recorded on the ledger.',
+        ),
+      _Phase.reading => _banner(
           context,
           icon: Icons.hourglass_top,
           color: c.pending,
-          text: 'Reading and hashing the picked file…',
-        );
-      case _VerifyPhase.matched:
-        return _banner(
+          text: 'Checking the file…',
+        ),
+      _Phase.matched => _banner(
           context,
           icon: Icons.verified,
           color: c.verified,
-          text: 'Hash matches — anchor it to the channel to finance.',
-        );
-      case _VerifyPhase.mismatched:
-        return _banner(
+          text: 'This is the invoice the manufacturer issued. Record it as '
+              'checked to finance.',
+        ),
+      _Phase.mismatched => _banner(
           context,
           icon: Icons.dangerous,
           color: c.dispute,
-          text: 'Hash mismatch. The picked file is not the one this invoice '
-              'is anchored to. Compare digests above.',
-        );
-      case _VerifyPhase.anchored:
-        return _banner(
+          text: "This PDF isn't the invoice issued for $invoiceId. It may be "
+              'another invoice or an altered copy. Ask the manufacturer to '
+              'send it again.',
+        ),
+      _Phase.recorded => _banner(
           context,
           icon: Icons.verified,
           color: c.verified,
-          text: 'Anchored to the channel. Finance button is now enabled.',
-        );
-    }
+          text: 'Checked and recorded. You can finance this invoice now.',
+        ),
+    };
   }
 
   Widget _banner(BuildContext context,
       {required IconData icon, required Color color, required String text}) {
     final c = context.lamp;
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(Gap.md),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(LaMPRadius.control),
         border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 16, color: color),
-          const SizedBox(width: 8),
+          Icon(icon, size: IconSize.sm, color: color),
+          const SizedBox(width: Gap.sm),
           Expanded(
-            child: Text(
-              text,
-              style: LaMPType.caption.copyWith(color: c.ink),
-            ),
+            child: Text(text, style: LaMPType.caption.copyWith(color: c.ink)),
           ),
         ],
       ),
     );
   }
 
-  Widget _ledgerLine(BuildContext context,
+  Widget _line(BuildContext context,
       {required String label, required String value, required Color color}) {
     final c = context.lamp;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(
-          width: 110,
-          child: Text(
-            label,
-            style: LaMPType.caption.copyWith(color: c.inkFaint),
-
-          ),
+          width: 88,
+          child: Text(label, style: LaMPType.caption.copyWith(color: c.inkFaint)),
         ),
         Expanded(
-          child: Text(
-            value,
-            style: LaMPType.monoMicro.copyWith(color: color),
-
-          ),
+          child: Text(value, style: LaMPType.caption.copyWith(color: color)),
         ),
       ],
     );

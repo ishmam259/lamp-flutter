@@ -37,6 +37,9 @@ class LaMPContract {
   static const double confirmationThreshold = 0.90;
   static const int defaultDisputeWindowMs = 24 * 3600 * 1000;
 
+  static bool _isSha256Hex(String s) =>
+      s.length == 64 && RegExp(r'^[0-9a-fA-F]+$').hasMatch(s);
+
   // 1. Mint Receivable
   static Future<ReceivableToken> mintReceivable(
     ChainCtx ctx, {
@@ -50,6 +53,7 @@ class LaMPContract {
     required int dueDate,
     required List<String> cartonHashes,
     required List<LineItem> lineItems,
+    String? documentSha256,
   }) async {
     // Data-level guards. The endorsement policy already restricts the submitter
     // to ManufacturerMSP's peer; these checks make the body of the transaction
@@ -67,6 +71,12 @@ class LaMPContract {
     if (dueDate <= issuedAt) {
       throw ChaincodeException(
         'Mint $tokenId refused: dueDate ($dueDate) must be after issuedAt ($issuedAt).',
+      );
+    }
+
+    if (documentSha256 != null && !_isSha256Hex(documentSha256)) {
+      throw ChaincodeException(
+        'Mint $tokenId refused: documentSha256 must be a 64-char hex string.',
       );
     }
 
@@ -103,6 +113,7 @@ class LaMPContract {
       deliveryRatio: 0.0,
       state: TokenState.created,
       lineItemsHash: lineItemsHash,
+      issuedDocumentHash: documentSha256?.toLowerCase(),
     );
 
     await ctx.put(ChainKeys.token(tokenId), token.toJson());
@@ -515,6 +526,20 @@ class LaMPContract {
         'Receivable $tokenId is in state ${token.state.id}; disputes are only valid in CREATED, PARTIALLY_FULFILLED, or DELIVERED.',
       );
     }
+    if (reason.trim().isEmpty) {
+      throw ChaincodeException('A dispute on $tokenId needs a reason.');
+    }
+    // Once delivery is confirmed the pharmacy has the dispute window, and no
+    // longer. Without this a delivered invoice could be disputed at any time,
+    // after the bank had already relied on the window having closed quietly.
+    final windowCloses = token.disputeWindowClosesAt;
+    if (token.state == TokenState.delivered &&
+        windowCloses != null &&
+        ctx.now >= windowCloses) {
+      throw ChaincodeException(
+        'The dispute window for $tokenId closed at $windowCloses; a delivered receivable can only be disputed inside it.',
+      );
+    }
 
     token.preDisputeState = token.state;
     token.state = TokenState.disputed;
@@ -646,9 +671,7 @@ class LaMPContract {
     }
     final token = ReceivableToken.fromJson(Map<String, dynamic>.from(raw as Map));
 
-    if (sha256.isEmpty ||
-        sha256.length != 64 ||
-        !RegExp(r'^[0-9a-fA-F]+$').hasMatch(sha256)) {
+    if (!_isSha256Hex(sha256)) {
       throw ChaincodeException(
         'anchorInvoiceDocument $tokenId: sha256 must be a 64-char hex string.',
       );
@@ -671,6 +694,21 @@ class LaMPContract {
         token.documentHash!.toLowerCase() != sha256.toLowerCase()) {
       throw ChaincodeException(
         'anchorInvoiceDocument $tokenId refused: token already anchored to ${token.documentHash!.substring(0, 12)}…',
+      );
+    }
+
+    // The file has to be the invoice the manufacturer issued. This used to be
+    // unchecked: the first digest anyone submitted became the anchor, so a
+    // bank could record another invoice's PDF (or any PDF) and finance on it.
+    final issued = token.issuedDocumentHash;
+    if (issued == null) {
+      throw ChaincodeException(
+        'anchorInvoiceDocument $tokenId refused: no invoice document was issued with this receivable.',
+      );
+    }
+    if (issued.toLowerCase() != sha256.toLowerCase()) {
+      throw ChaincodeException(
+        'anchorInvoiceDocument $tokenId refused: the document is not the invoice issued for ${token.invoiceId}.',
       );
     }
 

@@ -487,6 +487,11 @@ class ReceivableToken {
   String? pharmacySignature;
   int? receivedAt;
   final String lineItemsHash;
+
+  /// SHA-256 of the invoice PDF the manufacturer issued with this receivable,
+  /// fixed at mint. A bank can only record ("anchor") a PDF whose hash equals
+  /// this: without it, any file at all would have passed the bank's check.
+  final String? issuedDocumentHash;
   String? documentHash;
   int? documentAnchoredAt;
   String? documentAnchoredBy;
@@ -521,6 +526,7 @@ class ReceivableToken {
     this.pharmacySignature,
     this.receivedAt,
     required this.lineItemsHash,
+    this.issuedDocumentHash,
     this.documentHash,
     this.documentAnchoredAt,
     this.documentAnchoredBy,
@@ -556,6 +562,7 @@ class ReceivableToken {
     if (pharmacySignature != null) 'pharmacySignature': pharmacySignature,
     if (receivedAt != null) 'receivedAt': receivedAt,
     'lineItemsHash': lineItemsHash,
+    if (issuedDocumentHash != null) 'issuedDocumentHash': issuedDocumentHash,
     if (documentHash != null) 'documentHash': documentHash,
     if (documentAnchoredAt != null) 'documentAnchoredAt': documentAnchoredAt,
     if (documentAnchoredBy != null) 'documentAnchoredBy': documentAnchoredBy,
@@ -591,6 +598,7 @@ class ReceivableToken {
     pharmacySignature: json['pharmacySignature'] as String?,
     receivedAt: json['receivedAt'] as int?,
     lineItemsHash: json['lineItemsHash'] as String,
+    issuedDocumentHash: json['issuedDocumentHash'] as String?,
     documentHash: json['documentHash'] as String?,
     documentAnchoredAt: json['documentAnchoredAt'] as int?,
     documentAnchoredBy: json['documentAnchoredBy'] as String?,
@@ -790,47 +798,5 @@ class Invoice {
     issuedAt: (json['issuedAt'] as num).toInt(),
     dueDate: (json['dueDate'] as num).toInt(),
     cartonCount: (json['cartonCount'] as num).toInt(),
-  );
-}
-
-/// The bytes the manufacturer stored off-chain for an anchored invoice document.
-///
-/// The chaincode anchor only carries the SHA-256 digest — to actually serve
-/// "what was anchored" later (verify download, PDF share-sheet), the bytes
-/// themselves live off-chain. Storing them verbatim (rather than regenerating
-/// from a template on download) is deliberate: a future PDF library upgrade
-/// must not be able to silently invalidate a financier's earlier verification.
-///
-/// `base64` keeps the JSON snapshot self-contained, since Dart's `jsonEncode`
-/// has no native bytes. Bytes are usually 4–20 KB, so the overhead is fine.
-class StoredDocument {
-  final String filename;
-  final String sha256;
-  final int byteLength;
-  final String base64;
-  final int at;
-
-  const StoredDocument({
-    required this.filename,
-    required this.sha256,
-    required this.byteLength,
-    required this.base64,
-    required this.at,
-  });
-
-  Map<String, dynamic> toJson() => {
-    'filename': filename,
-    'sha256': sha256,
-    'byteLength': byteLength,
-    'base64': base64,
-    'at': at,
-  };
-
-  factory StoredDocument.fromJson(Map<String, dynamic> json) => StoredDocument(
-    filename: json['filename'] as String,
-    sha256: json['sha256'] as String,
-    byteLength: (json['byteLength'] as num).toInt(),
-    base64: json['base64'] as String,
-    at: (json['at'] as num).toInt(),
   );
 }

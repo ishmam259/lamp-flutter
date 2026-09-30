@@ -74,8 +74,28 @@ On the emulator, add a Google account (Settings → Passwords & accounts) to use
 | Which pharmacy / round is taken | Firestore `claims/{id}`, written once |
 | The rules for all of it | `firestore.rules` |
 
-Anyone can register as any role, including regulator or bank. Nothing verifies who they are.
-That is a known prototype limit.
+## Who can register as what
+
+A pharmacy owner or a delivery officer registers in the app: they pick their pharmacy
+or round, and the first person to claim it keeps it.
+
+Manufacturer, bank and regulator accounts are **set up by an administrator**. The app
+shows those seats as "Set up by your administrator", and `firestore.rules` refuses a
+profile for them written from the app. To add one:
+
+1. The person signs in to the app once (Google or phone). They land on "Finish
+   registering"; they don't need to finish.
+2. In Firebase Console -> Authentication, find them and copy their **User UID**.
+3. In Firestore -> `users`, add a document whose ID is that UID, with string fields:
+   - `name`: their name
+   - `seat`: `manufacturer`, `bank` or `regulator`
+   - `bank`: `MeghnaMSP` or `PadmaMSP` (bank only)
+4. They reopen the app and land on that seat.
+
+The console writes with administrator rights, which the rules don't restrict.
+
+**After changing `firestore.rules`, publish them:** `firebase deploy --only firestore:rules`.
+Until then the old rules, which let anyone register as a bank, still apply.
 
 ## If something fails
 
@@ -116,3 +136,6 @@ with one shared release key instead.
   -> Android app -> Add fingerprint. Debug builds on a developer PC still need
   that PC's own debug fingerprints registered.
 - Check an APK: `apksigner verify --print-certs app-release.apk`.
+- Publishing on Google Play: Play re-signs the app with its own key. Copy that key's
+  SHA-1 and SHA-256 from Play Console -> Test and release -> App integrity into
+  Firebase as well, or Google sign-in fails for every user who installs from Play.

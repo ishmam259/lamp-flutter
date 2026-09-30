@@ -103,8 +103,9 @@ void main() {
       // Advance clock +24h to close dispute window
       clock.advanceHours(25);
 
-      // Anchor the invoice document before any bank can finance.
-      final anchorSha = LaMPCrypto.sha256Hex('pdf-bytes-for-${token.tokenId}');
+      // Anchor the invoice document before any bank can finance: the PDF
+      // issued with the invoice, whose hash the ledger took at mint.
+      final anchorSha = token.issuedDocumentHash!;
       final anchorRes = await ledger.submit(
         fn: 'anchorInvoiceDocument',
         args: {
@@ -296,6 +297,7 @@ void main() {
           'dueDate': clock.now + 45 * SeedData.day,
           'cartonHashes': cartonHashes,
           'lineItems': lineItems.map((l) => l.toJson()).toList(),
+          'documentSha256': LaMPCrypto.sha256Hex('pdf-bytes-for-$tokenId'),
         },
         asMsp: Msp.manufacturerMSP,
         nowTimestamp: clock.now,
@@ -536,20 +538,37 @@ void main() {
     });
 
     test('T5 resolveDispute re-arms disputeWindowClosesAt on DELIVERED restore', () async {
-      final ctx = await financedToken('did:lamp:pharmacy:test-5');
-      // Dispute the delivered token, then resolve back to DELIVERED.
-      final raiseRes = await ledger.submit(
-        fn: 'raiseDispute',
-        args: {'tokenId': ctx.token.tokenId, 'reason': 'Counts short'},
+      // Delivered, disputed inside its window, resolved after the original
+      // window would have closed: the pharmacy gets a fresh window from the
+      // resolution, not the stale one from delivery.
+      await SeedData.buildWorld(ledger, clock);
+      final hero = ReceivableToken.fromJson(Map<String, dynamic>.from(
+          await ledger.readWorld('token:RCV-00235') as Map));
+      await ledger.submit(
+        fn: 'recordPoDBatch',
+        args: {
+          'tokenId': hero.tokenId,
+          'cartonHashes': hero.cartonHashes,
+          'mpoSignature': 'sig:t5',
+        },
         asMsp: Msp.manufacturerMSP,
         nowTimestamp: clock.now,
       );
-      expect(raiseRes.ok, isTrue);
+      clock.advanceHours(2);
 
+      final raiseRes = await ledger.submit(
+        fn: 'raiseDispute',
+        args: {'tokenId': hero.tokenId, 'reason': 'Counts short'},
+        asMsp: Msp.manufacturerMSP,
+        nowTimestamp: clock.now,
+      );
+      expect(raiseRes.ok, isTrue, reason: raiseRes.error);
+
+      clock.advanceHours(30);
       final resolveRes = await ledger.submit(
         fn: 'resolveDispute',
         args: {
-          'tokenId': ctx.token.tokenId,
+          'tokenId': hero.tokenId,
           'resolution': 'Reconciled',
           'restoreTo': 'DELIVERED',
         },
@@ -558,7 +577,7 @@ void main() {
       );
       expect(resolveRes.ok, isTrue, reason: resolveRes.error);
 
-      final raw = await ledger.readWorld('token:${ctx.token.tokenId}');
+      final raw = await ledger.readWorld('token:${hero.tokenId}');
       final token = ReceivableToken.fromJson(Map<String, dynamic>.from(raw as Map));
       expect(token.state, TokenState.delivered);
       expect(token.disputeWindowClosesAt, isNotNull);
@@ -792,7 +811,7 @@ void main() {
       await SeedData.buildWorld(ledger, clock);
       final raw = await ledger.readWorld('token:RCV-00235');
       final token = ReceivableToken.fromJson(Map<String, dynamic>.from(raw as Map));
-      final sha = LaMPCrypto.sha256Hex('demo-pdf-content');
+      final sha = token.issuedDocumentHash!;
 
       final res = await ledger.submit(
         fn: 'anchorInvoiceDocument',
@@ -826,7 +845,7 @@ void main() {
       await SeedData.buildWorld(ledger, clock);
       final raw = await ledger.readWorld('token:RCV-00235');
       final token = ReceivableToken.fromJson(Map<String, dynamic>.from(raw as Map));
-      final first = LaMPCrypto.sha256Hex('first-pdf');
+      final first = token.issuedDocumentHash!;
       final second = LaMPCrypto.sha256Hex('second-pdf');
 
       final firstRes = await ledger.submit(
@@ -943,6 +962,127 @@ void main() {
       );
       expect(res.ok, isFalse);
       expect(res.error, contains('anchored invoice document'));
+    });
+
+    test('T18 anchorInvoiceDocument refuses another invoice\'s PDF', () async {
+      // The bank was sent INV-00235's PDF for a different invoice. Its bytes
+      // are a genuine invoice PDF, just not this one's, and used to pass.
+      await SeedData.buildWorld(ledger, clock);
+      final hero = ReceivableToken.fromJson(Map<String, dynamic>.from(
+          await ledger.readWorld('token:RCV-00235') as Map));
+      final other = ReceivableToken.fromJson(Map<String, dynamic>.from(
+          await ledger.readWorld('token:RCV-00201') as Map));
+      expect(hero.issuedDocumentHash, isNot(other.issuedDocumentHash));
+
+      final res = await ledger.submit(
+        fn: 'anchorInvoiceDocument',
+        args: {
+          'tokenId': other.tokenId,
+          'sha256': hero.issuedDocumentHash!,
+          'byteLength': 6914,
+          'filename': 'inv-00235.pdf',
+        },
+        asMsp: Msp.meghnaMSP,
+        nowTimestamp: clock.now,
+      );
+      expect(res.ok, isFalse);
+      expect(res.error, contains('not the invoice issued'));
+    });
+
+    test('T19 anchorInvoiceDocument refuses when no PDF was issued', () async {
+      await SeedData.buildWorld(ledger, clock);
+      const tokenId = 'RCV-NODOC';
+      final minted = await ledger.submit(
+        fn: 'mintReceivable',
+        args: {
+          'tokenId': tokenId,
+          'invoiceId': 'INV-NODOC',
+          'manufacturerId': 'mfr-shomota',
+          'buyerDid': 'did:lamp:pharmacy:test-19',
+          'declaredValue': 1000.0,
+          'termsDays': 45,
+          'issuedAt': clock.now,
+          'dueDate': clock.now + 45 * SeedData.day,
+          'cartonHashes': ['n-a'],
+          'lineItems': [
+            LineItem(
+              sku: 'T', name: 'T', strength: 'T',
+              quantity: 1, cartons: 1, unitPrice: 1000, lineValue: 1000,
+            ).toJson(),
+          ],
+        },
+        asMsp: Msp.manufacturerMSP,
+        nowTimestamp: clock.now,
+      );
+      expect(minted.ok, isTrue, reason: minted.error);
+
+      final res = await ledger.submit(
+        fn: 'anchorInvoiceDocument',
+        args: {
+          'tokenId': tokenId,
+          'sha256': LaMPCrypto.sha256Hex('anything'),
+          'byteLength': 1024,
+          'filename': 'x.pdf',
+        },
+        asMsp: Msp.meghnaMSP,
+        nowTimestamp: clock.now,
+      );
+      expect(res.ok, isFalse);
+      expect(res.error, contains('no invoice document was issued'));
+    });
+
+    test('T20 raiseDispute refuses a delivery whose window has closed',
+        () async {
+      await SeedData.buildWorld(ledger, clock);
+      // RCV-00201 was delivered days before the world opened.
+      final raw = await ledger.readWorld('token:RCV-00201');
+      final token = ReceivableToken.fromJson(Map<String, dynamic>.from(raw as Map));
+      expect(token.state, TokenState.delivered);
+      expect(clock.now, greaterThan(token.disputeWindowClosesAt!));
+
+      final res = await ledger.submit(
+        fn: 'raiseDispute',
+        args: {'tokenId': token.tokenId, 'reason': 'Cartons damaged'},
+        asMsp: Msp.manufacturerMSP,
+        nowTimestamp: clock.now,
+      );
+      expect(res.ok, isFalse);
+      expect(res.error, contains('can only be disputed inside it'));
+    });
+
+    test('T21 raiseDispute accepts a delivery inside its window, with a reason',
+        () async {
+      await SeedData.buildWorld(ledger, clock);
+      final raw = await ledger.readWorld('token:RCV-00235');
+      final token = ReceivableToken.fromJson(Map<String, dynamic>.from(raw as Map));
+      await ledger.submit(
+        fn: 'recordPoDBatch',
+        args: {
+          'tokenId': token.tokenId,
+          'cartonHashes': token.cartonHashes,
+          'mpoSignature': 'sig:t21',
+        },
+        asMsp: Msp.manufacturerMSP,
+        nowTimestamp: clock.now,
+      );
+      clock.advanceHours(2);
+
+      final blank = await ledger.submit(
+        fn: 'raiseDispute',
+        args: {'tokenId': token.tokenId, 'reason': '   '},
+        asMsp: Msp.manufacturerMSP,
+        nowTimestamp: clock.now,
+      );
+      expect(blank.ok, isFalse);
+      expect(blank.error, contains('needs a reason'));
+
+      final res = await ledger.submit(
+        fn: 'raiseDispute',
+        args: {'tokenId': token.tokenId, 'reason': 'Cartons damaged'},
+        asMsp: Msp.manufacturerMSP,
+        nowTimestamp: clock.now,
+      );
+      expect(res.ok, isTrue, reason: res.error);
     });
   });
 }

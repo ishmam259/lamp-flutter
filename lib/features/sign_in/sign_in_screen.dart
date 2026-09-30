@@ -384,6 +384,11 @@ class _SignInScreenState extends State<SignInScreen> {
           _roleTile(context, s),
           const SizedBox(height: Gap.sm),
         ],
+        Text(
+          'Manufacturer, bank and regulator accounts are set up by your LaMP '
+          'administrator. Sign in once, then ask them to add you.',
+          style: LaMPType.caption.copyWith(color: c.inkFaint),
+        ),
         if (_seat == PersonaId.pharmacy) ...[
           const SizedBox(height: Gap.lg),
           _labelled(
@@ -462,30 +467,41 @@ class _SignInScreenState extends State<SignInScreen> {
     );
   }
 
+  /// Seats anyone may take for themselves. Each is one pharmacy or one
+  /// delivery round, claimed once (`firestore.rules`). The desk seats —
+  /// manufacturer, bank, regulator — move money or oversee it, so picking one
+  /// here would let anyone who signs in act as a bank; an administrator
+  /// writes those profiles instead, and the rules refuse them from the app.
+  static const _selfService = {PersonaId.pharmacy, PersonaId.mpo};
+
   Widget _roleTile(BuildContext context, PersonaId seat) {
     final c = context.lamp;
+    final open = _selfService.contains(seat);
     final selected = _seat == seat;
     final (label, hint, icon) = switch (seat) {
       PersonaId.mpo => ('Delivery officer', 'Scan and hand over cartons', Icons.local_shipping_outlined),
       PersonaId.pharmacy => ('Pharmacy owner', 'Receive goods and build credit', Icons.local_pharmacy_outlined),
-      PersonaId.manufacturer => ('Manufacturer', 'Issue and track invoices', Icons.factory_outlined),
-      PersonaId.bank => ('Bank', 'Finance delivered invoices', Icons.account_balance_outlined),
-      PersonaId.regulator => ('Regulator', 'View-only supervision', Icons.verified_user_outlined),
+      PersonaId.manufacturer => ('Manufacturer', 'Set up by your administrator', Icons.factory_outlined),
+      PersonaId.bank => ('Bank', 'Set up by your administrator', Icons.account_balance_outlined),
+      PersonaId.regulator => ('Regulator', 'Set up by your administrator', Icons.verified_user_outlined),
     };
     return Semantics(
       selected: selected,
-      button: true,
+      button: open,
+      enabled: open,
       label: label,
       child: InkWell(
         key: ValueKey('role-${seat.id}'),
         borderRadius: BorderRadius.circular(LaMPRadius.card),
-        onTap: () {
-          LumaHaptics.select();
-          setState(() {
-            _seat = seat;
-            _error = null;
-          });
-        },
+        onTap: !open
+            ? null
+            : () {
+                LumaHaptics.select();
+                setState(() {
+                  _seat = seat;
+                  _error = null;
+                });
+              },
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: Gap.lg, vertical: Gap.md),
           decoration: BoxDecoration(
@@ -495,13 +511,20 @@ class _SignInScreenState extends State<SignInScreen> {
           ),
           child: Row(
             children: [
-              Icon(icon, size: IconSize.md, color: selected ? c.brand : c.inkMuted),
+              Icon(
+                icon,
+                size: IconSize.md,
+                color: selected ? c.brand : (open ? c.inkMuted : c.inkFaint),
+              ),
               const SizedBox(width: Gap.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(label, style: LaMPType.sub.copyWith(color: c.ink)),
+                    Text(
+                      label,
+                      style: LaMPType.sub.copyWith(color: open ? c.ink : c.inkFaint),
+                    ),
                     Text(hint, style: LaMPType.caption.copyWith(color: c.inkFaint)),
                   ],
                 ),

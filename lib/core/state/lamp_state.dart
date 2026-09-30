@@ -1,9 +1,7 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import '../chain/crypto.dart';
-import '../chain/contract.dart';
 import '../chain/ledger.dart';
 import '../invoice/invoice_artifacts.dart';
 import '../models/domain_models.dart';
@@ -71,14 +69,6 @@ class LaMPState extends ChangeNotifier {
   List<Delivery> deliveries = [];
   CreditHistory? creditHistory;
 
-  /// Off-chain PDF store for the anchored-invoice-document flow.
-  ///
-  /// Holds the bytes the manufacturer minted. The chaincode anchor only stores
-  /// the SHA-256 digest — to serve "what was anchored" later (verify download,
-  /// PDF share-sheet), the bytes themselves live here. Kept in a `Map<tokenId,
-  /// StoredDocument>` so multiple tokens can each carry their own PDF without
-  /// collision. Persisted inside the same snapshot as the rest of the world.
-  final Map<String, StoredDocument> anchoredDocuments = {};
   /// The receivable the demo director's scenes point at.
   ///
   /// It used to be the spine of the whole app — every screen read exactly this
@@ -242,16 +232,6 @@ class LaMPState extends ChangeNotifier {
           ? null
           : CreditHistory.fromJson(Map<String, dynamic>.from(credit as Map));
 
-      final docs = json['anchoredDocuments'];
-      if (docs is Map) {
-        anchoredDocuments.clear();
-        docs.forEach((k, v) {
-          anchoredDocuments[k as String] = StoredDocument.fromJson(
-            Map<String, dynamic>.from(v as Map),
-          );
-        });
-      }
-
       demoTokenId = json['demoTokenId'] as String? ?? demoTokenId;
       demoInvoiceId = json['demoInvoiceId'] as String? ?? demoInvoiceId;
 
@@ -269,9 +249,6 @@ class LaMPState extends ChangeNotifier {
     'invoices': invoices.map((i) => i.toJson()).toList(),
     'deliveries': deliveries.map((d) => d.toJson()).toList(),
     if (creditHistory != null) 'creditHistory': creditHistory!.toJson(),
-    'anchoredDocuments': anchoredDocuments.map(
-      (k, v) => MapEntry(k, v.toJson()),
-    ),
     'demoTokenId': demoTokenId,
     'demoInvoiceId': demoInvoiceId,
   };
@@ -732,51 +709,6 @@ class LaMPState extends ChangeNotifier {
     return res;
   }
 
-  // Anchored invoice document store ----------------------------------------
-
-  /// The off-chain PDF for [tokenId], or `null` if the manufacturer hasn't
-  /// staged one yet. Survives a snapshot/restore round trip because the map
-  /// is part of `_snapshot()`.
-  StoredDocument? getAnchoredDocument(String tokenId) => anchoredDocuments[tokenId];
-
-  /// SHA-256 of whatever bytes are staged for [tokenId], or `null` if nothing
-  /// has been staged. Cheap to call from a builder — no decoding.
-  String? stagedDocumentHash(String tokenId) => anchoredDocuments[tokenId]?.sha256;
-
-  /// Persist the manufacturer's PDF bytes under [tokenId].
-  ///
-  /// The manufacturer side of the anchor flow: render bytes, hash them, store
-  /// them. The chaincode anchor call itself is the bank's job (TS pattern) —
-  /// that lands in `anchorInvoiceDocument` and needs a bank submitter.
-  Future<void> stageInvoicePdf(
-    String tokenId,
-    Uint8List bytes, {
-    required String filename,
-  }) async {
-    final sha = LaMPCrypto.sha256HexBytes(bytes);
-    anchoredDocuments[tokenId] = StoredDocument(
-      filename: filename,
-      sha256: sha,
-      byteLength: bytes.length,
-      base64: base64Encode(bytes),
-      at: clock.now,
-    );
-    notifyListeners();
-  }
-
-  /// Resolve the off-chain bytes for [tokenId], or null if not staged.
-  ///
-  /// Used by the bank's verify flow to (a) recompute a hash on a freshly-
-  /// picked PDF, and (b) hand the same bytes back to the share sheet on
-  /// download. The hash of whatever bytes this returns is what the chaincode
-  /// anchor recorded, so a banker can be confident "what I downloaded is what
-  /// was anchored" — not a re-render.
-  Uint8List? anchoredDocumentBytes(String tokenId) {
-    final doc = anchoredDocuments[tokenId];
-    if (doc == null) return null;
-    return base64Decode(doc.base64);
-  }
-
   // Manufacturer: QR-codes ZIP --------------------------------------------
 
   /// Build the QR-codes ZIP for [tokenId] and stage it under `_qrZip` cache.
@@ -799,30 +731,15 @@ class LaMPState extends ChangeNotifier {
     );
   }
 
-  /// Build the invoice PDF for [tokenId], stage it for anchor.
-  ///
-  /// Returns `(bytes, sha256, filename)`. The manufacturer persists the
-  /// bytes via [stageInvoicePdf] (called by the screen so `stageInvoicePdf`
-  /// isn't invoked twice here). The chaincode anchor itself is the bank's job
-  /// — that fires later when a financier runs the verify flow.
+  /// The invoice PDF for [tokenId]: the same bytes the ledger's
+  /// `issuedDocumentHash` was taken over at mint, on any phone.
   Future<({Uint8List bytes, String sha256, String filename})>
       generateInvoicePdf(String tokenId) async {
-    final view = viewFor(tokenId);
     final invoice = _invoiceFor(tokenId);
-    if (invoice == null || view == null) {
-      throw StateError(
-        'No invoice available for $tokenId; cannot render invoice PDF.',
-      );
+    if (invoice == null) {
+      throw StateError('No invoice available for $tokenId.');
     }
-    final raw = await ledger.readWorld(ChainKeys.token(tokenId));
-    if (raw == null) {
-      throw StateError('Token $tokenId missing from ledger world state.');
-    }
-    final token = ReceivableToken.fromJson(Map<String, dynamic>.from(raw as Map));
-    final bytes = await InvoiceArtifacts.renderInvoicePdf(
-      invoice: invoice,
-      token: token,
-    );
+    final bytes = await InvoiceArtifacts.renderInvoicePdf(invoice: invoice);
     return (
       bytes: bytes,
       sha256: InvoiceArtifacts.hashBytes(bytes),
@@ -976,6 +893,22 @@ class LaMPState extends ChangeNotifier {
       }
     }
 
+    // One timestamp for the ledger and the off-chain invoice. Reading the
+    // clock four times gave the two records issue dates milliseconds apart.
+    final issuedAt = clock.now;
+    final newInvoice = Invoice(
+      invoiceId: invoiceId,
+      tokenId: tokenId,
+      manufacturerId: SeedData.manufacturer.id,
+      pharmacyDid: pharmacyDid,
+      lineItems: lineItems,
+      value: declaredValue,
+      termsDays: termsDays,
+      issuedAt: issuedAt,
+      dueDate: issuedAt + termsDays * 86400 * 1000,
+      cartonCount: totalCartons,
+    );
+
     final res = await ledger.submit(
       fn: 'mintReceivable',
       args: {
@@ -985,28 +918,17 @@ class LaMPState extends ChangeNotifier {
         'buyerDid': pharmacyDid,
         'declaredValue': declaredValue,
         'termsDays': termsDays,
-        'issuedAt': clock.now,
-        'dueDate': clock.now + termsDays * 86400 * 1000,
+        'issuedAt': issuedAt,
+        'dueDate': newInvoice.dueDate,
         'cartonHashes': cartonHashes,
         'lineItems': lineItems.map((l) => l.toJson()).toList(),
+        'documentSha256': await InvoiceArtifacts.issuedHash(newInvoice),
       },
       asMsp: Msp.manufacturerMSP,
-      nowTimestamp: clock.now,
+      nowTimestamp: issuedAt,
     );
 
     if (res.ok) {
-      final newInvoice = Invoice(
-        invoiceId: invoiceId,
-        tokenId: tokenId,
-        manufacturerId: SeedData.manufacturer.id,
-        pharmacyDid: pharmacyDid,
-        lineItems: lineItems,
-        value: declaredValue,
-        termsDays: termsDays,
-        issuedAt: clock.now,
-        dueDate: clock.now + termsDays * 86400 * 1000,
-        cartonCount: totalCartons,
-      );
       invoices.insert(0, newInvoice);
 
       final newDelivery = Delivery(
@@ -1020,7 +942,7 @@ class LaMPState extends ChangeNotifier {
         status: DeliveryStatus.pending,
         sequence: deliveries.length + 1,
         cartons: cartons,
-        startedAt: clock.now,
+        startedAt: issuedAt,
       );
       deliveries.insert(0, newDelivery);
     }

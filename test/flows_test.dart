@@ -3,7 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:lamp_flutter/core/chain/crypto.dart';
 import 'package:lamp_flutter/core/constants/app_theme.dart';
 import 'package:lamp_flutter/core/constants/palette.dart';
 import 'package:lamp_flutter/core/models/domain_models.dart';
@@ -68,16 +67,20 @@ Future<void> _settle(WidgetTester tester) async {
 /// — so it is matched on its shape, not a fixed label.
 final Finder _payCta = find.textContaining(RegExp(r'^Pay ৳'));
 
-/// The bank anchors the invoice PDF's hash on the channel. The chaincode
-/// refuses an advance without it, and the bank's Finance button stays held
-/// back until it is done, so any test that finances has to do this first.
+/// The bank checks the invoice PDF and records it. The chaincode refuses an
+/// advance without it, and the bank's Finance button stays held back until it
+/// is done, so any test that finances has to do this first.
+///
+/// The PDF is rendered afresh here, well after the seed minted the invoice:
+/// that it still matches the hash taken at mint is the point.
 Future<void> _anchor(LaMPState state, String tokenId) async {
+  final pdf = await state.generateInvoicePdf(tokenId);
   final res = await state.anchorInvoiceDocument(
     tokenId,
     Msp.meghnaMSP,
-    sha256: LaMPCrypto.sha256Hex('invoice-pdf-'),
-    byteLength: 4096,
-    filename: '.pdf',
+    sha256: pdf.sha256,
+    byteLength: pdf.bytes.length,
+    filename: pdf.filename,
   );
   expect(res.ok, isTrue, reason: res.error);
 }
@@ -127,7 +130,7 @@ void main() {
       expect(_payCta, findsOneWidget);
     });
 
-    testWidgets('a settled invoice leaves "Due now" (report #2)',
+    testWidgets('a settled invoice leaves "To pay" (report #2)',
         (tester) async {
       final state =
           await _pump(tester, () => const PharmacyScreen());
@@ -179,6 +182,85 @@ void main() {
       expect(state.getToken(view.tokenId)!.state, TokenState.financed);
       expect(_payCta, findsOneWidget);
       expect(find.text('Nothing outstanding'), findsNothing);
+    });
+
+    testWidgets('the invoice in "To pay" is not listed again under Recent',
+        (tester) async {
+      await _pump(tester, () => const PharmacyScreen());
+      // The hero invoice is the one "To pay" shows. Recent used to list every
+      // invoice for this counter, so it appeared twice.
+      expect(find.text('INV-00235'), findsOneWidget);
+      expect(find.text('TO PAY'), findsOneWidget);
+    });
+
+    testWidgets('a tier held down by late payments does not claim no history',
+        (tester) async {
+      final probe = await _pump(tester, () => const SizedBox());
+      final held = SeedData.pharmacies.firstWhere((p) {
+        final credit = probe.creditFor(p.did);
+        return credit != null &&
+            credit.cycles.isNotEmpty &&
+            credit.lateCount >= 2 &&
+            credit.tier == RecourseTier.newTier;
+      });
+
+      await _pump(tester, () => PharmacyScreen(pharmacyDid: held.did));
+      expect(find.textContaining('No on-chain history'), findsNothing);
+      expect(find.textContaining('late payments hold this'), findsOneWidget);
+    });
+
+    testWidgets('disputes: only a delivery inside its window can be reported',
+        (tester) async {
+      final state = await _pump(tester, () => const PharmacyScreen());
+      await _tapTab(tester, 3);
+
+      // Nothing has arrived yet: nothing to report, and no button that would
+      // dispute "the first open invoice" regardless.
+      expect(find.textContaining('Nothing to report'), findsOneWidget);
+      expect(find.text('Report a problem'), findsOneWidget); // the heading
+
+      final me = SeedData.pharmacies[0].did;
+      final view = state.openForPharmacy(me).first;
+      await state.drainScanQueue(
+        view.tokenId,
+        view.delivery!.cartons.map((c) => c.gs1).toList(),
+        SeedData.mpos[0].deviceId,
+      );
+      await _settle(tester);
+      expect(find.byKey(ValueKey('dispute-${view.tokenId}')), findsOneWidget);
+
+      // The window closes 24 hours after delivery; the button goes with it.
+      state.clock.advanceHours(25);
+      state.notifyListeners();
+      await _settle(tester);
+      expect(find.byKey(ValueKey('dispute-${view.tokenId}')), findsNothing);
+      expect(find.textContaining('Nothing to report'), findsOneWidget);
+    });
+
+    testWidgets('disputes: the reason is asked for and the result is honest',
+        (tester) async {
+      final state = await _pump(tester, () => const PharmacyScreen());
+      final me = SeedData.pharmacies[0].did;
+      final view = state.openForPharmacy(me).first;
+      await state.drainScanQueue(
+        view.tokenId,
+        view.delivery!.cartons.map((c) => c.gs1).toList(),
+        SeedData.mpos[0].deviceId,
+      );
+      await _tapTab(tester, 3);
+
+      await tester.tap(find.byKey(ValueKey('dispute-${view.tokenId}')));
+      await _settle(tester);
+      expect(find.text('What went wrong?'), findsOneWidget);
+      await tester.tap(find.text('Cartons missing'));
+      await _settle(tester);
+      await tester.tap(find.text('Report problem'));
+      await _settle(tester);
+
+      final token = state.getToken(view.tokenId)!;
+      expect(token.state, TokenState.disputed);
+      expect(token.disputeReason, startsWith('Cartons missing'));
+      expect(find.text('UNDER REVIEW'), findsOneWidget);
     });
   });
 

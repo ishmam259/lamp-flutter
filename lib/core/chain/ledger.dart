@@ -262,6 +262,7 @@ class LocalLedger {
             lineItems: (args['lineItems'] as List<dynamic>)
                 .map((l) => LineItem.fromJson(Map<String, dynamic>.from(l as Map)))
                 .toList(),
+            documentSha256: args['documentSha256'] as String?,
           );
           break;
 

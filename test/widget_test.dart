@@ -70,6 +70,10 @@ Future<void> _pick(WidgetTester tester, String field, String item) async {
   await tester.pumpAndSettle();
 }
 
+/// A delivery round, as the registration dropdown lists it.
+final String _round =
+    '${SeedData.mpos.first.name} · ${SeedData.mpos.first.territory}';
+
 Future<void> _register(WidgetTester tester) async {
   await tester.ensureVisible(find.byKey(const ValueKey('register')).last);
   await tester.tap(find.byKey(const ValueKey('register')).last);
@@ -149,9 +153,10 @@ void main() {
     await tester.pumpWidget(_app(service));
     await tester.pumpAndSettle();
 
-    // Register once, as the regulator (no further choice to make).
+    // Register once, as a delivery officer.
     await _signInWithPhone(tester, '01711204488');
-    await _tapKey(tester, 'role-regulator');
+    await _tapKey(tester, 'role-mpo');
+    await _pick(tester, 'mpo-field', _round);
     await _register(tester);
     expect(_auth(tester).current, isNotNull);
 
@@ -217,7 +222,8 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('google')));
     await tester.pumpAndSettle();
-    await _tapKey(tester, 'role-regulator');
+    await _tapKey(tester, 'role-mpo');
+    await _pick(tester, 'mpo-field', _round);
     await _register(tester);
     expect(_auth(tester).current, isNotNull);
 
@@ -231,6 +237,24 @@ void main() {
 
     expect(find.text('Finish registering'), findsNothing);
     expect(find.text('Welcome to LaMP'), findsOneWidget);
+  });
+
+  testWidgets('bank, manufacturer and regulator cannot be self-registered',
+      (tester) async {
+    await tester.pumpWidget(_app(LocalAuthService()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('google')));
+    await tester.pumpAndSettle();
+
+    for (final desk in ['role-bank', 'role-manufacturer', 'role-regulator']) {
+      await _tapKey(tester, desk);
+    }
+    // None of them took: nothing is selected, so Register stays off.
+    final register = tester.widget<ElevatedButton>(
+      find.byKey(const ValueKey('register')).last,
+    );
+    expect(register.onPressed, isNull);
+    expect(find.text('Set up by your administrator'), findsNWidgets(3));
   });
 
   testWidgets('two people cannot hold the same pharmacy', (tester) async {

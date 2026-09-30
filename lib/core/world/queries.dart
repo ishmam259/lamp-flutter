@@ -86,6 +86,14 @@ extension TokenQueries on ReceivableToken {
 
   int millisUntilWindowCloses(int now) =>
       disputeWindowClosesAt == null ? 0 : disputeWindowClosesAt! - now;
+
+  /// What `raiseDispute` will accept: not yet financed, settled or written
+  /// off, and — once delivery is confirmed — only inside the dispute window.
+  bool isDisputable(int now) => switch (state) {
+        TokenState.created || TokenState.partiallyFulfilled => true,
+        TokenState.delivered => !disputeWindowClosed(now),
+        _ => false,
+      };
 }
 
 class LaMPQueries {

@@ -8,6 +8,7 @@ import 'core/constants/app_theme.dart';
 import 'core/constants/palette.dart';
 import 'core/state/lamp_state.dart';
 import 'core/state/theme_controller.dart';
+import 'core/world/clock.dart';
 import 'features/bank/bank_screen.dart';
 import 'features/manufacturer/manufacturer_screen.dart';
 import 'features/mpo/mpo_screen.dart';
@@ -18,6 +19,8 @@ import 'features/splash/splash_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // A new world starts today, not on the fixed demo date the tests use.
+  DemoClock.startOfWorld = () => DateTime.now().millisecondsSinceEpoch;
   final authService = await createAuthService();
   runApp(
     MultiProvider(

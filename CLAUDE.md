@@ -24,9 +24,11 @@ Rules: `docs/DESIGN_SYSTEM.md`. Enforced by `test/design_lint_test.dart`.
 
 ## Sign-in and registration
 
-People sign in with **Google** or a **phone number + 6-digit code**, then, if new, register
-by choosing a seat (role, and which pharmacy / delivery round / bank). Firebase does it; setup
-is in `docs/FIREBASE_SETUP.md`.
+People sign in with **Google** or a **phone number + 6-digit code**, then, if new, register.
+Only a **pharmacy owner** or a **delivery officer** registers themselves (choosing their
+pharmacy or round). **Manufacturer, bank and regulator** profiles are written by an
+administrator in the Firebase console; the app shows them as "Set up by your administrator"
+and `firestore.rules` refuses them from the app. Setup is in `docs/FIREBASE_SETUP.md`.
 
 - `lib/core/auth/auth_service.dart` is the interface. `firebase_auth_service.dart` is the real
   one (Firebase Auth + Firestore `users/{uid}`, `claims/{id}`); `local_auth_service.dart` is a
@@ -43,8 +45,10 @@ is in `docs/FIREBASE_SETUP.md`.
   Kotlin daemon 2G in `android/gradle.properties`, because 8G ran a 16 GB machine out of memory.
 - Rules: `firestore.rules`. A pharmacy or round profile can only be written together with its
   `claims/` document, and a claim is written once, so the first person keeps the seat.
-- Known limits: anyone can register as any role; seats still read seeded data
-  (`SeedData.pharmacies[0]` etc.), so a new pharmacy sees seeded invoices.
+- Changing `firestore.rules` does nothing until someone with access to `lamp-bcolbd` runs
+  `firebase deploy --only firestore:rules`.
+- Known limit: seats are the seeded pharmacies, rounds and desks. A pharmacy owner claims one
+  of the seeded pharmacies and sees its seeded invoices; there is no "new pharmacy" yet.
 - Tests use `LocalAuthService`: `test/auth_test.dart`, `test/widget_test.dart`.
 
 ## Toolchain (read this before running anything)
@@ -93,7 +97,7 @@ screen, so real scanning is checked on the wireless phone.
 
 ```bash
 flutter analyze        # must be clean
-flutter test           # 152 tests, all passing (breakdown under "Tests reference")
+flutter test           # 211 tests: 210 pass, 1 skipped (the live-server test)
 flutter run -d chrome  # quick smoke test in a browser
 ```
 
@@ -189,7 +193,39 @@ around the older toolchain.
 Required for AGP 8.9.1 to read the project's `build.gradle.kts` files (which
 were authored against the older DSL). Don't remove without upgrading AGP first.
 
-## The state-derivation pass (most recent session)
+## Invoice PDF, disputes, clock (2026-09-30)
+
+- **The bank's PDF check passed any file.** It compared the picked PDF with the *anchor*, which
+  is empty until the bank anchors, so before that everything "matched" — including another
+  invoice's PDF — and `anchorInvoiceDocument` recorded whatever digest it was given first.
+  Now `mintReceivable` takes `documentSha256`, stored as `token.issuedDocumentHash`, and
+  `anchorInvoiceDocument` refuses any digest that isn't it (or a token minted without one).
+- **That needs a reproducible PDF.** `InvoiceArtifacts.renderInvoicePdf(invoice:)` prints only
+  the invoice's fixed data (no live state or anchor), writes no creation date (no title or
+  author, which is what makes the `pdf` package write one), dates in Dhaka time, and
+  `_pinDocumentId` overwrites the package's random `/ID` with a same-length value from the
+  invoice id. Anyone re-renders the same bytes, so the old "staged PDF bytes" store
+  (`StoredDocument`, `anchoredDocuments`) is gone. `pdf` is pinned to 3.12.0 and
+  `test/invoice_pdf_test.dart` holds a golden hash: if it fails after an upgrade, don't update
+  the hash — every minted invoice would stop passing.
+- **Disputes.** `raiseDispute` refuses a DELIVERED token once `disputeWindowClosesAt` has
+  passed, and an empty reason (the TS at `../LaMP/lib/chain/contract.ts` has neither check
+  yet; the server needs the same change). `TokenQueries.isDisputable(now)` is the same rule for
+  screens. The pharmacy's Disputes tab lists only reportable deliveries, asks what went wrong,
+  and reports what the ledger did; it used to dispute the first open invoice as "Damaged
+  seals" and always say "Dispute raised".
+- **Clock.** `DemoClock.startOfWorld` sets where a new world's time starts: the fixed demo date
+  in tests, the real date in the app (`main.dart`). A saved world keeps its stored `epoch`;
+  one saved before this change keeps the demo date.
+- **Pharmacy screen.** "Due now" is "To pay"; Recent no longer repeats the invoice "To pay"
+  shows; a counter held at New by two or more late payments no longer reads "No on-chain
+  history".
+- **Plain language** on the bank's check sheet and card ("Check the invoice PDF", "Record as
+  checked") and the manufacturer's save messages; refusals go through `LedgerLabels.reason`.
+- An existing phone world has no `issuedDocumentHash` on its invoices, so the bank cannot
+  anchor them: reset the world (Demo controls) after installing this build.
+
+## The state-derivation pass
 
 `Bug report/Report 01.md` listed five defects. They were one defect: **the app
 rendered a single hard-coded `demoTokenId` where the TypeScript derives every
@@ -335,10 +371,11 @@ other's membership test.
 
 ## How to test by hand (on the phone)
 
-The app opens on **Sign in**. Pick an account and set a 4-digit PIN the first
-time (on the test phone, Kamrul Hasan's PIN is 1234). In a debug build the
-"⋯" menu has **Switch account** (no PIN) and **Demo controls** (move the clock,
-reset the world) for walking the whole flow on one phone.
+The app opens on **Sign in** (Google or phone). In a debug build, or a tester
+release build (`--dart-define=DEMO_TOOLS=true`), the "⋯" menu has **Switch
+account** (opens any seat without signing in; it does not survive a restart) and
+**Demo controls** (move the clock, reset the world) for walking the whole flow
+on one phone.
 
 1. **Pharmacy (Abdur Rahman)**: no pay button at the start. The hero invoice is
    issued but not delivered, so the card reads "You can pay once the delivery is
@@ -350,8 +387,10 @@ reset the world) for walking the whole flow on one phone.
 4. **→ Scan → Scan all**, then **Sign**: the gate opens. Sign, and the stop
    leaves the route.
 5. **Bank (Meghna)**: the invoice appears under *Dispute window open*. Move the
-   clock +24h from Demo controls and it moves to *Ready to finance*. Finance
-   it and it moves to *Recently financed*, with no button.
+   clock +24h from Demo controls and it moves to *Ready to finance*. **Check
+   invoice PDF** → choose the PDF the manufacturer saved (Manufacturer →
+   Invoice PDF) → *Record as checked*. Another invoice's PDF is refused. Then
+   Finance it and it moves to *Recently financed*, with no button.
 6. **Pharmacy**: still **Pay ৳…**, because financing doesn't discharge the
    debt. Pay it: it leaves "Due now", appears under Recent, and the credit ring
    gains a cycle.
@@ -359,6 +398,9 @@ reset the world) for walking the whole flow on one phone.
    route and in the manufacturer's book.
 
 Also worth checking:
+
+- **Pharmacy → Disputes** right after a delivery: the invoice is listed with
+  "Report a problem" and a countdown; 24 hours later it is gone.
 
 - Carton 14 of the hero consignment is the planted wrong carton (debug builds
   only). "Scan next" presents a foreign code there and the ledger refuses it;
@@ -407,7 +449,15 @@ in, and a fast load never flashes the splash.
 fixed world palette. `test/luma_design_test.dart` (10 tests): the Luma
 widgets.
 
-Total: 152.
+`test/invoice_pdf_test.dart` (4 tests): the invoice PDF is reproducible, differs per invoice,
+carries no creation date, and matches a golden hash. `test/clock_test.dart` (4 tests): where
+a world's time starts, and that a saved world keeps it. `chaincode_test.dart` T18–T21: another
+invoice's PDF is refused, a token with no issued PDF can't be anchored, and a dispute is
+refused after the window and without a reason. `flows_test.dart` also covers the pharmacy's
+"To pay"/Recent, credit caption and Disputes tab. The counts above predate these and the auth
+tests; `flutter test` is the source of truth.
+
+Total: 211 (210 pass, 1 skipped).
 
 ## If you break something
 

@@ -61,3 +61,10 @@ app.*.map.json
 
 # Private bug reports and screenshots from the demo.
 /Bug report/
+
+# Signing keys and their passwords, anywhere in the repo. The release key lives
+# outside the project (see docs/FIREBASE_SETUP.md); android/key.properties
+# points at it. A stray copy must never be committable.
+key.properties
+*.jks
+*.keystore

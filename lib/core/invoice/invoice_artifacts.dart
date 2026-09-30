@@ -11,10 +11,9 @@
 //
 // The renderer uses the `pdf` package for the PDF and `QrPainter` for the
 // carton QR PNGs (driven via `PictureRecorder`, the standard headless
-// rendering approach in Flutter). Both are deterministic given the same
-// inputs, so the bytes the manufacturer mints and the bytes a financier
-// later verifies will hash to the same digest as long as the
-// invoice/cartons don't change.
+// rendering approach in Flutter). The PDF is reproducible (see
+// [InvoiceArtifacts.renderInvoicePdf]), so its hash can be fixed on the
+// ledger when the invoice is minted.
 
 import 'dart:async';
 import 'dart:convert';
@@ -207,30 +206,39 @@ class InvoiceArtifacts {
   /* PDF rendering                                                           */
   /* ---------------------------------------------------------------------- */
 
-  /// Render the invoice PDF — A4 portrait, two-column header (invoice info /
-  /// token handle), line items table, footer pointing at the chaincode anchor
-  /// handle and a SHA-256 digest slot for the financier to compare against
-  /// the channel.
+  /// Render the invoice PDF: A4 portrait, invoice header, line items, totals.
   ///
-  /// Deterministic: only `token.issuedAt` is interpolated. The output bytes
-  /// therefore hash to the same digest as long as the underlying
-  /// `Invoice`/`LineItem` data doesn't change — which is exactly what the
-  /// anchor verifies.
-  static Future<Uint8List> renderInvoicePdf({
-    required Invoice invoice,
-    required ReceivableToken token,
-  }) async {
-    final dateFmt = DateFormat('yyyy-MM-dd');
+  /// Reproducible: the same invoice gives the same bytes on any phone, at any
+  /// time. That is what lets the ledger hold the PDF's hash from the moment
+  /// the invoice is minted ([issuedHash]) and refuse to record any other file
+  /// against it. Three things used to make every render different:
+  ///
+  ///   * the token's live state and anchor were printed on it, so the bytes
+  ///     changed as the invoice moved through its life;
+  ///   * the `pdf` package stamps a creation date into the info dictionary,
+  ///     which it only writes when a title or author is given; and
+  ///   * it writes a random document ID into the trailer ([_pinDocumentId]).
+  ///
+  /// Dates are Dhaka dates (UTC+6), not the phone's time zone.
+  static Future<Uint8List> renderInvoicePdf({required Invoice invoice}) async {
+    final dateFmt = DateFormat('d MMM yyyy');
+    String dhakaDate(int ms) => dateFmt.format(
+          DateTime.fromMillisecondsSinceEpoch(ms, isUtc: true)
+              .add(const Duration(hours: 6)),
+        );
     final moneyFmt = NumberFormat.currency(
       locale: 'en_US',
       symbol: 'BDT ',
       decimalDigits: 2,
     );
+    final pharmacy =
+        SeedData.pharmacies.where((p) => p.did == invoice.pharmacyDid);
+    final billTo = pharmacy.isEmpty
+        ? invoice.pharmacyDid
+        : '${pharmacy.first.name}, ${pharmacy.first.territory}';
 
-    final doc = pw.Document(
-      title: 'Invoice ${invoice.invoiceId}',
-      author: 'Shomota Pharmaceuticals Ltd',
-    );
+    // No title or author: either makes the package write a creation date.
+    final doc = pw.Document();
 
     doc.addPage(
       pw.MultiPage(
@@ -267,11 +275,11 @@ class InvoiceArtifacts {
                   ),
                   pw.SizedBox(height: 8),
                   pw.Text(
-                    'Issued: ${dateFmt.format(DateTime.fromMillisecondsSinceEpoch(invoice.issuedAt))}',
+                    'Issued: ${dhakaDate(invoice.issuedAt)}',
                     style: const pw.TextStyle(fontSize: 9),
                   ),
                   pw.Text(
-                    'Due: ${dateFmt.format(DateTime.fromMillisecondsSinceEpoch(invoice.dueDate))}',
+                    'Due: ${dhakaDate(invoice.dueDate)}',
                     style: const pw.TextStyle(fontSize: 9),
                   ),
                 ],
@@ -280,16 +288,7 @@ class InvoiceArtifacts {
                 crossAxisAlignment: pw.CrossAxisAlignment.end,
                 children: [
                   pw.Text(
-                    'RECEIVABLE TOKEN',
-                    style: pw.TextStyle(
-                      fontSize: 9,
-                      color: PdfColors.grey700,
-                      letterSpacing: 1,
-                    ),
-                  ),
-                  pw.SizedBox(height: 2),
-                  pw.Text(
-                    token.tokenId,
+                    SeedData.manufacturer.name,
                     style: pw.TextStyle(
                       fontSize: 12,
                       fontWeight: pw.FontWeight.bold,
@@ -297,11 +296,7 @@ class InvoiceArtifacts {
                   ),
                   pw.SizedBox(height: 4),
                   pw.Text(
-                    'State: ${token.state.id}',
-                    style: const pw.TextStyle(fontSize: 9),
-                  ),
-                  pw.Text(
-                    'Anchor: ${token.documentHash ?? 'not yet anchored'}',
+                    'Ledger reference: ${invoice.tokenId}',
                     style: const pw.TextStyle(fontSize: 9),
                   ),
                 ],
@@ -317,10 +312,9 @@ class InvoiceArtifacts {
             ),
           ),
           child: pw.Text(
-            'SHA-256 of these bytes is anchored to the LaMP channel under '
-            'K.document(<digest>). A financier re-derives the hash and submits '
-            'anchorInvoiceDocument — match is the only thing that lets '
-            'matchAndAdvance succeed.',
+            'This invoice is recorded on the LaMP ledger. A bank checks this '
+            'file against that record before it finances the invoice; an '
+            'altered copy will not pass.',
             style: pw.TextStyle(
               fontSize: 8,
               color: PdfColors.grey600,
@@ -331,7 +325,7 @@ class InvoiceArtifacts {
         build: (ctx) => [
           pw.SizedBox(height: 12),
           pw.Text(
-            'Bill to: ${invoice.pharmacyDid}',
+            'Bill to: $billTo',
             style: pw.TextStyle(
               fontSize: 11,
               fontWeight: pw.FontWeight.bold,
@@ -420,7 +414,7 @@ class InvoiceArtifacts {
                     style: const pw.TextStyle(fontSize: 9),
                   ),
                   pw.Text(
-                    'Cartons declared: ${invoice.cartonCount}',
+                    'Cartons: ${invoice.cartonCount}',
                     style: const pw.TextStyle(fontSize: 9),
                   ),
                 ],
@@ -431,8 +425,35 @@ class InvoiceArtifacts {
       ),
     );
 
-    final bytes = await doc.save();
-    return Uint8List.fromList(bytes);
+    final bytes = Uint8List.fromList(await doc.save());
+    return _pinDocumentId(bytes, '${invoice.invoiceId}/${invoice.tokenId}');
+  }
+
+  /// Hash of the PDF issued for [invoice]: what the ledger records at mint.
+  static Future<String> issuedHash(Invoice invoice) async =>
+      hashBytes(await renderInvoicePdf(invoice: invoice));
+
+  /// Replace the random `/ID` in the trailer with one derived from [seed].
+  ///
+  /// The package draws the ID from `Random.secure()` and exposes no way to set
+  /// it. It is written as two 64-digit hex strings, `/ID[<…><…>]`; the
+  /// replacement is the same length, so no byte offset in the file moves.
+  static Uint8List _pinDocumentId(Uint8List bytes, String seed) {
+    const marker = '/ID[<';
+    final text = latin1.decode(bytes);
+    final at = text.lastIndexOf(marker);
+    if (at < 0) {
+      throw StateError('Invoice PDF has no document ID to pin.');
+    }
+    final pinned = LaMPCrypto.sha256Hex(seed);
+    final first = at + marker.length;
+    final second = first + 64 + 2; // past `><`
+    final out = Uint8List.fromList(bytes);
+    for (var i = 0; i < 64; i++) {
+      out[first + i] = pinned.codeUnitAt(i);
+      out[second + i] = pinned.codeUnitAt(i);
+    }
+    return out;
   }
 
   /// Hash of the bytes produced by [renderInvoicePdf].

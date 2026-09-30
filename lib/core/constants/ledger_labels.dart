@@ -19,6 +19,7 @@ class LedgerLabels {
         'raiseDispute' => 'Dispute raised',
         'resolveDispute' => 'Dispute resolved',
         'registerRateCurve' => 'Rate card published',
+        'anchorInvoiceDocument' => 'Invoice PDF checked',
         _ => 'Ledger update',
       };
 
@@ -68,6 +69,22 @@ class LedgerLabels {
           ? 'The dispute window is still open.'
           : 'The dispute window is still open — $hours hours left.';
     }
+    if (has('can only be disputed inside it')) {
+      return 'The 24 hours to dispute this delivery have passed.';
+    }
+    if (has('no anchored invoice document')) {
+      return 'Check the invoice PDF before financing.';
+    }
+    if (has('not the invoice issued')) {
+      return "This PDF isn't the invoice issued for $ofInvoice.";
+    }
+    if (has('no invoice document was issued')) {
+      return 'No invoice PDF was issued with this invoice.';
+    }
+    if (has('already anchored')) {
+      return 'A different PDF is already recorded for this invoice.';
+    }
+    if (has('sha256 must be')) return "That file couldn't be read as an invoice PDF.";
     if (has('no active dispute') || has('not under dispute')) {
       return "There's no open dispute to resolve.";
     }

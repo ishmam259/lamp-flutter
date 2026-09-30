@@ -407,9 +407,7 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> {
   /// Two-button row: "Download QR codes" and "Download invoice PDF".
   ///
   /// Each handler renders the artifact, drops the bytes into a temp file via
-  /// `path_provider`, and hands the path to the platform share sheet. The PDF
-  /// path also stages the bytes off-chain via `state.stageInvoicePdf` so the
-  /// bank's later `anchorInvoiceDocument` has something to verify against.
+  /// `path_provider`, and hands the path to the platform share sheet.
   /// A snackbar reports progress or failure rather than letting exceptions
   /// bubble to the framework.
   Widget _manufacturerActions(BuildContext context, String tokenId) {
@@ -481,8 +479,9 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> {
         note: 'Open on a second device to scan.',
       );
     } catch (e) {
+      debugPrint('ManufacturerScreen: QR codes failed ($e)');
       messenger.showSnackBar(
-        SnackBar(content: Text('Could not build QR ZIP: $e')),
+        const SnackBar(content: Text("Couldn't make the QR codes. Try again.")),
       );
     }
   }
@@ -492,26 +491,21 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final state = context.read<LaMPState>();
     try {
+      // The same bytes on every render: the ledger holds this PDF's hash from
+      // mint, and the bank's check compares against it.
       final pdf = await state.generateInvoicePdf(tokenId);
-      // Staged before the save sheet opens: the bank verifies against this
-      // copy when it anchors the invoice, so cancelling the save must not lose
-      // it.
-      await state.stageInvoicePdf(
-        tokenId,
-        pdf.bytes,
-        filename: pdf.filename,
-      );
       await _saveThenOfferShare(
         messenger,
         bytes: pdf.bytes,
         filename: pdf.filename,
         mimeType: 'application/pdf',
-        subject: 'LaMP invoice ${pdf.filename}',
-        note: 'SHA-256 ${pdf.sha256.substring(0, 16)}…',
+        subject: 'Invoice ${pdf.filename}',
+        note: 'Send it to the bank that finances this invoice.',
       );
     } catch (e) {
+      debugPrint('ManufacturerScreen: invoice PDF failed ($e)');
       messenger.showSnackBar(
-        SnackBar(content: Text('Could not render invoice PDF: $e')),
+        const SnackBar(content: Text("Couldn't make the invoice PDF. Try again.")),
       );
     }
   }
@@ -568,8 +562,9 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> {
         subject: subject,
       );
     } catch (e) {
+      debugPrint('ManufacturerScreen: sharing $filename failed ($e)');
       messenger.showSnackBar(
-        SnackBar(content: Text('Could not share $filename: $e')),
+        SnackBar(content: Text("Couldn't share $filename. Try again.")),
       );
     }
   }

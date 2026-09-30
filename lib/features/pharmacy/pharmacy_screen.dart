@@ -189,7 +189,14 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
       0.0,
       (sum, TokenView v) => sum + v.token.declaredValue,
     );
-    final recent = state.forPharmacy(_pharmacy.did).take(5).toList();
+    final shown = open.isEmpty ? null : open.first.tokenId;
+    // Everything else on this counter, newest first. The invoice the card
+    // above is already showing is left out, or it appears twice.
+    final recent = state
+        .forPharmacy(_pharmacy.did)
+        .where((v) => v.tokenId != shown)
+        .take(5)
+        .toList();
 
     return ListView(
       padding: lumaScrollPadding(context, top: Gap.lg),
@@ -223,7 +230,7 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
         const SizedBox(height: Gap.xl),
 
         LampEyebrow(
-          'Due now',
+          'To pay',
           trailing: switch (open.length) {
             0 => null,
             1 => '1 invoice',
@@ -238,7 +245,9 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
         const SizedBox(height: Gap.md),
         if (recent.isEmpty)
           Text(
-            'Nothing delivered yet.',
+            // Not "Nothing delivered yet": the card above can be a delivered
+            // invoice, and Recent leaves out the one that card shows.
+            shown == null ? 'No invoices yet.' : 'No other invoices yet.',
             style: LaMPType.caption.copyWith(color: c.inkFaint),
           )
         else
@@ -314,7 +323,7 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
                       )
                     else
                       Text(
-                        tier.blurb,
+                        _tierCaption(credit),
                         style: LaMPType.caption.copyWith(color: c.inkMuted),
                       ),
                   ],
@@ -357,6 +366,22 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
         ],
       ),
     );
+  }
+
+  /// What the tier means for this counter.
+  ///
+  /// The tier's own blurb assumes the tier was earned by cycle count. Two or
+  /// more late payments drop a counter one tier below that (the chaincode's
+  /// `_dropOneTier`), so a pharmacy with seven cycles can sit at New — whose
+  /// blurb reads "No on-chain history", beside a ring of seven cycles.
+  String _tierCaption(CreditHistory credit) {
+    if (credit.cycles.isEmpty) return credit.tier.blurb;
+    if (credit.lateCount >= 2) {
+      final n = credit.cycles.length;
+      return '${credit.lateCount} late payments hold this one tier below what '
+          '$n paid ${n == 1 ? 'invoice earns' : 'invoices earn'}.';
+    }
+    return credit.tier.blurb;
   }
 
   Widget _count(BuildContext context, String label, int value, Color color) {
@@ -897,8 +922,24 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
   /* Disputes                                                                */
   /* ---------------------------------------------------------------------- */
 
+  /// Report a problem with a delivery.
+  ///
+  /// Lists only what `raiseDispute` will accept ([TokenQueries.isDisputable]),
+  /// asks which invoice and what went wrong, and reports what the ledger
+  /// actually did. It used to be one button that disputed whichever invoice
+  /// was first, always with the reason "Damaged seals", whether or not the
+  /// window had closed — and said "Dispute raised" even when it was refused.
   Widget _disputes(BuildContext context, LaMPState state) {
     final c = context.lamp;
+    final mine = state.forPharmacy(_pharmacy.did);
+    final now = state.now;
+    // Something has arrived (in part or in full) and it can still be raised.
+    final open = mine
+        .where((v) =>
+            v.token.state != TokenState.created && v.token.isDisputable(now))
+        .toList();
+    final underReview =
+        mine.where((v) => v.token.state == TokenState.disputed).toList();
 
     return ListView(
       padding: lumaScrollPadding(context, top: Gap.lg),
@@ -909,45 +950,265 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
             children: [
               const LampEyebrow('Disputes'),
               const SizedBox(height: Gap.xs),
-              Text('Raise a dispute', style: LaMPType.head.copyWith(color: c.ink)),
+              Text('Report a problem', style: LaMPType.head.copyWith(color: c.ink)),
               const SizedBox(height: Gap.xs),
               Text(
-                'Before the 24-hour window closes',
-                style: LaMPType.caption.copyWith(color: c.inkFaint),
-              ),
-              const SizedBox(height: Gap.lg),
-              SizedBox(
-                width: double.infinity,
-                // Refused colour on the label and outline, never as a fill.
-                child: OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: c.dispute,
-                    side: BorderSide(color: c.dispute),
-                  ),
-                  onPressed: () async {
-                    final open = _open(state);
-                    if (open.isEmpty) return;
-                    await state.raiseDispute(
-                      open.first.tokenId,
-                      'Damaged seals reported by ${_pharmacy.name}',
-                    );
-                    if (!context.mounted) return;
-                    LumaHaptics.reject();
-                    LumaToast.show(
-                      context,
-                      'Dispute raised',
-                      icon: Icons.flag_outlined,
-                      tone: LumaToastTone.dispute,
-                    );
-                  },
-                  icon: const Icon(Icons.report_problem_outlined, size: IconSize.sm),
-                  label: const Text('Report a problem'),
-                ),
+                'You have 24 hours after a delivery is confirmed to report '
+                'damaged, missing or wrong cartons.',
+                style: LaMPType.caption.copyWith(color: c.inkMuted),
               ),
             ],
           ),
         ),
+        const SizedBox(height: Gap.xl),
+        LampEyebrow(
+          'Can be reported',
+          trailing: open.isEmpty ? null : '${open.length}',
+        ),
+        const SizedBox(height: Gap.md),
+        if (open.isEmpty)
+          Text(
+            'Nothing to report. Deliveries appear here for 24 hours after '
+            'they are confirmed.',
+            style: LaMPType.caption.copyWith(color: c.inkFaint),
+          )
+        else
+          for (final v in open) ...[
+            _disputeCard(context, state, v),
+            const SizedBox(height: Gap.md),
+          ],
+        if (underReview.isNotEmpty) ...[
+          const SizedBox(height: Gap.xl),
+          const LampEyebrow('Under review'),
+          const SizedBox(height: Gap.md),
+          LampCard(
+            padding: EdgeInsets.zero,
+            child: Column(
+              children: [
+                for (int i = 0; i < underReview.length; i++) ...[
+                  if (i > 0) Divider(height: 1, thickness: 1, color: c.line),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: Gap.lg,
+                      vertical: Gap.md,
+                    ),
+                    child: Row(
+                      children: [
+                        const LampStateDot(LampState.refused),
+                        const SizedBox(width: Gap.md),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                underReview[i].token.invoiceId,
+                                style: LaMPType.monoCaption.copyWith(
+                                  color: c.ink,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              Text(
+                                underReview[i].token.disputeReason ?? 'Reported',
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: LaMPType.caption.copyWith(color: c.inkFaint),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
       ],
     );
   }
+
+  Widget _disputeCard(BuildContext context, LaMPState state, TokenView v) {
+    final c = context.lamp;
+    final token = v.token;
+    final now = state.now;
+    final left = token.state == TokenState.delivered
+        ? 'Closes in ${LaMPFormatters.formatDuration(token.millisUntilWindowCloses(now))}'
+        : '${token.scanned} of ${token.declaredCartons} cartons arrived';
+
+    return LampCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  token.invoiceId,
+                  style: LaMPType.monoBody.copyWith(
+                    color: c.ink,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              Text(
+                LaMPFormatters.formatBDT(token.declaredValue),
+                style: LaMPType.monoCaption.copyWith(color: c.ink),
+              ),
+            ],
+          ),
+          const SizedBox(height: Gap.xs),
+          Text(left, style: LaMPType.caption.copyWith(color: c.pending)),
+          const SizedBox(height: Gap.md),
+          OutlinedButton.icon(
+            key: ValueKey('dispute-${token.tokenId}'),
+            // Refused colour on the label and outline, never as a fill.
+            style: OutlinedButton.styleFrom(
+              foregroundColor: c.dispute,
+              side: BorderSide(color: c.dispute),
+            ),
+            onPressed: () => _reportProblem(context, state, token),
+            icon: const Icon(Icons.report_problem_outlined, size: IconSize.sm),
+            label: const Text('Report a problem'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static const _disputeReasons = [
+    'Cartons damaged',
+    'Cartons missing',
+    'Wrong medicine delivered',
+    'Something else',
+  ];
+
+  Future<void> _reportProblem(
+    BuildContext context,
+    LaMPState state,
+    ReceivableToken token,
+  ) async {
+    final reason = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: context.lamp.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(LaMPRadius.surface)),
+      ),
+      builder: (_) => _DisputeReasonSheet(invoiceId: token.invoiceId),
+    );
+    if (reason == null || !context.mounted) return;
+
+    final res = await state.raiseDispute(
+      token.tokenId,
+      '$reason — reported by ${_pharmacy.name}',
+    );
+    if (!context.mounted) return;
+    if (res.ok) {
+      LumaHaptics.reject();
+      LumaToast.show(
+        context,
+        'Problem reported for ${token.invoiceId}',
+        icon: Icons.flag_outlined,
+        tone: LumaToastTone.dispute,
+      );
+    } else {
+      LumaToast.show(
+        context,
+        LedgerLabels.reason(res.error),
+        icon: Icons.error_outline,
+        tone: LumaToastTone.dispute,
+      );
+    }
+  }
+}
+
+/// Asks what went wrong. Returns the reason, or null if dismissed.
+class _DisputeReasonSheet extends StatefulWidget {
+  final String invoiceId;
+
+  const _DisputeReasonSheet({required this.invoiceId});
+
+  @override
+  State<_DisputeReasonSheet> createState() => _DisputeReasonSheetState();
+}
+
+class _DisputeReasonSheetState extends State<_DisputeReasonSheet> {
+  String? _picked;
+  final _details = TextEditingController();
+
+  @override
+  void dispose() {
+    _details.dispose();
+    super.dispose();
+  }
+
+  String? get _reason {
+    final picked = _picked;
+    if (picked == null) return null;
+    final details = _details.text.trim();
+    if (picked == 'Something else') return details.isEmpty ? null : details;
+    return details.isEmpty ? picked : '$picked: $details';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.lamp;
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(Gap.xl, Gap.xl, Gap.xl, Gap.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('What went wrong?', style: LaMPType.head.copyWith(color: c.ink)),
+              const SizedBox(height: Gap.xs),
+              Text(
+                widget.invoiceId,
+                style: LaMPType.monoCaption.copyWith(color: c.inkFaint),
+              ),
+              const SizedBox(height: Gap.md),
+              RadioGroup<String>(
+                groupValue: _picked,
+                onChanged: (v) => setState(() => _picked = v),
+                child: Column(
+                  children: [
+                    for (final r in _PharmacyScreenState._disputeReasons)
+                      RadioListTile<String>(
+                        value: r,
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(r, style: LaMPType.body.copyWith(color: c.ink)),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: Gap.sm),
+              TextField(
+                controller: _details,
+                onChanged: (_) => setState(() {}),
+                maxLines: 2,
+                decoration: InputDecoration(
+                  hintText: _picked == 'Something else'
+                      ? 'Tell us what happened'
+                      : 'Details (optional)',
+                ),
+              ),
+              const SizedBox(height: Gap.lg),
+              ElevatedButton(
+                onPressed: _reason == null
+                    ? null
+                    : () => Navigator.of(context).pop(_reason),
+                style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                child: const Text('Report problem'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
 }

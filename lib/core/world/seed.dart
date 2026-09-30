@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import '../invoice/invoice_artifacts.dart';
 import '../chain/crypto.dart';
 import '../chain/ledger.dart';
 import '../models/domain_models.dart';
@@ -643,6 +644,7 @@ class SeedData {
           'dueDate': built.invoice.dueDate,
           'cartonHashes': built.cartons.map((c) => c.hash).toList(),
           'lineItems': built.invoice.lineItems.map((l) => l.toJson()).toList(),
+          'documentSha256': await InvoiceArtifacts.issuedHash(built.invoice),
         },
         asMsp: Msp.manufacturerMSP,
         nowTimestamp: issuedAt,
@@ -769,6 +771,19 @@ class SeedData {
       ));
     }
 
+    final demoInvoice = Invoice(
+      invoiceId: demoInvoiceId,
+      tokenId: demoTokenId,
+      manufacturerId: manufacturer.id,
+      pharmacyDid: rahmanDid,
+      lineItems: demoLineItems,
+      value: demoDeclaredValue,
+      termsDays: 45,
+      issuedAt: now,
+      dueDate: now + 45 * day,
+      cartonCount: demoCartonCount,
+    );
+
     // Now mint the demo invoice on chain
     await ledger.submit(
       fn: 'mintReceivable',
@@ -783,6 +798,7 @@ class SeedData {
         'dueDate': now + 45 * day,
         'cartonHashes': demoCartonHashes,
         'lineItems': demoLineItems.map((l) => l.toJson()).toList(),
+        'documentSha256': await InvoiceArtifacts.issuedHash(demoInvoice),
       },
       asMsp: Msp.manufacturerMSP,
       nowTimestamp: now,
@@ -798,19 +814,6 @@ class SeedData {
       sequence: 1,
       cartons: demoCartons,
       startedAt: now,
-    );
-
-    final demoInvoice = Invoice(
-      invoiceId: demoInvoiceId,
-      tokenId: demoTokenId,
-      manufacturerId: manufacturer.id,
-      pharmacyDid: rahmanDid,
-      lineItems: demoLineItems,
-      value: demoDeclaredValue,
-      termsDays: 45,
-      issuedAt: now,
-      dueDate: now + 45 * day,
-      cartonCount: demoCartonCount,
     );
 
     seededInvoices.add(demoInvoice);
