@@ -99,8 +99,9 @@ class _VerifyAndAnchorSheetState extends State<VerifyAndAnchorSheet> {
         _pickedName = picked.name;
         if (issued == null) {
           _phase = _Phase.idle;
-          _problem = 'No invoice PDF was issued with this invoice, so there '
-              'is nothing to check it against.';
+          _problem = "The manufacturer hasn't issued this invoice's PDF yet, "
+              'so there is nothing to check it against. Ask them to send it '
+              'from the app.';
         } else if (issued.toLowerCase() == sha.toLowerCase()) {
           _phase = _token?.documentHash != null ? _Phase.recorded : _Phase.matched;
         } else {

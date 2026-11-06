@@ -18,12 +18,21 @@ import '../../widgets/ui/lamp_ledger_ui.dart';
 
 /// Sign in or register.
 ///
-/// Two ways in, Google or a mobile number and a code, and both lead to the
-/// same place: a person who already has a seat goes straight to it, and a
+/// Google sign-in (and a mobile number and code, when [offerPhoneSignIn] is
+/// on) both lead to the same place: a person who already has a seat goes straight to it, and a
 /// person who does not chooses one. The session is kept, so this is seen once,
 /// not every launch.
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
+
+  /// Whether the welcome screen offers "Use my phone number".
+  ///
+  /// Off: Firebase sends sign-in texts to real numbers only on the paid Blaze
+  /// plan, and without it every attempt ended in "Something went wrong". The
+  /// flow is kept, not deleted, so turning this on is all it takes once the
+  /// project can send texts. Tests turn it on to exercise the flow against
+  /// the local stand-in.
+  static bool offerPhoneSignIn = false;
 
   @override
   State<SignInScreen> createState() => _SignInScreenState();
@@ -235,14 +244,16 @@ class _SignInScreenState extends State<SignInScreen> {
           label: const Text('Continue with Google'),
           style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
         ),
-        const SizedBox(height: Gap.md),
-        OutlinedButton.icon(
-          key: const ValueKey('use-phone'),
-          onPressed: _busy ? null : () => _go(_Step.phone),
-          icon: const Icon(Icons.smartphone_outlined, size: IconSize.md),
-          label: const Text('Use my phone number'),
-          style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
-        ),
+        if (SignInScreen.offerPhoneSignIn) ...[
+          const SizedBox(height: Gap.md),
+          OutlinedButton.icon(
+            key: const ValueKey('use-phone'),
+            onPressed: _busy ? null : () => _go(_Step.phone),
+            icon: const Icon(Icons.smartphone_outlined, size: IconSize.md),
+            label: const Text('Use my phone number'),
+            style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+          ),
+        ],
         _errorText(context),
       ],
     );

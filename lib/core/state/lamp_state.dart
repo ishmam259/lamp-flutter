@@ -691,6 +691,15 @@ class LaMPState extends ChangeNotifier {
     required int byteLength,
     required String filename,
   }) async {
+    if (isRemote) {
+      return _remote('anchorInvoiceDocument', 'anchor', {
+        'tokenId': tokenId,
+        'bank': asMsp.id,
+        'sha256': sha256,
+        'byteLength': byteLength,
+        'filename': filename,
+      });
+    }
     final res = await ledger.submit(
       fn: 'anchorInvoiceDocument',
       args: {
@@ -729,6 +738,21 @@ class LaMPState extends ChangeNotifier {
       invoice: invoice,
       cartons: delivery.cartons,
     );
+  }
+
+  /// Record the issued PDF's hash on the shared ledger, if it isn't yet.
+  ///
+  /// On the phone's own ledger the hash is recorded at mint. The server mints
+  /// invoices itself (it numbers them and makes the cartons), so it cannot
+  /// know the PDF's hash; the manufacturer records it the first time it
+  /// produces the PDF. The PDF is reproducible, so later downloads match.
+  Future<SubmitResult?> issueInvoicePdf(String tokenId, String sha256) async {
+    if (!isRemote) return null;
+    if (viewFor(tokenId)?.token.issuedDocumentHash != null) return null;
+    return _remote('issueInvoiceDocument', 'issueDocument', {
+      'tokenId': tokenId,
+      'sha256': sha256,
+    });
   }
 
   /// The invoice PDF for [tokenId]: the same bytes the ledger's

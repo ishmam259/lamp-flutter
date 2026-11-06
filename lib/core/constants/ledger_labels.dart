@@ -20,6 +20,7 @@ class LedgerLabels {
         'resolveDispute' => 'Dispute resolved',
         'registerRateCurve' => 'Rate card published',
         'anchorInvoiceDocument' => 'Invoice PDF checked',
+        'issueInvoiceDocument' => 'Invoice PDF issued',
         _ => 'Ledger update',
       };
 
@@ -79,7 +80,10 @@ class LedgerLabels {
       return "This PDF isn't the invoice issued for $ofInvoice.";
     }
     if (has('no invoice document was issued')) {
-      return 'No invoice PDF was issued with this invoice.';
+      return "The manufacturer hasn't issued this invoice's PDF yet.";
+    }
+    if (has('different document was already issued')) {
+      return 'A different PDF was already issued for this invoice.';
     }
     if (has('already anchored')) {
       return 'A different PDF is already recorded for this invoice.';

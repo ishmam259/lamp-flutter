@@ -494,6 +494,15 @@ class _ManufacturerScreenState extends State<ManufacturerScreen> {
       // The same bytes on every render: the ledger holds this PDF's hash from
       // mint, and the bank's check compares against it.
       final pdf = await state.generateInvoicePdf(tokenId);
+      // On the shared ledger, issuing is the manufacturer's step: without it
+      // no bank can check the PDF.
+      final issued = await state.issueInvoicePdf(tokenId, pdf.sha256);
+      if (issued != null && !issued.ok) {
+        messenger.showSnackBar(
+          SnackBar(content: Text(LedgerLabels.reason(issued.error))),
+        );
+        return;
+      }
       await _saveThenOfferShare(
         messenger,
         bytes: pdf.bytes,

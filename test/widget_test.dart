@@ -11,6 +11,7 @@ import 'package:lamp_flutter/core/auth/user_profile.dart';
 import 'package:lamp_flutter/core/state/lamp_state.dart';
 import 'package:lamp_flutter/core/state/theme_controller.dart';
 import 'package:lamp_flutter/core/world/seed.dart';
+import 'package:lamp_flutter/features/sign_in/sign_in_screen.dart';
 import 'package:lamp_flutter/features/splash/splash_screen.dart';
 
 Widget _app(LocalAuthService service) => MultiProvider(
@@ -81,6 +82,9 @@ Future<void> _register(WidgetTester tester) async {
 }
 
 void main() {
+  // The phone flow is off in the app until Firebase can send texts; these
+  // tests still exercise it against the local stand-in.
+  setUpAll(() => SignInScreen.offerPhoneSignIn = true);
   setUp(() {
     // There are no platform channels under the test binding. Without this the
     // store throws MissingPluginException and every launch silently reseeds.
@@ -283,6 +287,17 @@ void main() {
       find.textContaining('Someone else has already registered'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('the app offers Google only while phone sign-in is off',
+      (tester) async {
+    SignInScreen.offerPhoneSignIn = false;
+    addTearDown(() => SignInScreen.offerPhoneSignIn = true);
+    await tester.pumpWidget(_app(LocalAuthService()));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('google')), findsOneWidget);
+    expect(find.byKey(const ValueKey('use-phone')), findsNothing);
   });
 
   testWidgets('a fast load never flashes the splash', (tester) async {
