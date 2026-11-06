@@ -24,7 +24,11 @@ Rules: `docs/DESIGN_SYSTEM.md`. Enforced by `test/design_lint_test.dart`.
 
 ## Sign-in and registration
 
-People sign in with **Google** or a **phone number + 6-digit code**, then, if new, register.
+People sign in with **Google**, then, if new, register. **Phone sign-in is off**
+(`SignInScreen.offerPhoneSignIn = false`): Firebase sends texts to real numbers only on the paid
+Blaze plan, and without it every attempt failed with "Something went wrong" (the log says
+`BILLING_NOT_ENABLED`; before that, the Bangladesh SMS region was blocked too). The flow is kept;
+flip the switch once the project can send texts. `test/widget_test.dart` turns it on.
 Only a **pharmacy owner** or a **delivery officer** registers themselves (choosing their
 pharmacy or round). **Manufacturer, bank and regulator** profiles are written by an
 administrator in the Firebase console; the app shows them as "Set up by your administrator"
@@ -59,7 +63,7 @@ the project.
 | Tool        | Where                                                        |
 | ----------- | ------------------------------------------------------------ |
 | Flutter SDK | `C:\Users\16IRL8\flutter` (3.35.7 stable, Dart 3.9.2), on PATH |
-| JDK 21      | Android Studio's bundled JBR: `C:\Program Files\Android\Android Studio\jbr` |
+| JDK 17      | `C:\Users\16IRL8\.gradle\jdks\eclipse_adoptium-17-amd64-windows.2` (see below) |
 | Android SDK | `C:\Users\16IRL8\AppData\Local\Android\sdk` (platform 36.1, build-tools 36.1.0) |
 | adb         | `C:\Users\16IRL8\AppData\Local\Android\sdk\platform-tools\adb.exe` |
 
@@ -71,8 +75,20 @@ flutter.sdk=C:\Users\16IRL8\flutter
 sdk.dir=C:\Users\16IRL8\AppData\Local\Android\sdk
 ```
 
-`flutter doctor` finds the JDK through Android Studio, so no `JAVA_HOME` is
-needed.
+**Java (Nov 2026):** Android Studio's bundled JBR is no longer installed, and the
+only system JDK is `C:\Program Files\Java\jdk-25.0.3`. Gradle 8.14 cannot run on
+Java 25 and fails with nothing but the version number (`* What went wrong: 25.0.3`).
+IntelliJ's JBR (Java 21) has no `jlink`, which the Android build needs. Build with
+the Temurin 17 that Gradle downloaded, for the command only:
+
+```powershell
+$env:JAVA_HOME = "$env:USERPROFILE\.gradle\jdks\eclipse_adoptium-17-amd64-windows.2"
+$env:PATH = "$env:JAVA_HOME\bin;$env:PATH"
+```
+
+Or set it once with `flutter config --jdk-dir=<that path>`. Stop old Gradle daemons
+(`android\gradlew.bat -p android --stop`) after switching. CI pins Java 17 the same
+way (`actions/setup-java` in `.github/workflows/ci.yml`).
 
 **The other machine** (`D:\VSCODE\Blockchain Olympiad\lamp-flutter`, user
 `Lenovo`, Flutter 3.47) used to carry the SDKs inside the project as `.flutter/`,
@@ -97,7 +113,7 @@ screen, so real scanning is checked on the wireless phone.
 
 ```bash
 flutter analyze        # must be clean
-flutter test           # 211 tests: 210 pass, 1 skipped (the live-server test)
+flutter test           # 215 tests: 214 pass, 1 skipped (the live-server test)
 flutter run -d chrome  # quick smoke test in a browser
 ```
 
@@ -123,7 +139,12 @@ Screenshots from the phone: `adb exec-out screencap -p > shot.png`.
 ### Release APK (for sideloading)
 
 ```bash
-flutter build apk --release
+# Shared ledger: every phone talks to the live LaMP server. This is the one to hand out.
+flutter build apk --release --android-skip-build-dependency-validation \
+  --dart-define=LAMP_API_URL=https://lamp-opal-chi.vercel.app
+
+# Without LAMP_API_URL each phone runs its own ledger and sees only its own actions.
+flutter build apk --release --android-skip-build-dependency-validation
 ```
 
 Output: `build/app/outputs/flutter-apk/app-release.apk`. It is signed with the
@@ -193,6 +214,23 @@ around the older toolchain.
 Required for AGP 8.9.1 to read the project's `build.gradle.kts` files (which
 were authored against the older DSL). Don't remove without upgrading AGP first.
 
+## Shared ledger (2026-11-06)
+
+- **The server** is `ishmam259/LaMP` (cloned at `../LaMP`), deployed on Vercel at
+  `lamp-opal-chi.vercel.app`; **a push to its `main` deploys production.** It stores the ledger
+  in Postgres there; `.lamp-data/ledger.json` is only the local fallback store, so a local
+  `next start` writes to it — don't commit that file.
+- **Invoice PDF on the server.** The server mints invoices itself, so it cannot know the PDF's
+  hash. `issueInvoiceDocument` lets the manufacturer record it once (the app does this on the
+  first **Invoice PDF** download: `LaMPState.issueInvoicePdf`); `anchorInvoiceDocument` records
+  the bank's check, refused unless it matches. Mobile actions `issueDocument` and `anchor`.
+  Its `raiseDispute` enforces the 24-hour window like the phone's ledger.
+- **Not enforced at the server's `matchAndAdvance`:** the web bank portal has no PDF-check screen,
+  so requiring the anchor would lock web banks out. On phones the Finance button waits for it.
+- **The server's write endpoint is unauthenticated** and its demo controls (clock, reset) are
+  locked behind `LAMP_DEV_SECRET`. Its clock is its own demo clock, not the real date.
+- `test/remote_document_test.dart` covers the app sending those two actions in shared mode.
+
 ## Invoice PDF, disputes, clock (2026-09-30)
 
 - **The bank's PDF check passed any file.** It compared the picked PDF with the *anchor*, which
@@ -209,8 +247,7 @@ were authored against the older DSL). Don't remove without upgrading AGP first.
   `test/invoice_pdf_test.dart` holds a golden hash: if it fails after an upgrade, don't update
   the hash — every minted invoice would stop passing.
 - **Disputes.** `raiseDispute` refuses a DELIVERED token once `disputeWindowClosesAt` has
-  passed, and an empty reason (the TS at `../LaMP/lib/chain/contract.ts` has neither check
-  yet; the server needs the same change). `TokenQueries.isDisputable(now)` is the same rule for
+  passed, and an empty reason (the server has the same check since 2026-11-06). `TokenQueries.isDisputable(now)` is the same rule for
   screens. The pharmacy's Disputes tab lists only reportable deliveries, asks what went wrong,
   and reports what the ledger did; it used to dispute the first open invoice as "Damaged
   seals" and always say "Dispute raised".
@@ -457,7 +494,7 @@ refused after the window and without a reason. `flows_test.dart` also covers the
 "To pay"/Recent, credit caption and Disputes tab. The counts above predate these and the auth
 tests; `flutter test` is the source of truth.
 
-Total: 211 (210 pass, 1 skipped).
+Total: 215 (214 pass, 1 skipped).
 
 ## If you break something
 
